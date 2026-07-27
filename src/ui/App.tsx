@@ -26,7 +26,7 @@ function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean;
 function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
   return <section className="page town-page">
     <div className="town-map">
-      <img src="/assets/world/town-hub-v1.png" alt="夕阳下的冒险者城镇，包含酒馆、广场、宿舍和城门" />
+      <img src="/assets/world/town-hub-v2.png" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
       <div className="town-map-shade" />
       <button className="map-hotspot hotspot-tavern" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}><strong>旅途酒馆</strong><span>招募 · 任务 · 补给</span></button>
       <button className="map-hotspot hotspot-plaza" aria-label="中央广场，当前所在位置"><strong>中央广场</strong><span>城镇据点</span></button>
