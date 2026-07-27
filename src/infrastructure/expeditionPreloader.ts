@@ -1,9 +1,11 @@
 const EXPEDITION_ASSETS = [
   '/assets/world/ruins-road-battle-v1.png',
-  '/assets/actors-v2/lan-idle-v2.png',
+  '/assets/pixel/lan-vanguard-idle-v2.png',
   '/assets/actors-v2/wu-idle-v2.png',
   '/assets/actors-v2/xingluo-idle-v2.png',
   '/assets/actors-v2/scout-idle-v2.png',
+  '/assets/world/quarters-hall-v1.png',
+  '/assets/world/quarters-dorm-v1.png',
 ];
 
 interface NetworkInformation { saveData?: boolean; effectiveType?: string }

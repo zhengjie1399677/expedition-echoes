@@ -42,12 +42,18 @@ function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatc
 
 function Quarters({ state }: { state: GameState }) {
   const recruited = state.roster.filter((hero) => hero.recruited);
-  const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [line, setLine] = useState('今晚的宿舍很安静。'); const [loading, setLoading] = useState(false);
+  const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [roomHeroId, setRoomHeroId] = useState<string | null>(null); const [line, setLine] = useState('今晚的宿舍很安静。'); const [loading, setLoading] = useState(false);
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
   const talk = async () => { if (!hero) return; setLoading(true); setLine(await narrativeService.campLine(hero, state)); setLoading(false); };
+  const enterRoom = (id: string) => { setHeroId(id); setRoomHeroId(id); setLine('今晚的宿舍很安静。'); };
+  if (!roomHeroId) return <section className="page quarters-page quarters-hall">
+    <img className="quarters-background" src="/assets/world/quarters-hall-v1.png" alt="冒险者宿舍公共走廊" />
+    <div className="hall-heading"><p className="eyebrow">旅人宿舍 · 公共区域</p><strong>选择要拜访的房间</strong><span>每位队员拥有独立的生活空间。</span></div>
+    <div className="room-directory">{recruited.map((item, index) => <button className={`room-entry room-entry-${index}`} key={item.id} onClick={() => enterRoom(item.id)}><strong>{item.name}的房间</strong><span>{heroClassNames[item.heroClass]} · 敲门进入</span></button>)}</div>
+  </section>;
   return <section className="page quarters-page">
     <img className="quarters-background" src="/assets/world/quarters-dorm-v1.png" alt="暮色中的冒险者宿舍" />
-    <div className="quarters-topbar"><div><p className="eyebrow">宿舍 · 日常交谈</p><strong>远征后的安静时间</strong></div><label>交谈对象<select value={heroId} onChange={(event) => setHeroId(event.target.value)}>{recruited.map((item) => <option value={item.id} key={item.id}>{item.name} · {heroClassNames[item.heroClass]}</option>)}</select></label></div>
+    <div className="quarters-topbar"><div><p className="eyebrow">{hero?.name}的房间 · 日常交谈</p><strong>远征后的安静时间</strong></div><button className="leave-room" onClick={() => setRoomHeroId(null)}>返回公共区域</button></div>
     <div className="quarters-chat" aria-label="宿舍聊天窗口">
       <header><div><strong>{hero?.name ?? '无人'}</strong><span>{hero ? heroClassNames[hero.heroClass] : '未选择队员'}</span></div><small>{narrativeService.available && state.settings.llmEnabled ? 'LLM 交谈已连接' : '离线对白'}</small></header>
       <div className="chat-thread"><div className="chat-message companion">“{line}”</div></div>
