@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { attackDamage, canAttack, createInitialGame, gameReducer } from './gameEngine';
+import { attackDamage, canAttack, createInitialGame, enemyCanAttack, gameReducer } from './gameEngine';
+import type { Enemy } from './model';
 
-describe('职业攻击距离', () => {
+const target = (distance: number): Enemy => ({ id: 'a', name: '目标', hp: 1, maxHp: 1, distance, attackMinRange: 1, attackMaxRange: 3, damage: 1 });
+
+describe('双方攻击距离', () => {
   const state = createInitialGame();
   const vanguard = state.roster.find((hero) => hero.id === 'lan')!;
   const mage = state.roster.find((hero) => hero.id === 'xingluo')!;
-  it('先锋只能攻击距离 1', () => { expect(canAttack(vanguard, { id: 'a', name: '目标', hp: 1, maxHp: 1, range: 1, damage: 1 })).toBe(true); expect(canAttack(vanguard, { id: 'a', name: '目标', hp: 1, maxHp: 1, range: 2, damage: 1 })).toBe(false); });
-  it('术士无法攻击贴身目标', () => { expect(canAttack(mage, { id: 'a', name: '目标', hp: 1, maxHp: 1, range: 1, damage: 1 })).toBe(false); expect(canAttack(mage, { id: 'a', name: '目标', hp: 1, maxHp: 1, range: 3, damage: 1 })).toBe(true); });
+  it('先锋只能攻击距离 1', () => { expect(canAttack(vanguard, target(1))).toBe(true); expect(canAttack(vanguard, target(2))).toBe(false); });
+  it('队员站位会增加实际攻击距离', () => { expect(canAttack(vanguard, target(1), 0)).toBe(true); expect(canAttack(vanguard, target(1), 1)).toBe(false); expect(canAttack(mage, target(1), 1)).toBe(true); });
+  it('术士无法攻击贴身目标', () => { expect(canAttack(mage, target(1))).toBe(false); expect(canAttack(mage, target(3))).toBe(true); });
+  it('近战怪物只能攻击前排', () => { const enemy = { ...target(1), attackMinRange: 1, attackMaxRange: 1 }; expect(enemyCanAttack(enemy, 0)).toBe(true); expect(enemyCanAttack(enemy, 1)).toBe(false); });
+  it('远程怪物只攻击覆盖范围内的站位', () => { const enemy = { ...target(2), attackMinRange: 2, attackMaxRange: 3 }; expect(enemyCanAttack(enemy, 0)).toBe(true); expect(enemyCanAttack(enemy, 1)).toBe(true); expect(enemyCanAttack(enemy, 2)).toBe(false); });
 });
 
 describe('士气与装备', () => {

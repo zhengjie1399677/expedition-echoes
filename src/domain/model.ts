@@ -5,12 +5,15 @@ export interface Hero {
   id: string; name: string; heroClass: HeroClass; maxHp: number; hp: number;
   morale: number; gearLevel: number; recruited: boolean; personality: string;
 }
-export interface Enemy { id: string; name: string; maxHp: number; hp: number; range: number; damage: number }
+export interface Enemy {
+  id: string; name: string; maxHp: number; hp: number; distance: number;
+  attackMinRange: number; attackMaxRange: number; damage: number;
+}
 export interface Supplies { bandage: number; sedative: number }
 export interface Expedition { nodeIndex: number; formation: string[]; enemy: Enemy | null; supplies: Supplies }
 export interface GameSettings { moraleEnabled: boolean; llmEnabled: boolean }
 export interface GameState {
-  version: 1; page: Page; gold: number; roster: Hero[]; selectedHeroIds: string[];
+  version: 2; page: Page; gold: number; roster: Hero[]; selectedHeroIds: string[];
   expedition: Expedition | null; settings: GameSettings; log: string[];
 }
 export type GameAction =

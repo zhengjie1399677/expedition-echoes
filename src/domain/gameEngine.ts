@@ -6,18 +6,24 @@ const addLog = (state: GameState, message: string): GameState => ({ ...state, lo
 const editHero = (state: GameState, id: string, edit: (hero: Hero) => Hero): GameState => ({ ...state, roster: state.roster.map((hero) => hero.id === id ? edit(hero) : hero) });
 
 export function createInitialGame(): GameState {
-  return { version: 1, page: 'tavern', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
+  return { version: 2, page: 'tavern', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
 }
 
-export function canAttack(hero: Hero, enemy: Enemy): boolean {
+export function canAttack(hero: Hero, enemy: Enemy, formationIndex = 0): boolean {
   if (hero.hp <= 0 || enemy.hp <= 0) return false;
-  if (hero.heroClass === 'vanguard') return enemy.range === 1;
-  if (hero.heroClass === 'mage') return enemy.range >= 2 && enemy.range <= 3;
-  return enemy.range >= 1 && enemy.range <= 2;
+  const targetDistance = enemy.distance + formationIndex;
+  if (hero.heroClass === 'vanguard') return targetDistance === 1;
+  if (hero.heroClass === 'mage') return targetDistance >= 2 && targetDistance <= 3;
+  return targetDistance >= 1 && targetDistance <= 2;
 }
 
 export function attackDamage(hero: Hero, moraleEnabled: boolean): number {
   return Math.max(1, baseAttack[hero.heroClass] + hero.gearLevel - (moraleEnabled && hero.morale >= 50 ? 2 : 0));
+}
+
+export function enemyCanAttack(enemy: Enemy, formationIndex: number): boolean {
+  const targetDistance = enemy.distance + formationIndex;
+  return targetDistance >= enemy.attackMinRange && targetDistance <= enemy.attackMaxRange;
 }
 
 function enterNode(state: GameState, nodeIndex: number): GameState {
@@ -61,14 +67,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!state.expedition?.enemy) return state;
       const hero = state.roster.find((item) => item.id === action.heroId);
       const enemy = state.expedition.enemy;
-      if (!hero || !canAttack(hero, enemy)) return addLog(state, `${hero?.name ?? '队员'}无法攻击距离 ${enemy.range} 的目标。`);
+      const heroIndex = state.expedition.formation.indexOf(action.heroId);
+      const targetDistance = enemy.distance + Math.max(0, heroIndex);
+      if (!hero || heroIndex < 0 || !canAttack(hero, enemy, heroIndex)) return addLog(state, `${hero?.name ?? '队员'}无法攻击距离 ${targetDistance} 的目标。`);
       const damage = attackDamage(hero, state.settings.moraleEnabled);
       const nextEnemy = { ...enemy, hp: Math.max(0, enemy.hp - damage) };
       let next: GameState = { ...state, expedition: { ...state.expedition, enemy: nextEnemy } };
       if (nextEnemy.hp === 0) return addLog({ ...next, gold: next.gold + 12 }, `${hero.name}击败了${enemy.name}，获得 12 金币。`);
-      const targetId = state.expedition.formation.find((id) => next.roster.find((item) => item.id === id)!.hp > 0);
-      if (targetId) next = editHero(next, targetId, (target) => ({ ...target, hp: Math.max(0, target.hp - enemy.damage), morale: state.settings.moraleEnabled ? Math.min(100, target.morale + 11) : target.morale }));
-      return addLog(next, `${hero.name}造成 ${damage} 点伤害，${enemy.name}随即反击。`);
+      const targetIndex = state.expedition.formation.findIndex((id, index) => {
+        const target = next.roster.find((item) => item.id === id)!;
+        return target.hp > 0 && enemyCanAttack(enemy, index);
+      });
+      if (targetIndex < 0) return addLog(next, `${hero.name}造成 ${damage} 点伤害，${enemy.name}的攻击范围内没有目标。`);
+      const targetId = state.expedition.formation[targetIndex];
+      const targetName = next.roster.find((item) => item.id === targetId)?.name;
+      next = editHero(next, targetId, (target) => ({ ...target, hp: Math.max(0, target.hp - enemy.damage), morale: state.settings.moraleEnabled ? Math.min(100, target.morale + 11) : target.morale }));
+      return addLog(next, `${hero.name}造成 ${damage} 点伤害，${enemy.name}反击了范围内的${targetName}。`);
     }
     case 'SWAP': {
       if (!state.expedition || action.index < 0 || action.index >= state.expedition.formation.length - 1) return state;
