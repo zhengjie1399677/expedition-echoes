@@ -13,7 +13,7 @@ interface BattleCanvasProps {
 }
 
 const ACTORS: Record<string, string> = {
-  lan: '/assets/pixel/lan-vanguard-idle-v1.png',
+  lan: '/assets/pixel/lan-vanguard-idle-v2.png',
   wu: '/assets/actors-v2/wu-idle-v2.png',
   xingluo: '/assets/actors-v2/xingluo-idle-v2.png',
   scout: '/assets/actors-v2/scout-idle-v2.png',
