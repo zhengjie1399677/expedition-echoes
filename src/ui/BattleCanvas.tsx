@@ -66,7 +66,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('battle-bg', '/assets/world/ruins-road-battle-v1.png');
+    this.load.image('battle-bg', '/assets/world/ruins-road-battle-v2.png');
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
   }
 
