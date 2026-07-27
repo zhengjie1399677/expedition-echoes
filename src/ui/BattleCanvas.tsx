@@ -9,6 +9,7 @@ interface BattleCanvasProps {
   counterTargetId?: string;
   canHeroAttack: (hero: Hero, index: number) => boolean;
   onAttack: (heroId: string) => void;
+  attackRequest?: { heroId: string; nonce: number };
 }
 
 const ACTORS: Record<string, string> = {
@@ -42,7 +43,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   preload() {
     this.load.image('battle-bg', '/assets/ruins-battle-v1.png');
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
-    this.load.image('lan-action-strip', '/assets/animations/lan-attack-v1.png');
+    this.load.image('lan-action-strip', '/assets/animations/lan-attack-v2.png');
     this.load.image('scout-reaction-strip', '/assets/animations/scout-defeat-v1.png');
   }
 
@@ -86,6 +87,13 @@ class ExpeditionBattleScene extends Phaser.Scene {
     }
   }
 
+  requestAttack(heroId: string) {
+    const index = this.party.findIndex((hero) => hero.id === heroId);
+    const hero = this.party[index];
+    const sprite = this.heroSprites.get(heroId);
+    if (hero && sprite) this.performAttack(hero, index, sprite, sprite.x);
+  }
+
   private registerAnimationStrips() {
     const registerFrames = (textureKey: string) => {
       const texture = this.textures.get(textureKey);
@@ -105,9 +113,9 @@ class ExpeditionBattleScene extends Phaser.Scene {
 
   private createParty(width: number, height: number) {
     const positions = [
-      { x: width * 0.43, y: height * 0.9, h: height * 0.76 },
-      { x: width * 0.27, y: height * 0.88, h: height * 0.68 },
-      { x: width * 0.13, y: height * 0.86, h: height * 0.61 },
+      { x: width * 0.4, y: height * 0.9, h: height * 0.48 },
+      { x: width * 0.27, y: height * 0.88, h: height * 0.43 },
+      { x: width * 0.16, y: height * 0.86, h: height * 0.39 },
     ];
     this.party.forEach((hero, index) => {
       const position = positions[index];
@@ -147,13 +155,13 @@ class ExpeditionBattleScene extends Phaser.Scene {
     }
     const key = this.textures.exists(`actor-${this.enemy.id}`) ? `actor-${this.enemy.id}` : 'actor-scout';
     const sprite = this.enemy.id === 'scout'
-      ? this.add.sprite(width * 0.78, height * 0.89, 'scout-reaction-strip', '0').setOrigin(0.5, 1).setDepth(4)
-      : this.add.image(width * 0.78, height * 0.89, key).setOrigin(0.5, 1).setDepth(4);
-    sprite.setScale((height * 0.78) / sprite.height).setAlpha(this.enemy.hp <= 0 ? 0.25 : 1);
+      ? this.add.sprite(width * 0.75, height * 0.89, 'scout-reaction-strip', '0').setOrigin(0.5, 1).setDepth(4)
+      : this.add.image(width * 0.75, height * 0.89, key).setOrigin(0.5, 1).setDepth(4);
+    sprite.setScale((height * 0.5) / sprite.height).setAlpha(this.enemy.hp <= 0 ? 0.25 : 1);
     this.enemySprite = sprite;
-    this.add.ellipse(width * 0.78, height * 0.89, sprite.displayWidth * 0.58, 27, 0x020706, 0.7).setDepth(1);
+    this.add.ellipse(width * 0.75, height * 0.89, sprite.displayWidth * 0.58, 20, 0x020706, 0.7).setDepth(1);
     this.tweens.add({ targets: sprite, y: sprite.y - 5, angle: 0.35, duration: 1850, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    this.add.text(width * 0.78, height * 0.87, this.enemy.name, {
+    this.add.text(width * 0.75, height * 0.87, this.enemy.name, {
       fontFamily: '"Noto Serif SC", serif', fontSize: '15px', color: '#f2b49f',
       backgroundColor: '#321e20df', padding: { x: 9, y: 5 },
     }).setOrigin(0.5, 1).setDepth(10);
@@ -164,6 +172,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     if (!this.canHeroAttack(hero, index)) {
       this.showFloatingText(sprite.x, sprite.y - sprite.displayHeight * 0.65, '超出攻击范围', '#b9c2bd');
       this.cameras.main.shake(90, 0.0015);
+      this.onAttack(hero.id);
       return;
     }
     this.busy = true;
@@ -270,6 +279,10 @@ export function BattleCanvas(props: BattleCanvasProps) {
   useEffect(() => {
     sceneRef.current?.updateState(props);
   }, [props]);
+
+  useEffect(() => {
+    if (props.attackRequest) sceneRef.current?.requestAttack(props.attackRequest.heroId);
+  }, [props.attackRequest]);
 
   return <div className="phaser-battle-shell" ref={hostRef} aria-label="远征战斗场景" />;
 }
