@@ -1,4 +1,4 @@
-export type Page = 'tavern' | 'quarters' | 'expedition' | 'settings';
+export type Page = 'town' | 'tavern' | 'quarters' | 'expedition' | 'settings';
 export type HeroClass = 'vanguard' | 'ranger' | 'mage' | 'medic';
 
 export interface Hero {

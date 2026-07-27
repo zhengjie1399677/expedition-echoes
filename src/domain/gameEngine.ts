@@ -6,7 +6,7 @@ const addLog = (state: GameState, message: string): GameState => ({ ...state, lo
 const editHero = (state: GameState, id: string, edit: (hero: Hero) => Hero): GameState => ({ ...state, roster: state.roster.map((hero) => hero.id === id ? edit(hero) : hero) });
 
 export function createInitialGame(): GameState {
-  return { version: 3, page: 'tavern', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
+  return { version: 3, page: 'town', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
 }
 
 export function canAttack(hero: Hero, enemy: Enemy, formationIndex = 0): boolean {
@@ -106,10 +106,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ADVANCE': {
       if (!state.expedition || state.expedition.enemy?.hp) return addLog(state, '需要先解决当前遭遇。');
       const nextIndex = state.expedition.nodeIndex + 1;
-      if (nextIndex >= expeditionNodes.length) return addLog({ ...state, page: 'tavern', gold: state.gold + 45, expedition: null }, '远征完成，全队带回 45 金币。');
+      if (nextIndex >= expeditionNodes.length) return addLog({ ...state, page: 'town', gold: state.gold + 45, expedition: null }, '远征完成，全队带回 45 金币。');
       return enterNode(state, nextIndex);
     }
-    case 'RETREAT': return addLog({ ...state, page: 'tavern', expedition: null }, '队伍提前撤回酒馆。');
+    case 'RETREAT': return addLog({ ...state, page: 'town', expedition: null }, '队伍提前撤回城镇。');
     case 'TOGGLE_MORALE': return { ...state, settings: { ...state.settings, moraleEnabled: !state.settings.moraleEnabled } };
     case 'TOGGLE_LLM': return { ...state, settings: { ...state.settings, llmEnabled: !state.settings.llmEnabled } };
     case 'RESET': return createInitialGame();

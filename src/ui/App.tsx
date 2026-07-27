@@ -1,17 +1,13 @@
-import { lazy, Suspense, useEffect, useMemo, useReducer, useState } from 'react';
+import { lazy, Suspense, useEffect, useReducer, useState } from 'react';
 import { expeditionNodes, heroClassDescriptions, heroClassNames } from '../content/gameContent';
 import { canAttack, createInitialGame, enemyCanAttack, gameReducer } from '../domain/gameEngine';
-import type { GameAction, GameState, Hero, Page } from '../domain/model';
+import type { GameAction, GameState, Hero } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
 import { clearGame, loadGame, saveGame } from '../infrastructure/storage';
 
 const BattleCanvas = lazy(() => import('./BattleCanvas').then((module) => ({ default: module.BattleCanvas })));
 
-const pages: Array<{ id: Page; label: string }> = [
-  { id: 'tavern', label: '酒馆' }, { id: 'quarters', label: '宿舍' },
-  { id: 'expedition', label: '远征' }, { id: 'settings', label: '设置' },
-];
 function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean; dispatch: React.Dispatch<GameAction> }) {
   const upgradeCost = 30 + hero.gearLevel * 20;
   return <article className={`hero-card ${selected ? 'is-selected' : ''}`}>
@@ -27,19 +23,21 @@ function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean;
   </article>;
 }
 
-function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
-  const [location, setLocation] = useState<'plaza' | 'tavern'>('plaza');
+function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
   return <section className="page town-page">
     <div className="town-map">
       <img src="/assets/world/town-hub-v1.png" alt="夕阳下的冒险者城镇，包含酒馆、广场、宿舍和城门" />
       <div className="town-map-shade" />
-      <button className="map-hotspot hotspot-tavern" onClick={() => setLocation('tavern')}><strong>旅途酒馆</strong><span>招募 · 任务 · 补给</span></button>
-      <button className="map-hotspot hotspot-plaza" onClick={() => setLocation('plaza')}><strong>中央广场</strong><span>城镇据点</span></button>
+      <button className="map-hotspot hotspot-tavern" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}><strong>旅途酒馆</strong><span>招募 · 任务 · 补给</span></button>
+      <button className="map-hotspot hotspot-plaza" aria-label="中央广场，当前所在位置"><strong>中央广场</strong><span>城镇据点</span></button>
       <button className="map-hotspot hotspot-quarters" onClick={() => dispatch({ type: 'NAVIGATE', page: 'quarters' })}><strong>旅人宿舍</strong><span>休息 · 交谈</span></button>
       <button className="map-hotspot hotspot-gate" onClick={() => dispatch({ type: 'START_EXPEDITION' })}><strong>东侧城门</strong><span>开始远征</span></button>
     </div>
-    {location === 'tavern' && <div className="town-management"><div className="management-heading"><div><p className="eyebrow">酒馆 · 队伍整备</p><h2>远征成员</h2></div><button onClick={() => setLocation('plaza')}>收起面板</button></div><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></div>}
   </section>;
+}
+
+function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
+  return <section className="page tavern-page"><div className="intro-panel"><p className="eyebrow">旅途酒馆 · 招募与整备</p><h2>在出发之前，决定由谁承担风险。</h2><p>酒馆同时承接远征任务、队员招募与物资补给。装备只在城内升级，进入遗迹后无法更换。</p><div className="party-summary">当前队伍：{state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).join('、') || '尚未选择'}</div><button className="primary" onClick={() => dispatch({ type: 'START_EXPEDITION' })}>整队前往城门</button></div><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></section>;
 }
 
 function Quarters({ state }: { state: GameState }) {
@@ -82,6 +80,5 @@ export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => loadGame() ?? createInitialGame());
   useEffect(() => saveGame(state), [state]);
   useEffect(() => warmExpeditionResources(), []);
-  const title = useMemo(() => pages.find((page) => page.id === state.page)?.label, [state.page]);
-  return <main className="app-shell"><header className="topbar"><div><p className="eyebrow">边境远征队 · 第一版</p><h1>远征余响</h1></div><div className="resource"><small>{title}</small><strong>◆ {state.gold} 金币</strong></div></header><nav className="main-nav">{pages.map((page) => <button key={page.id} className={state.page === page.id ? 'selected' : ''} onClick={() => dispatch({ type: 'NAVIGATE', page: page.id })}>{page.label}</button>)}</nav>{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}<aside className="history"><strong>旅店记录</strong>{state.log.slice(0, 3).map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}</aside></main>;
+  return <main className="app-shell"><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>◆ {state.gold} 金币</strong></div>{state.page !== 'town' && state.page !== 'expedition' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header>{state.page === 'town' && <Town dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}<aside className="history"><strong>旅店记录</strong>{state.log.slice(0, 3).map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}</aside></main>;
 }
