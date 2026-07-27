@@ -21,8 +21,9 @@ describe('士气与装备', () => {
 });
 
 describe('完整远征状态', () => {
-  it('两人以上可以进入首个战斗节点', () => { const started = gameReducer(createInitialGame(), { type: 'START_EXPEDITION' }); expect(started.page).toBe('expedition'); expect(started.expedition?.nodeIndex).toBe(0); expect(started.expedition?.enemy?.id).toBe('scout'); });
-  it('首战先锋在前排可以攻击，远程斥候不能反击前排', () => { const started = gameReducer(createInitialGame(), { type: 'START_EXPEDITION' }); const scout = started.expedition!.enemy!; const vanguard = started.roster.find((hero) => hero.id === 'lan')!; expect(canAttack(vanguard, scout, 0)).toBe(true); expect(enemyCanAttack(scout, 0)).toBe(false); expect(enemyCanAttack(scout, 1)).toBe(true); });
+  it('两人以上可以进入首个多敌人战斗节点', () => { const started = gameReducer(createInitialGame(), { type: 'START_EXPEDITION' }); expect(started.page).toBe('expedition'); expect(started.expedition?.nodeIndex).toBe(0); expect(started.expedition?.enemies.map((enemy) => enemy.id)).toEqual(['scout', 'warden']); });
+  it('首战先锋在前排可以攻击，远程斥候不能反击前排', () => { const started = gameReducer(createInitialGame(), { type: 'START_EXPEDITION' }); const scout = started.expedition!.enemies[0]; const vanguard = started.roster.find((hero) => hero.id === 'lan')!; expect(canAttack(vanguard, scout, 0)).toBe(true); expect(enemyCanAttack(scout, 0)).toBe(false); expect(enemyCanAttack(scout, 1)).toBe(true); });
+  it('攻击会伤害指定敌人而非默认目标', () => { const started = gameReducer(createInitialGame(), { type: 'START_EXPEDITION' }); const attacked = gameReducer(started, { type: 'ATTACK', heroId: 'lan', enemyId: 'warden' }); expect(attacked.expedition?.enemies.find((enemy) => enemy.id === 'warden')?.hp).toBeLessThan(34); expect(attacked.expedition?.enemies.find((enemy) => enemy.id === 'scout')?.hp).toBe(26); });
   it('击败敌人前不能前进', () => { const started = gameReducer(createInitialGame(), { type: 'START_EXPEDITION' }); const blocked = gameReducer(started, { type: 'ADVANCE' }); expect(blocked.expedition?.nodeIndex).toBe(0); });
   it('绷带会治疗指定角色并消耗数量', () => { let state = gameReducer(createInitialGame(), { type: 'START_EXPEDITION' }); state = { ...state, roster: state.roster.map((hero) => hero.id === 'lan' ? { ...hero, hp: 10 } : hero) }; const healed = gameReducer(state, { type: 'USE_BANDAGE', heroId: 'lan' }); expect(healed.roster[0].hp).toBe(19); expect(healed.expedition?.supplies.bandage).toBe(2); });
 });

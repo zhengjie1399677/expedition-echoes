@@ -4,11 +4,13 @@ import type { Enemy, Hero } from '../domain/model';
 
 interface BattleCanvasProps {
   party: Hero[];
-  enemy: Enemy | null;
+  enemies: Enemy[];
+  targetEnemyId?: string;
   nodeIndex: number;
   counterTargetId?: string;
-  canHeroAttack: (hero: Hero, index: number) => boolean;
-  onAttack: (heroId: string) => void;
+  canHeroAttack: (hero: Hero, index: number, enemy: Enemy) => boolean;
+  onAttack: (heroId: string, enemyId: string) => void;
+  onSelectEnemy: (enemyId: string) => void;
   attackRequest?: { heroId: string; nonce: number };
 }
 
@@ -33,25 +35,30 @@ function setVisualTint(visual: CombatVisual, tint?: number) {
 
 class ExpeditionBattleScene extends Phaser.Scene {
   private party: Hero[];
-  private enemy: Enemy | null;
+  private enemies: Enemy[];
+  private targetEnemyId?: string;
   private nodeIndex: number;
   private canHeroAttack: BattleCanvasProps['canHeroAttack'];
   private onAttack: BattleCanvasProps['onAttack'];
+  private onSelectEnemy: BattleCanvasProps['onSelectEnemy'];
   private counterTargetId?: string;
   private heroSprites = new Map<string, CombatVisual>();
   private heroShadows = new Map<string, Phaser.GameObjects.Ellipse>();
   private heroLabels = new Map<string, Phaser.GameObjects.Text>();
   private enemySprite?: Phaser.GameObjects.Image;
+  private enemySprites = new Map<string, Phaser.GameObjects.Image>();
   private busy = false;
   private formationKey = '';
 
   constructor(props: BattleCanvasProps) {
     super('expedition-battle');
     this.party = props.party;
-    this.enemy = props.enemy;
+    this.enemies = props.enemies;
+    this.targetEnemyId = props.targetEnemyId;
     this.nodeIndex = props.nodeIndex;
     this.canHeroAttack = props.canHeroAttack;
     this.onAttack = props.onAttack;
+    this.onSelectEnemy = props.onSelectEnemy;
     this.counterTargetId = props.counterTargetId;
     const nextFormationKey = this.party.map((hero) => hero.id).join('|');
     if (this.formationKey && this.formationKey !== nextFormationKey) this.syncFormation();
@@ -86,15 +93,21 @@ class ExpeditionBattleScene extends Phaser.Scene {
 
   updateState(props: BattleCanvasProps) {
     this.party = props.party;
-    this.enemy = props.enemy;
+    this.enemies = props.enemies;
+    this.targetEnemyId = props.targetEnemyId;
     this.canHeroAttack = props.canHeroAttack;
     this.onAttack = props.onAttack;
+    this.onSelectEnemy = props.onSelectEnemy;
     this.counterTargetId = props.counterTargetId;
     this.heroSprites.forEach((sprite, id) => {
       const hero = this.party.find((item) => item.id === id);
       if (hero) sprite.setAlpha(hero.hp <= 0 ? 0.35 : 1);
     });
-    if (this.enemySprite && this.enemy) this.enemySprite.setAlpha(this.enemy.hp <= 0 ? 0.35 : 1);
+    this.enemySprites.forEach((sprite, id) => {
+      const enemy = this.enemies.find((item) => item.id === id);
+      if (enemy) sprite.setAlpha(enemy.hp <= 0 ? .22 : 1).setTint(id === this.targetEnemyId ? 0xffdd82 : 0xffffff);
+    });
+    this.enemySprite = this.enemySprites.get(this.targetEnemyId ?? '') ?? this.enemySprites.get(this.enemies.find((item) => item.hp > 0)?.id ?? '');
   }
 
   requestAttack(heroId: string) {
@@ -114,7 +127,10 @@ class ExpeditionBattleScene extends Phaser.Scene {
       this.heroSprites.set(hero.id, sprite);
       const shadow = this.add.ellipse(position.x, position.y - 4, visualWidth(sprite) * 0.52, 24, 0x020706, 0.62).setDepth(1);
       this.heroShadows.set(hero.id, shadow);
-      const available = () => !!this.enemy && this.canHeroAttack(hero, this.party.findIndex((item) => item.id === hero.id)) && hero.hp > 0;
+      const available = () => {
+        const enemy = this.enemies.find((item) => item.id === this.targetEnemyId) ?? this.enemies.find((item) => item.hp > 0);
+        return !!enemy && this.canHeroAttack(hero, this.party.findIndex((item) => item.id === hero.id), enemy) && hero.hp > 0;
+      };
       sprite.on('pointerover', () => {
         setVisualTint(sprite, available() ? 0xffe7a0 : 0xa6adb0);
       });
@@ -173,29 +189,43 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   private createEnemy(width: number, height: number) {
-    if (!this.enemy) {
+    const primaryEnemy = this.enemies[0];
+    if (!primaryEnemy) {
       this.add.text(width * 0.73, height * 0.48, '暂时安全\n风穿过断裂的石柱。', {
         align: 'center', fontFamily: '"Noto Serif SC", serif', fontSize: '23px', color: '#ead28f',
       }).setOrigin(0.5).setDepth(10);
       return;
     }
-    const key = this.textures.exists(`actor-${this.enemy.id}`) ? `actor-${this.enemy.id}` : 'actor-scout';
-    const sprite = this.add.image(width * 0.75, height * 0.81, key).setOrigin(0.5, 1).setDepth(4);
-    sprite.setScale((height * (CHARACTER_HEIGHTS[this.enemy.id] ?? 0.32)) / sprite.height).setAlpha(this.enemy.hp <= 0 ? 0.25 : 1);
+    const key = this.textures.exists(`actor-${primaryEnemy.id}`) ? `actor-${primaryEnemy.id}` : 'actor-scout';
+    const sprite = this.add.image(width * 0.68, height * 0.81, key).setOrigin(0.5, 1).setDepth(4).setInteractive({ useHandCursor: true });
+    sprite.setScale((height * (CHARACTER_HEIGHTS[primaryEnemy.id] ?? 0.27)) / sprite.height).setAlpha(primaryEnemy.hp <= 0 ? 0.25 : 1);
+    sprite.on('pointerdown', () => this.onSelectEnemy(primaryEnemy.id));
+    this.enemySprites.set(primaryEnemy.id, sprite);
     this.enemySprite = sprite;
-    this.add.ellipse(width * 0.75, height * 0.81, sprite.displayWidth * 0.58, 16, 0x17372b, 0.38).setDepth(1);
-    this.add.text(width * 0.75, height * 0.79, this.enemy.name, {
+    this.add.ellipse(width * 0.68, height * 0.81, sprite.displayWidth * 0.58, 16, 0x17372b, 0.38).setDepth(1);
+    this.add.text(width * 0.68, height * 0.79, primaryEnemy.name, {
       fontFamily: '"Noto Serif SC", serif', fontSize: '15px', color: '#f2b49f',
       backgroundColor: '#321e20df', padding: { x: 9, y: 5 },
     }).setOrigin(0.5, 1).setDepth(10);
+    this.enemies.slice(1).forEach((enemy, index) => {
+      const x = width * (0.79 + index * 0.11);
+      const actorKey = this.textures.exists(`actor-${enemy.id}`) ? `actor-${enemy.id}` : 'actor-scout';
+      const actor = this.add.image(x, height * .81, actorKey).setOrigin(.5, 1).setDepth(3 - index).setInteractive({ useHandCursor: true });
+      actor.setScale((height * (CHARACTER_HEIGHTS[enemy.id] ?? .25)) / actor.height).setAlpha(enemy.hp <= 0 ? .22 : 1);
+      actor.on('pointerdown', () => this.onSelectEnemy(enemy.id));
+      this.enemySprites.set(enemy.id, actor);
+      this.add.ellipse(x, height * .81, actor.displayWidth * .5, 13, 0x17372b, .28).setDepth(1);
+    });
+    this.enemySprite = this.enemySprites.get(this.targetEnemyId ?? '') ?? sprite;
   }
 
   private performAttack(hero: Hero, index: number, sprite: CombatVisual, originX: number) {
-    if (this.busy || !this.enemy || !this.enemySprite) return;
-    if (!this.canHeroAttack(hero, index)) {
+    const enemy = this.enemies.find((item) => item.id === this.targetEnemyId && item.hp > 0) ?? this.enemies.find((item) => item.hp > 0);
+    if (this.busy || !enemy || !this.enemySprite) return;
+    if (!this.canHeroAttack(hero, index, enemy)) {
       this.showFloatingText(sprite.x, sprite.y - sprite.displayHeight * 0.65, '超出攻击范围', '#b9c2bd');
       this.cameras.main.shake(90, 0.0015);
-      this.onAttack(hero.id);
+      this.onAttack(hero.id, enemy.id);
       return;
     }
     this.busy = true;
@@ -209,7 +239,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
       targets: sprite, x: targetX, scaleX: baseScaleX * 1.12, scaleY: baseScaleY * .9, duration: 330, ease: 'Cubic.In',
       onComplete: () => {
         this.impact(this.enemySprite!);
-        this.onAttack(hero.id);
+        this.onAttack(hero.id, enemy.id);
         this.time.delayedCall(140, () => this.enemyCounter());
         this.tweens.add({
           targets: sprite, x: originX, scaleX: baseScaleX, scaleY: baseScaleY, duration: 430, ease: 'Cubic.Out',
@@ -231,7 +261,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   private enemyCounter() {
-    if (!this.enemySprite || !this.enemy || this.enemy.hp <= 0) return;
+    const enemy = this.enemies.find((item) => item.id === this.targetEnemyId) ?? this.enemies.find((item) => item.hp > 0);
+    if (!this.enemySprite || !enemy || enemy.hp <= 0) return;
     const target = this.counterTargetId ? this.heroSprites.get(this.counterTargetId) : undefined;
     if (!target) return;
     const startX = this.enemySprite.x;

@@ -10,7 +10,7 @@ export interface Enemy {
   attackMinRange: number; attackMaxRange: number; damage: number;
 }
 export interface Supplies { bandage: number; sedative: number }
-export interface Expedition { nodeIndex: number; formation: string[]; enemy: Enemy | null; supplies: Supplies }
+export interface Expedition { nodeIndex: number; formation: string[]; enemies: Enemy[]; supplies: Supplies }
 export interface GameSettings { moraleEnabled: boolean; llmEnabled: boolean }
 export interface GameState {
   version: 3; page: Page; gold: number; roster: Hero[]; selectedHeroIds: string[];
@@ -19,7 +19,7 @@ export interface GameState {
 export type GameAction =
   | { type: 'NAVIGATE'; page: Page } | { type: 'RECRUIT'; heroId: string }
   | { type: 'TOGGLE_PARTY'; heroId: string } | { type: 'UPGRADE_GEAR'; heroId: string }
-  | { type: 'START_EXPEDITION' } | { type: 'ATTACK'; heroId: string }
+  | { type: 'START_EXPEDITION' } | { type: 'ATTACK'; heroId: string; enemyId?: string }
   | { type: 'SWAP'; index: number } | { type: 'USE_BANDAGE'; heroId: string }
   | { type: 'USE_SEDATIVE'; heroId: string } | { type: 'ADVANCE' }
   | { type: 'RETREAT' } | { type: 'TOGGLE_MORALE' } | { type: 'TOGGLE_LLM' }

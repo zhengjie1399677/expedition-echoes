@@ -31,9 +31,9 @@ function enterNode(state: GameState, nodeIndex: number): GameState {
   if (!state.expedition || !node) return state;
   if (node.kind === 'rest') {
     const roster = state.roster.map((hero) => state.expedition!.formation.includes(hero.id) ? { ...hero, hp: Math.min(hero.maxHp, hero.hp + 5), morale: Math.max(0, hero.morale - 12) } : hero);
-    return addLog({ ...state, roster, expedition: { ...state.expedition, nodeIndex, enemy: null } }, `${node.title}：${node.description}`);
+    return addLog({ ...state, roster, expedition: { ...state.expedition, nodeIndex, enemies: [] } }, `${node.title}：${node.description}`);
   }
-  return addLog({ ...state, expedition: { ...state.expedition, nodeIndex, enemy: enemyById(node.enemyId) } }, `${node.title}：${node.description}`);
+  return addLog({ ...state, expedition: { ...state.expedition, nodeIndex, enemies: node.enemyIds.map(enemyById) } }, `${node.title}：${node.description}`);
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -60,29 +60,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case 'START_EXPEDITION': {
       if (state.selectedHeroIds.length < 2) return addLog(state, '至少选择两名队员。');
-      const prepared: GameState = { ...state, page: 'expedition', roster: state.roster.map((hero) => state.selectedHeroIds.includes(hero.id) ? { ...hero, hp: hero.maxHp, morale: 0 } : hero), expedition: { nodeIndex: 0, formation: [...state.selectedHeroIds], enemy: null, supplies: { bandage: 3, sedative: 1 } } };
+      const prepared: GameState = { ...state, page: 'expedition', roster: state.roster.map((hero) => state.selectedHeroIds.includes(hero.id) ? { ...hero, hp: hero.maxHp, morale: 0 } : hero), expedition: { nodeIndex: 0, formation: [...state.selectedHeroIds], enemies: [], supplies: { bandage: 3, sedative: 1 } } };
       return enterNode(prepared, 0);
     }
     case 'ATTACK': {
-      if (!state.expedition?.enemy) return state;
+      if (!state.expedition?.enemies.some((enemy) => enemy.hp > 0)) return state;
       const hero = state.roster.find((item) => item.id === action.heroId);
-      const enemy = state.expedition.enemy;
+      const enemy = state.expedition.enemies.find((item) => item.id === action.enemyId && item.hp > 0) ?? state.expedition.enemies.find((item) => item.hp > 0)!;
       const heroIndex = state.expedition.formation.indexOf(action.heroId);
       const targetDistance = enemy.distance + Math.max(0, heroIndex);
       if (!hero || heroIndex < 0 || !canAttack(hero, enemy, heroIndex)) return addLog(state, `${hero?.name ?? '队员'}无法攻击距离 ${targetDistance} 的目标。`);
       const damage = attackDamage(hero, state.settings.moraleEnabled);
       const nextEnemy = { ...enemy, hp: Math.max(0, enemy.hp - damage) };
-      let next: GameState = { ...state, expedition: { ...state.expedition, enemy: nextEnemy } };
-      if (nextEnemy.hp === 0) return addLog({ ...next, gold: next.gold + 12 }, `${hero.name}击败了${enemy.name}，获得 12 金币。`);
-      const targetIndex = state.expedition.formation.findIndex((id, index) => {
-        const target = next.roster.find((item) => item.id === id)!;
-        return target.hp > 0 && enemyCanAttack(enemy, index);
-      });
-      if (targetIndex < 0) return addLog(next, `${hero.name}造成 ${damage} 点伤害，${enemy.name}的攻击范围内没有目标。`);
-      const targetId = state.expedition.formation[targetIndex];
-      const targetName = next.roster.find((item) => item.id === targetId)?.name;
-      next = editHero(next, targetId, (target) => ({ ...target, hp: Math.max(0, target.hp - enemy.damage), morale: state.settings.moraleEnabled ? Math.min(100, target.morale + 11) : target.morale }));
-      return addLog(next, `${hero.name}造成 ${damage} 点伤害，${enemy.name}反击了范围内的${targetName}。`);
+      let next: GameState = { ...state, expedition: { ...state.expedition, enemies: state.expedition.enemies.map((item) => item.id === enemy.id ? nextEnemy : item) } };
+      const defeatedAll = next.expedition!.enemies.every((item) => item.hp <= 0);
+      if (defeatedAll) return addLog({ ...next, gold: next.gold + 12 * state.expedition.enemies.length }, `${hero.name}结束了战斗，队伍获得战利品。`);
+      for (const attacker of next.expedition!.enemies.filter((item) => item.hp > 0)) {
+        const targetIndex = next.expedition!.formation.findIndex((id, index) => next.roster.find((item) => item.id === id)!.hp > 0 && enemyCanAttack(attacker, index));
+        if (targetIndex < 0) continue;
+        const targetId = next.expedition!.formation[targetIndex];
+        next = editHero(next, targetId, (target) => ({ ...target, hp: Math.max(0, target.hp - attacker.damage), morale: state.settings.moraleEnabled ? Math.min(100, target.morale + 11) : target.morale }));
+      }
+      return addLog(next, `${hero.name}对${enemy.name}造成 ${damage} 点伤害，存活敌人随后进行了反击。`);
     }
     case 'SWAP': {
       if (!state.expedition || action.index < 0 || action.index >= state.expedition.formation.length - 1) return state;
@@ -104,7 +103,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return addLog({ ...calmed, expedition: { ...calmed.expedition!, supplies: { ...calmed.expedition!.supplies, sedative: calmed.expedition!.supplies.sedative - 1 } } }, `${hero.name}的士气压力下降了。`);
     }
     case 'ADVANCE': {
-      if (!state.expedition || state.expedition.enemy?.hp) return addLog(state, '需要先解决当前遭遇。');
+      if (!state.expedition || state.expedition.enemies.some((enemy) => enemy.hp > 0)) return addLog(state, '需要先解决当前遭遇。');
       const nextIndex = state.expedition.nodeIndex + 1;
       if (nextIndex >= expeditionNodes.length) return addLog({ ...state, page: 'town', gold: state.gold + 45, expedition: null }, '远征完成，全队带回 45 金币。');
       return enterNode(state, nextIndex);

@@ -19,9 +19,9 @@ export const enemies: Enemy[] = [
   { id: 'gatekeeper', name: '遗迹门卫', maxHp: 46, hp: 46, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 7 },
 ];
 export const expeditionNodes = [
-  { kind: 'combat', title: '坍塌入口', description: '碎石之间传来急促脚步。', enemyId: 'scout' },
+  { kind: 'combat', title: '坍塌入口', description: '碎石之间传来急促脚步。', enemyIds: ['scout', 'warden'] },
   { kind: 'rest', title: '废弃补给室', description: '封存药箱仍可使用，全队恢复生命与士气。' },
-  { kind: 'combat', title: '回声长廊', description: '锈甲守卫从墙后缓慢起身。', enemyId: 'warden' },
+  { kind: 'combat', title: '回声长廊', description: '锈甲守卫从墙后缓慢起身。', enemyIds: ['warden', 'scout'] },
   { kind: 'rest', title: '旧日营火', description: '这里短暂安全，队伍重新整理呼吸。' },
-  { kind: 'combat', title: '封印门厅', description: '门卫挡在出口前，这是最后一战。', enemyId: 'gatekeeper' },
+  { kind: 'combat', title: '封印门厅', description: '门卫挡在出口前，这是最后一战。', enemyIds: ['gatekeeper', 'warden', 'scout'] },
 ] as const;
