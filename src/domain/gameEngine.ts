@@ -6,7 +6,7 @@ const addLog = (state: GameState, message: string): GameState => ({ ...state, lo
 const editHero = (state: GameState, id: string, edit: (hero: Hero) => Hero): GameState => ({ ...state, roster: state.roster.map((hero) => hero.id === id ? edit(hero) : hero) });
 
 export function createInitialGame(): GameState {
-  return { version: 3, page: 'town', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
+  return { version: 4, page: 'town', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
 }
 
 export function canAttack(hero: Hero, enemy: Enemy, formationIndex = 0): boolean {

@@ -45,7 +45,15 @@ function Quarters({ state }: { state: GameState }) {
   const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [line, setLine] = useState('今晚的宿舍很安静。'); const [loading, setLoading] = useState(false);
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
   const talk = async () => { if (!hero) return; setLoading(true); setLine(await narrativeService.campLine(hero, state)); setLoading(false); };
-  return <section className="page quarters-page"><div className="intro-panel"><p className="eyebrow">宿舍 · 角色互动</p><h2>远征结束后，队员仍然有话想说。</h2><p>宿舍是可选 LLM 叙事的主要入口。生成内容只负责表现，不会修改金币、装备、生命或远征结果。</p><label>交谈对象<select value={heroId} onChange={(event) => setHeroId(event.target.value)}>{recruited.map((item) => <option value={item.id} key={item.id}>{item.name} · {heroClassNames[item.heroClass]}</option>)}</select></label><button className="primary" disabled={loading} onClick={talk}>{loading ? '正在组织语言…' : narrativeService.available && state.settings.llmEnabled ? '开始交谈' : '查看本地对白'}</button></div><div className="quarters-scene"><div className="speaker">{hero?.name ?? '无人'}</div><blockquote>“{line}”</blockquote><small>{narrativeService.available ? '已检测到宿主 LLM' : '当前使用离线对白库'}</small></div></section>;
+  return <section className="page quarters-page">
+    <img className="quarters-background" src="/assets/world/quarters-dorm-v1.png" alt="暮色中的冒险者宿舍" />
+    <div className="quarters-topbar"><div><p className="eyebrow">宿舍 · 日常交谈</p><strong>远征后的安静时间</strong></div><label>交谈对象<select value={heroId} onChange={(event) => setHeroId(event.target.value)}>{recruited.map((item) => <option value={item.id} key={item.id}>{item.name} · {heroClassNames[item.heroClass]}</option>)}</select></label></div>
+    <div className="quarters-chat" aria-label="宿舍聊天窗口">
+      <header><div><strong>{hero?.name ?? '无人'}</strong><span>{hero ? heroClassNames[hero.heroClass] : '未选择队员'}</span></div><small>{narrativeService.available && state.settings.llmEnabled ? 'LLM 交谈已连接' : '离线对白'}</small></header>
+      <div className="chat-thread"><div className="chat-message companion">“{line}”</div></div>
+      <footer><span>聊天不会直接修改战斗数值。</span><button disabled={loading || !hero} onClick={talk}>{loading ? '正在回复…' : '继续交谈'}</button></footer>
+    </div>
+  </section>;
 }
 
 function MiniMap({ currentNode }: { currentNode: number }) {
