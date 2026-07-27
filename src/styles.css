@@ -62,3 +62,9 @@
 @media(max-width:850px){.stage-battlefield{height:560px}.hero-actor.rank-0{left:34%}.hero-actor.rank-1{left:17%}.hero-actor.rank-2{left:2%}.enemy-actor{right:0}.battle-hud{grid-template-columns:1fr}.party-hud{grid-template-columns:1fr}.hud-actions{grid-template-columns:1.5fr repeat(3,1fr)}}
 @media(max-width:560px){.stage-battlefield{height:440px}.stage-actor{bottom:5%}.hero-actor.rank-0{left:31%;width:31%;height:75%}.hero-actor.rank-1{left:13%;width:29%;height:67%}.hero-actor.rank-2{left:-3%;width:27%;height:60%}.enemy-actor{right:-6%;width:38%;height:77%}.actor-nameplate{min-width:74px;padding:4px 6px}.actor-nameplate strong{font-size:10px}.actor-nameplate span{display:none}.scene-caption{top:14px;left:14px}.battle-hud{margin-top:8px}}
 @media(prefers-reduced-motion:reduce){.stage-actor,.hero-actor.is-attacking,.enemy-actor.is-hit,.hit-spark{animation:none}}
+
+.phaser-battle-shell{position:relative;width:100%;aspect-ratio:1200/650;overflow:hidden;border:1px solid #a4a27a;background:#0d1715;box-shadow:inset 0 0 90px #08100dcc,0 18px 50px #0007}
+.phaser-loading{width:100%;aspect-ratio:1200/650;display:grid;place-items:center;border:1px solid #64786e;background:radial-gradient(circle at 50% 30%,#344b43,#111c19 65%);color:#dbc57f;letter-spacing:.12em}
+.phaser-battle-shell::after{content:'';position:absolute;z-index:2;inset:0;pointer-events:none;box-shadow:inset 0 0 90px #040a087d,inset 0 -65px 55px #050b09a8}
+.phaser-battle-shell canvas{display:block!important;width:100%!important;height:100%!important}
+@media(max-width:560px){.phaser-battle-shell{aspect-ratio:4/3}}

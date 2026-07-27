@@ -1,19 +1,16 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useReducer, useState } from 'react';
 import { expeditionNodes, heroClassDescriptions, heroClassNames } from '../content/gameContent';
-import { canAttack, createInitialGame, gameReducer } from '../domain/gameEngine';
+import { canAttack, createInitialGame, enemyCanAttack, gameReducer } from '../domain/gameEngine';
 import type { GameAction, GameState, Hero, Page } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
 import { clearGame, loadGame, saveGame } from '../infrastructure/storage';
+
+const BattleCanvas = lazy(() => import('./BattleCanvas').then((module) => ({ default: module.BattleCanvas })));
 
 const pages: Array<{ id: Page; label: string }> = [
   { id: 'tavern', label: '酒馆' }, { id: 'quarters', label: '宿舍' },
   { id: 'expedition', label: '远征' }, { id: 'settings', label: '设置' },
 ];
-const actorImages: Record<string, string> = {
-  lan: '/assets/actors/lan-v1.png', wu: '/assets/actors/wu-v1.png',
-  xingluo: '/assets/actors/xingluo-v1.png', scout: '/assets/actors/scout-v1.png',
-};
-
 function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean; dispatch: React.Dispatch<GameAction> }) {
   const upgradeCost = 30 + hero.gearLevel * 20;
   return <article className={`hero-card ${selected ? 'is-selected' : ''}`}>
@@ -46,28 +43,17 @@ function MiniMap({ currentNode }: { currentNode: number }) {
 }
 
 function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
-  const [actingHeroId, setActingHeroId] = useState<string | null>(null);
-  const [enemyHit, setEnemyHit] = useState(false);
   const run = state.expedition;
   if (!run) return <section className="empty-state"><div><h2>尚未开始远征</h2><p>请先在酒馆选择队员并完成整备。</p><button className="primary" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}>返回酒馆</button></div></section>;
   const party = run.formation.map((id) => state.roster.find((hero) => hero.id === id)!).filter(Boolean);
   const node = expeditionNodes[run.nodeIndex];
-  const attack = (hero: Hero, index: number) => {
-    if (!run.enemy || !canAttack(hero, run.enemy, index) || actingHeroId) { dispatch({ type: 'ATTACK', heroId: hero.id }); return; }
-    setActingHeroId(hero.id); window.setTimeout(() => { setEnemyHit(true); dispatch({ type: 'ATTACK', heroId: hero.id }); }, 210);
-    window.setTimeout(() => setEnemyHit(false), 470); window.setTimeout(() => setActingHeroId(null), 650);
-  };
+  const attack = (heroId: string) => dispatch({ type: 'ATTACK', heroId });
   return <section className="page expedition-page">
     <div className="run-header"><div><p className="eyebrow">远征 · 节点 {run.nodeIndex + 1}/{expeditionNodes.length}</p><h2>{node.title}</h2><p>{node.description}</p></div><div className="supplies"><span>绷带 × {run.supplies.bandage}</span><span>镇定剂 × {run.supplies.sedative}</span><button onClick={() => dispatch({ type: 'RETREAT' })}>撤退</button></div></div>
     <MiniMap currentNode={run.nodeIndex} />
-    <div className="battlefield stage-battlefield">
-      <div className="scene-caption"><span>第 {run.nodeIndex + 1} 幕</span><strong>{run.enemy ? '遭遇战' : '安全区域'}</strong></div>
-      <div className="actor-party">{party.map((hero, index) => <div className={`stage-actor hero-actor rank-${index} ${actingHeroId === hero.id ? 'is-attacking' : ''} ${hero.hp <= 0 ? 'is-down' : ''}`} key={hero.id}><div className="actor-shadow"/><img src={actorImages[hero.id]} alt={`${hero.name}的全身角色形象`} /><div className="actor-nameplate"><strong>{hero.name}</strong><span>{index === 0 ? '前排' : index === party.length - 1 ? '后排' : '中排'}</span></div></div>)}</div>
-      {run.enemy ? <div className={`stage-actor enemy-actor ${enemyHit ? 'is-hit' : ''} ${run.enemy.hp <= 0 ? 'is-down' : ''}`}><div className="actor-shadow"/>{actorImages[run.enemy.id] ? <img src={actorImages[run.enemy.id]} alt={`${run.enemy.name}的全身敌人形象`} /> : <div className="enemy-silhouette">◆</div>}<div className="actor-nameplate enemy-nameplate"><strong>{run.enemy.name}</strong><span>距离 {run.enemy.distance}</span></div><div className="hit-spark" /></div> : <div className="stage-rest"><strong>暂时安全</strong><span>风穿过断裂的石柱。</span></div>}
-      <div className="stage-vignette" />
-    </div>
+    <Suspense fallback={<div className="phaser-loading">正在展开遗迹场景…</div>}><BattleCanvas key={`${run.nodeIndex}-${run.enemy?.id ?? 'rest'}`} party={party} enemy={run.enemy} nodeIndex={run.nodeIndex} counterTargetId={run.enemy ? party.find((hero, index) => hero.hp > 0 && enemyCanAttack(run.enemy!, index))?.id : undefined} canHeroAttack={(hero, index) => !!run.enemy && canAttack(hero, run.enemy, index)} onAttack={attack} /></Suspense>
     <div className="battle-hud">
-      <div className="party-hud">{party.map((hero, index) => <article className={`hud-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="hud-heading"><strong>{hero.name}</strong><small>{heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className="bar"><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /></div><div className="hud-values"><span>生命 {hero.hp}/{hero.maxHp}</span>{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}</div><div className="hud-actions"><button className="attack-button" disabled={!run.enemy || hero.hp <= 0 || !!actingHeroId} onClick={() => attack(hero, index)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>)}</div>
+      <div className="party-hud">{party.map((hero, index) => <article className={`hud-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="hud-heading"><strong>{hero.name}</strong><small>{heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className="bar"><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /></div><div className="hud-values"><span>生命 {hero.hp}/{hero.maxHp}</span>{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}</div><div className="hud-actions"><button className="attack-button" disabled={!run.enemy || hero.hp <= 0} onClick={() => attack(hero.id)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>)}</div>
       {run.enemy && <article className="enemy-hud"><div className="hud-heading"><strong>{run.enemy.name}</strong><small>攻击 {run.enemy.damage} · 范围 {run.enemy.attackMinRange}–{run.enemy.attackMaxRange}</small></div><div className="bar enemy-bar"><i style={{ width: `${run.enemy.hp / run.enemy.maxHp * 100}%` }} /></div><span>生命 {run.enemy.hp}/{run.enemy.maxHp}</span></article>}
     </div>
     <div className="run-footer"><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{(!run.enemy || run.enemy.hp === 0) && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</div>
