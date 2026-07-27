@@ -3,6 +3,7 @@ import { expeditionNodes, heroClassDescriptions, heroClassNames } from '../conte
 import { canAttack, createInitialGame, enemyCanAttack, gameReducer } from '../domain/gameEngine';
 import type { GameAction, GameState, Hero, Page } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
+import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
 import { clearGame, loadGame, saveGame } from '../infrastructure/storage';
 
 const BattleCanvas = lazy(() => import('./BattleCanvas').then((module) => ({ default: module.BattleCanvas })));
@@ -67,6 +68,7 @@ function Settings({ state, dispatch }: { state: GameState; dispatch: React.Dispa
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => loadGame() ?? createInitialGame());
   useEffect(() => saveGame(state), [state]);
+  useEffect(() => warmExpeditionResources(), []);
   const title = useMemo(() => pages.find((page) => page.id === state.page)?.label, [state.page]);
   return <main className="app-shell"><header className="topbar"><div><p className="eyebrow">边境远征队 · 第一版</p><h1>远征余响</h1></div><div className="resource"><small>{title}</small><strong>◆ {state.gold} 金币</strong></div></header><nav className="main-nav">{pages.map((page) => <button key={page.id} className={state.page === page.id ? 'selected' : ''} onClick={() => dispatch({ type: 'NAVIGATE', page: page.id })}>{page.label}</button>)}</nav>{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}<aside className="history"><strong>旅店记录</strong>{state.log.slice(0, 3).map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}</aside></main>;
 }
