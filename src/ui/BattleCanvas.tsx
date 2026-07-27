@@ -87,7 +87,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
       backgroundColor: '#0b1714bb', padding: { x: 10, y: 6 },
     }).setDepth(20);
     this.add.text(width / 2, height - 26, '点击角色发动攻击 · 金色轮廓表示当前可攻击', {
-      fontFamily: '"Noto Serif SC", serif', fontSize: '12px', color: '#aebfb7',
+      fontFamily: '"Noto Serif SC", serif', fontSize: '12px', color: '#fff0bf', stroke: '#14221e', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(20);
   }
 
