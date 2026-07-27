@@ -14,7 +14,7 @@ export const initialHeroes: Hero[] = [
   { id: 'yan', name: '砚', heroClass: 'vanguard', maxHp: 35, hp: 35, morale: 0, gearLevel: 0, recruited: false, personality: '沉默强硬，把承诺看得比报酬重要' },
 ];
 export const enemies: Enemy[] = [
-  { id: 'scout', name: '遗迹斥候', maxHp: 26, hp: 26, distance: 2, attackMinRange: 2, attackMaxRange: 3, damage: 4 },
+  { id: 'scout', name: '遗迹斥候', maxHp: 26, hp: 26, distance: 1, attackMinRange: 2, attackMaxRange: 3, damage: 4 },
   { id: 'warden', name: '锈甲守卫', maxHp: 34, hp: 34, distance: 1, attackMinRange: 1, attackMaxRange: 1, damage: 5 },
   { id: 'gatekeeper', name: '遗迹门卫', maxHp: 46, hp: 46, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 7 },
 ];

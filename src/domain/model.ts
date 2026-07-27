@@ -13,7 +13,7 @@ export interface Supplies { bandage: number; sedative: number }
 export interface Expedition { nodeIndex: number; formation: string[]; enemy: Enemy | null; supplies: Supplies }
 export interface GameSettings { moraleEnabled: boolean; llmEnabled: boolean }
 export interface GameState {
-  version: 2; page: Page; gold: number; roster: Hero[]; selectedHeroIds: string[];
+  version: 3; page: Page; gold: number; roster: Hero[]; selectedHeroIds: string[];
   expedition: Expedition | null; settings: GameSettings; log: string[];
 }
 export type GameAction =
