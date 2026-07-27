@@ -90,9 +90,9 @@ class ExpeditionBattleScene extends Phaser.Scene {
 
   private createParty(width: number, height: number) {
     const positions = [
-      { x: width * 0.4, y: height * 0.9 },
-      { x: width * 0.27, y: height * 0.88 },
-      { x: width * 0.16, y: height * 0.86 },
+      { x: width * 0.4, y: height * 0.81 },
+      { x: width * 0.27, y: height * 0.81 },
+      { x: width * 0.16, y: height * 0.81 },
     ];
     this.party.forEach((hero, index) => {
       const position = positions[index];
@@ -103,17 +103,11 @@ class ExpeditionBattleScene extends Phaser.Scene {
       const available = () => !!this.enemy && this.canHeroAttack(hero, index) && hero.hp > 0;
       sprite.on('pointerover', () => {
         sprite.setTint(available() ? 0xffe7a0 : 0xa6adb0);
-        this.tweens.add({ targets: sprite, y: position.y - 7, duration: 130 });
       });
       sprite.on('pointerout', () => {
         sprite.clearTint();
-        this.tweens.add({ targets: sprite, y: position.y, duration: 150 });
       });
       sprite.on('pointerdown', () => this.performAttack(hero, index, sprite, position.x));
-      this.tweens.add({
-        targets: sprite, y: position.y - 4, duration: 1500 + index * 170,
-        yoyo: true, repeat: -1, ease: 'Sine.InOut',
-      });
       this.add.text(position.x, position.y - 8, hero.name, {
         fontFamily: '"Noto Serif SC", serif', fontSize: '14px', color: '#f4e7bf',
         backgroundColor: '#10221ddd', padding: { x: 8, y: 4 },
@@ -129,12 +123,11 @@ class ExpeditionBattleScene extends Phaser.Scene {
       return;
     }
     const key = this.textures.exists(`actor-${this.enemy.id}`) ? `actor-${this.enemy.id}` : 'actor-scout';
-    const sprite = this.add.image(width * 0.75, height * 0.89, key).setOrigin(0.5, 1).setDepth(4);
+    const sprite = this.add.image(width * 0.75, height * 0.81, key).setOrigin(0.5, 1).setDepth(4);
     sprite.setScale((height * (CHARACTER_HEIGHTS[this.enemy.id] ?? 0.32)) / sprite.height).setAlpha(this.enemy.hp <= 0 ? 0.25 : 1);
     this.enemySprite = sprite;
-    this.add.ellipse(width * 0.75, height * 0.89, sprite.displayWidth * 0.58, 20, 0x020706, 0.7).setDepth(1);
-    this.tweens.add({ targets: sprite, y: sprite.y - 5, angle: 0.35, duration: 1850, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    this.add.text(width * 0.75, height * 0.87, this.enemy.name, {
+    this.add.ellipse(width * 0.75, height * 0.81, sprite.displayWidth * 0.58, 16, 0x17372b, 0.38).setDepth(1);
+    this.add.text(width * 0.75, height * 0.79, this.enemy.name, {
       fontFamily: '"Noto Serif SC", serif', fontSize: '15px', color: '#f2b49f',
       backgroundColor: '#321e20df', padding: { x: 9, y: 5 },
     }).setOrigin(0.5, 1).setDepth(10);
