@@ -114,7 +114,17 @@ function Quarters({ state }: { state: GameState }) {
 }
 
 function MiniMap({ currentNode }: { currentNode: number }) {
-  return <aside className="mini-map" aria-label="遗迹场景地图"><div className="map-heading"><strong>边境遗迹</strong><small>场景地图</small></div><div className="map-path">{expeditionNodes.map((node, index) => <div key={node.title} className={`map-node ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={node.title}><i>{index + 1}</i><span>{index <= currentNode ? node.title : '未知'}</span></div>)}</div></aside>;
+  const cells = [{ column: 1, row: 2 }, { column: 2, row: 2 }, { column: 2, row: 1 }, { column: 3, row: 1 }, { column: 3, row: 2 }];
+  return <aside className="mini-map grid-mini-map" aria-label="遗迹格子地图">
+    <div className="map-heading"><strong>边境遗迹</strong><small>探索地图</small></div>
+    <div className="map-grid">
+      <svg className="map-corridors" viewBox="0 0 180 104" preserveAspectRatio="none" aria-hidden="true"><path d="M30 78 H90 V26 H150 V78" /></svg>
+      {expeditionNodes.map((node, index) => <div key={node.title} style={{ gridColumn: cells[index].column, gridRow: cells[index].row }} className={`map-cell ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={index <= currentNode ? node.title : '未知区域'}>
+        <i>{index > currentNode ? '?' : node.kind === 'combat' ? '⚔' : '✦'}</i><small>{index + 1}</small>
+      </div>)}
+    </div>
+    <div className="map-location"><span>当前位置</span><strong>{expeditionNodes[currentNode].title}</strong></div>
+  </aside>;
 }
 
 function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
