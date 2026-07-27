@@ -41,7 +41,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('battle-bg', '/assets/ruins-battle-v1.png');
+    this.load.image('battle-bg', '/assets/world/ruins-road-battle-v1.png');
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
     this.load.image('lan-action-strip', '/assets/animations/lan-attack-v2.png');
     this.load.image('scout-reaction-strip', '/assets/animations/scout-defeat-v1.png');
@@ -53,8 +53,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
     const scale = Math.max(width / background.width, height / background.height);
     background.setScale(scale).setDepth(-20);
 
-    this.add.rectangle(width / 2, height / 2, width, height, 0x07100d, 0.12).setDepth(-19);
-    this.add.rectangle(width / 2, height - 45, width, 180, 0x07100d, 0.58).setDepth(8);
+    this.add.rectangle(width / 2, height / 2, width, height, 0x294b55, 0.04).setDepth(-19);
+    this.add.rectangle(width / 2, height - 34, width, 92, 0x17342e, 0.1).setDepth(8);
     this.registerAnimationStrips();
     this.createAmbientDust(width, height);
     this.createParty(width, height);

@@ -1,5 +1,5 @@
 const EXPEDITION_ASSETS = [
-  '/assets/ruins-battle-v1.png',
+  '/assets/world/ruins-road-battle-v1.png',
   '/assets/actors/lan-v1.png',
   '/assets/actors/wu-v1.png',
   '/assets/actors/xingluo-v1.png',
