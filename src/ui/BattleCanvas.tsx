@@ -25,8 +25,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
   private canHeroAttack: BattleCanvasProps['canHeroAttack'];
   private onAttack: BattleCanvasProps['onAttack'];
   private counterTargetId?: string;
-  private heroSprites = new Map<string, Phaser.GameObjects.Image>();
-  private enemySprite?: Phaser.GameObjects.Image;
+  private heroSprites = new Map<string, Phaser.GameObjects.Image | Phaser.GameObjects.Sprite>();
+  private enemySprite?: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
   private busy = false;
 
   constructor(props: BattleCanvasProps) {
@@ -42,6 +42,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
   preload() {
     this.load.image('battle-bg', '/assets/ruins-battle-v1.png');
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
+    this.load.image('lan-action-strip', '/assets/animations/lan-attack-v1.png');
+    this.load.image('scout-reaction-strip', '/assets/animations/scout-defeat-v1.png');
   }
 
   create() {
@@ -52,6 +54,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x07100d, 0.12).setDepth(-19);
     this.add.rectangle(width / 2, height - 45, width, 180, 0x07100d, 0.58).setDepth(8);
+    this.registerAnimationStrips();
     this.createAmbientDust(width, height);
     this.createParty(width, height);
     this.createEnemy(width, height);
@@ -66,6 +69,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   updateState(props: BattleCanvasProps) {
+    const previousEnemyHp = this.enemy?.hp;
     this.party = props.party;
     this.enemy = props.enemy;
     this.canHeroAttack = props.canHeroAttack;
@@ -75,7 +79,28 @@ class ExpeditionBattleScene extends Phaser.Scene {
       const hero = this.party.find((item) => item.id === id);
       if (hero) sprite.setAlpha(hero.hp <= 0 ? 0.35 : 1);
     });
-    if (this.enemySprite && this.enemy) this.enemySprite.setAlpha(this.enemy.hp <= 0 ? 0.25 : 1);
+    if (this.enemySprite && this.enemy) {
+      if (this.enemySprite instanceof Phaser.GameObjects.Sprite && previousEnemyHp !== undefined && this.enemy.hp < previousEnemyHp) {
+        this.enemySprite.play(this.enemy.hp <= 0 ? 'scout-defeat' : 'scout-hit', true);
+      } else this.enemySprite.setAlpha(this.enemy.hp <= 0 ? 0.35 : 1);
+    }
+  }
+
+  private registerAnimationStrips() {
+    const registerFrames = (textureKey: string) => {
+      const texture = this.textures.get(textureKey);
+      const source = texture.getSourceImage() as HTMLImageElement;
+      for (let index = 0; index < 8; index += 1) {
+        const left = Math.round(index * source.width / 8);
+        const right = Math.round((index + 1) * source.width / 8);
+        if (!texture.has(String(index))) texture.add(String(index), 0, left, 0, right - left, source.height);
+      }
+    };
+    registerFrames('lan-action-strip');
+    registerFrames('scout-reaction-strip');
+    this.anims.create({ key: 'lan-thrust', frames: Array.from({ length: 8 }, (_, index) => ({ key: 'lan-action-strip', frame: String(index) })), frameRate: 12, repeat: 0 });
+    this.anims.create({ key: 'scout-hit', frames: ['0', '2', '3', '4', '0'].map((frame) => ({ key: 'scout-reaction-strip', frame })), frameRate: 13, repeat: 0 });
+    this.anims.create({ key: 'scout-defeat', frames: Array.from({ length: 8 }, (_, index) => ({ key: 'scout-reaction-strip', frame: String(index) })), frameRate: 10, repeat: 0 });
   }
 
   private createParty(width: number, height: number) {
@@ -86,7 +111,9 @@ class ExpeditionBattleScene extends Phaser.Scene {
     ];
     this.party.forEach((hero, index) => {
       const position = positions[index];
-      const sprite = this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index);
+      const sprite = hero.id === 'lan'
+        ? this.add.sprite(position.x, position.y, 'lan-action-strip', '0').setOrigin(0.5, 1).setDepth(5 - index)
+        : this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index);
       sprite.setScale(position.h / sprite.height).setAlpha(hero.hp <= 0 ? 0.35 : 1).setInteractive({ useHandCursor: true });
       this.heroSprites.set(hero.id, sprite);
       this.add.ellipse(position.x, position.y - 4, sprite.displayWidth * 0.52, 24, 0x020706, 0.62).setDepth(1);
@@ -119,7 +146,9 @@ class ExpeditionBattleScene extends Phaser.Scene {
       return;
     }
     const key = this.textures.exists(`actor-${this.enemy.id}`) ? `actor-${this.enemy.id}` : 'actor-scout';
-    const sprite = this.add.image(width * 0.78, height * 0.89, key).setOrigin(0.5, 1).setDepth(4);
+    const sprite = this.enemy.id === 'scout'
+      ? this.add.sprite(width * 0.78, height * 0.89, 'scout-reaction-strip', '0').setOrigin(0.5, 1).setDepth(4)
+      : this.add.image(width * 0.78, height * 0.89, key).setOrigin(0.5, 1).setDepth(4);
     sprite.setScale((height * 0.78) / sprite.height).setAlpha(this.enemy.hp <= 0 ? 0.25 : 1);
     this.enemySprite = sprite;
     this.add.ellipse(width * 0.78, height * 0.89, sprite.displayWidth * 0.58, 27, 0x020706, 0.7).setDepth(1);
@@ -130,7 +159,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     }).setOrigin(0.5, 1).setDepth(10);
   }
 
-  private performAttack(hero: Hero, index: number, sprite: Phaser.GameObjects.Image, originX: number) {
+  private performAttack(hero: Hero, index: number, sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, originX: number) {
     if (this.busy || !this.enemy || !this.enemySprite) return;
     if (!this.canHeroAttack(hero, index)) {
       this.showFloatingText(sprite.x, sprite.y - sprite.displayHeight * 0.65, '超出攻击范围', '#b9c2bd');
@@ -139,6 +168,19 @@ class ExpeditionBattleScene extends Phaser.Scene {
     }
     this.busy = true;
     this.tweens.killTweensOf(sprite);
+    if (hero.id === 'lan' && sprite instanceof Phaser.GameObjects.Sprite) {
+      sprite.play('lan-thrust', true);
+      this.time.delayedCall(410, () => {
+        this.impact(this.enemySprite!);
+        this.onAttack(hero.id);
+        this.time.delayedCall(140, () => this.enemyCounter());
+      });
+      this.time.delayedCall(720, () => {
+        sprite.setFrame('0');
+        this.busy = false;
+      });
+      return;
+    }
     const targetX = this.enemySprite.x - this.enemySprite.displayWidth * 0.28;
     this.tweens.add({
       targets: sprite, x: targetX, y: sprite.y - 8, duration: 220, ease: 'Cubic.In',
@@ -154,7 +196,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     });
   }
 
-  private impact(target: Phaser.GameObjects.Image) {
+  private impact(target: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite) {
     target.setTint(0xffffff);
     this.cameras.main.shake(130, 0.006);
     const flash = this.add.circle(target.x - target.displayWidth * 0.18, target.y - target.displayHeight * 0.52, 28, 0xffd36a, 0.9).setDepth(15);
