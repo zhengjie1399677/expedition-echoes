@@ -39,8 +39,11 @@ class ExpeditionBattleScene extends Phaser.Scene {
   private onAttack: BattleCanvasProps['onAttack'];
   private counterTargetId?: string;
   private heroSprites = new Map<string, CombatVisual>();
+  private heroShadows = new Map<string, Phaser.GameObjects.Ellipse>();
+  private heroLabels = new Map<string, Phaser.GameObjects.Text>();
   private enemySprite?: Phaser.GameObjects.Image;
   private busy = false;
+  private formationKey = '';
 
   constructor(props: BattleCanvasProps) {
     super('expedition-battle');
@@ -50,6 +53,9 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.canHeroAttack = props.canHeroAttack;
     this.onAttack = props.onAttack;
     this.counterTargetId = props.counterTargetId;
+    const nextFormationKey = this.party.map((hero) => hero.id).join('|');
+    if (this.formationKey && this.formationKey !== nextFormationKey) this.syncFormation();
+    this.formationKey = nextFormationKey;
   }
 
   preload() {
@@ -99,29 +105,50 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   private createParty(width: number, height: number) {
-    const positions = [
-      { x: width * 0.4, y: height * 0.81 },
-      { x: width * 0.27, y: height * 0.81 },
-      { x: width * 0.16, y: height * 0.81 },
-    ];
+    const positions = this.partyPositions(width, height);
     this.party.forEach((hero, index) => {
       const position = positions[index];
       const sprite: CombatVisual = this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index).setScale((height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / this.textures.get(`actor-${hero.id}`).getSourceImage().height);
       sprite.setAlpha(hero.hp <= 0 ? 0.35 : 1).setInteractive({ useHandCursor: true });
       this.heroSprites.set(hero.id, sprite);
-      this.add.ellipse(position.x, position.y - 4, visualWidth(sprite) * 0.52, 24, 0x020706, 0.62).setDepth(1);
-      const available = () => !!this.enemy && this.canHeroAttack(hero, index) && hero.hp > 0;
+      const shadow = this.add.ellipse(position.x, position.y - 4, visualWidth(sprite) * 0.52, 24, 0x020706, 0.62).setDepth(1);
+      this.heroShadows.set(hero.id, shadow);
+      const available = () => !!this.enemy && this.canHeroAttack(hero, this.party.findIndex((item) => item.id === hero.id)) && hero.hp > 0;
       sprite.on('pointerover', () => {
         setVisualTint(sprite, available() ? 0xffe7a0 : 0xa6adb0);
       });
       sprite.on('pointerout', () => {
         setVisualTint(sprite);
       });
-      sprite.on('pointerdown', () => this.performAttack(hero, index, sprite, position.x));
-      this.add.text(position.x, position.y - 8, hero.name, {
+      sprite.on('pointerdown', () => this.performAttack(hero, this.party.findIndex((item) => item.id === hero.id), sprite, sprite.x));
+      const label = this.add.text(position.x, position.y - 8, hero.name, {
         fontFamily: '"Noto Serif SC", serif', fontSize: '14px', color: '#f4e7bf',
         backgroundColor: '#10221ddd', padding: { x: 8, y: 4 },
       }).setOrigin(0.5, 1).setDepth(10);
+      this.heroLabels.set(hero.id, label);
+      this.tweens.add({ targets: sprite, scaleX: sprite.scaleX * 1.012, scaleY: sprite.scaleY * 0.988, duration: 900 + index * 130, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    });
+    this.formationKey = this.party.map((hero) => hero.id).join('|');
+  }
+
+  private partyPositions(width = this.scale.width, height = this.scale.height) {
+    return [{ x: width * .4, y: height * .81 }, { x: width * .27, y: height * .81 }, { x: width * .16, y: height * .81 }];
+  }
+
+  private syncFormation() {
+    const positions = this.partyPositions();
+    this.party.forEach((hero, index) => {
+      const position = positions[index];
+      const sprite = this.heroSprites.get(hero.id);
+      const shadow = this.heroShadows.get(hero.id);
+      const label = this.heroLabels.get(hero.id);
+      if (sprite) {
+        this.tweens.killTweensOf(sprite);
+        this.tweens.add({ targets: sprite, x: position.x, duration: 360, ease: 'Sine.InOut' });
+        sprite.setDepth(5 - index);
+      }
+      if (shadow) this.tweens.add({ targets: shadow, x: position.x, duration: 360, ease: 'Sine.InOut' });
+      if (label) this.tweens.add({ targets: label, x: position.x, duration: 360, ease: 'Sine.InOut' });
     });
   }
 
@@ -169,7 +196,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     const attackParts = sprite instanceof Phaser.GameObjects.Container ? sprite.getData('attackParts') as Phaser.GameObjects.Image[] : [];
     this.tweens.add({ targets: attackParts, angle: -12, duration: 130, ease: 'Quad.Out' });
     this.tweens.add({
-      targets: sprite, x: targetX, y: sprite.y - 8, duration: 220, ease: 'Cubic.In',
+      targets: sprite, x: targetX, duration: 220, ease: 'Cubic.In',
       onComplete: () => {
         this.impact(this.enemySprite!);
         this.onAttack(hero.id);
