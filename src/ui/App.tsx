@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { expeditionNodes, heroClassDescriptions, heroClassNames } from '../content/gameContent';
-import { createInitialGame, gameReducer } from '../domain/gameEngine';
+import { canAttack, createInitialGame, gameReducer } from '../domain/gameEngine';
 import type { GameAction, GameState, Hero, Page } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
 import { clearGame, loadGame, saveGame } from '../infrastructure/storage';
@@ -9,20 +9,21 @@ const pages: Array<{ id: Page; label: string }> = [
   { id: 'tavern', label: '酒馆' }, { id: 'quarters', label: '宿舍' },
   { id: 'expedition', label: '远征' }, { id: 'settings', label: '设置' },
 ];
+const actorImages: Record<string, string> = {
+  lan: '/assets/actors/lan-v1.png', wu: '/assets/actors/wu-v1.png',
+  xingluo: '/assets/actors/xingluo-v1.png', scout: '/assets/actors/scout-v1.png',
+};
 
 function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean; dispatch: React.Dispatch<GameAction> }) {
   const upgradeCost = 30 + hero.gearLevel * 20;
   return <article className={`hero-card ${selected ? 'is-selected' : ''}`}>
-    <div className="portrait">{hero.name.slice(0, 1)}</div>
-    <div className="hero-info">
+    <div className="portrait">{hero.name.slice(0, 1)}</div><div className="hero-info">
       <div className="hero-title"><strong>{hero.name}</strong><span>{heroClassNames[hero.heroClass]}</span></div>
       <p>{hero.personality}</p><small>{heroClassDescriptions[hero.heroClass]}</small>
       <div className="stats"><span>生命 {hero.maxHp}</span><span>装备 +{hero.gearLevel}</span></div>
-      <div className="button-row">
-        {!hero.recruited ? <button onClick={() => dispatch({ type: 'RECRUIT', heroId: hero.id })}>招募 · 25 金币</button> : <>
-          <button className={selected ? 'active' : ''} onClick={() => dispatch({ type: 'TOGGLE_PARTY', heroId: hero.id })}>{selected ? '已编入队伍' : '编入队伍'}</button>
-          <button disabled={hero.gearLevel >= 3} onClick={() => dispatch({ type: 'UPGRADE_GEAR', heroId: hero.id })}>装备升级 · {upgradeCost}</button>
-        </>}
+      <div className="button-row">{!hero.recruited
+        ? <button onClick={() => dispatch({ type: 'RECRUIT', heroId: hero.id })}>招募 · 25 金币</button>
+        : <><button className={selected ? 'active' : ''} onClick={() => dispatch({ type: 'TOGGLE_PARTY', heroId: hero.id })}>{selected ? '已编入队伍' : '编入队伍'}</button><button disabled={hero.gearLevel >= 3} onClick={() => dispatch({ type: 'UPGRADE_GEAR', heroId: hero.id })}>装备升级 · {upgradeCost}</button></>}
       </div>
     </div>
   </article>;
@@ -37,21 +38,40 @@ function Quarters({ state }: { state: GameState }) {
   const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [line, setLine] = useState('今晚的宿舍很安静。'); const [loading, setLoading] = useState(false);
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
   const talk = async () => { if (!hero) return; setLoading(true); setLine(await narrativeService.campLine(hero, state)); setLoading(false); };
-  return <section className="page quarters-page"><div className="intro-panel"><p className="eyebrow">宿舍 · 角色互动</p><h2>远征结束后，队员仍然有话想说。</h2><p>宿舍是可选 LLM 叙事的主要入口。生成内容只用于表现，无法修改金币、装备、生命或远征结果。</p><label>交谈对象<select value={heroId} onChange={(event) => setHeroId(event.target.value)}>{recruited.map((item) => <option value={item.id} key={item.id}>{item.name} · {heroClassNames[item.heroClass]}</option>)}</select></label><button className="primary" disabled={loading} onClick={talk}>{loading ? '正在组织语言…' : narrativeService.available && state.settings.llmEnabled ? '开始交谈' : '查看本地对白'}</button></div><div className="quarters-scene"><div className="speaker">{hero?.name ?? '无人'}</div><blockquote>“{line}”</blockquote><small>{narrativeService.available ? '已检测到宿主 LLM' : '当前使用离线对白库'}</small></div></section>;
+  return <section className="page quarters-page"><div className="intro-panel"><p className="eyebrow">宿舍 · 角色互动</p><h2>远征结束后，队员仍然有话想说。</h2><p>宿舍是可选 LLM 叙事的主要入口。生成内容只负责表现，不会修改金币、装备、生命或远征结果。</p><label>交谈对象<select value={heroId} onChange={(event) => setHeroId(event.target.value)}>{recruited.map((item) => <option value={item.id} key={item.id}>{item.name} · {heroClassNames[item.heroClass]}</option>)}</select></label><button className="primary" disabled={loading} onClick={talk}>{loading ? '正在组织语言…' : narrativeService.available && state.settings.llmEnabled ? '开始交谈' : '查看本地对白'}</button></div><div className="quarters-scene"><div className="speaker">{hero?.name ?? '无人'}</div><blockquote>“{line}”</blockquote><small>{narrativeService.available ? '已检测到宿主 LLM' : '当前使用离线对白库'}</small></div></section>;
 }
 
 function MiniMap({ currentNode }: { currentNode: number }) {
-  return <aside className="mini-map" aria-label="遗迹场景地图">
-    <div className="map-heading"><strong>边境遗迹</strong><small>场景地图</small></div>
-    <div className="map-path">{expeditionNodes.map((node, index) => <div key={node.title} className={`map-node ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={node.title}><i>{index + 1}</i><span>{index <= currentNode ? node.title : '未知'}</span></div>)}</div>
-  </aside>;
+  return <aside className="mini-map" aria-label="遗迹场景地图"><div className="map-heading"><strong>边境遗迹</strong><small>场景地图</small></div><div className="map-path">{expeditionNodes.map((node, index) => <div key={node.title} className={`map-node ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={node.title}><i>{index + 1}</i><span>{index <= currentNode ? node.title : '未知'}</span></div>)}</div></aside>;
 }
 
 function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
+  const [actingHeroId, setActingHeroId] = useState<string | null>(null);
+  const [enemyHit, setEnemyHit] = useState(false);
   const run = state.expedition;
-  if (!run) return <section className="empty-state"><h2>尚未开始远征</h2><p>请先在酒馆选择队员并完成整备。</p><button className="primary" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}>返回酒馆</button></section>;
-  const party = run.formation.map((id) => state.roster.find((hero) => hero.id === id)!).filter(Boolean); const node = expeditionNodes[run.nodeIndex];
-  return <section className="page expedition-page"><div className="run-header"><div><p className="eyebrow">远征 · 节点 {run.nodeIndex + 1}/{expeditionNodes.length}</p><h2>{node.title}</h2><p>{node.description}</p></div><div className="supplies"><span>绷带 × {run.supplies.bandage}</span><span>镇定剂 × {run.supplies.sedative}</span><button onClick={() => dispatch({ type: 'RETREAT' })}>撤退</button></div></div><MiniMap currentNode={run.nodeIndex} /><div className="battlefield"><div className="party-line">{party.map((hero, index) => <article className={`combatant ally ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><span className="slot">{index === 0 ? '前排' : index === party.length - 1 ? '后排' : '中排'}</span><strong>{hero.name}</strong><small>{heroClassNames[hero.heroClass]}{state.settings.moraleEnabled && hero.morale >= 50 ? ' · 动摇' : ''}</small><div className="bar"><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /></div><span>生命 {hero.hp}/{hero.maxHp}</span>{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}<button disabled={!run.enemy || hero.hp <= 0} onClick={() => dispatch({ type: 'ATTACK', heroId: hero.id })}>攻击</button><div className="mini-actions"><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button></div>{index < party.length - 1 && <button className="swap" onClick={() => dispatch({ type: 'SWAP', index })}>与后方换位</button>}</article>)}</div><div className="versus">对峙</div><div className="enemy-line">{run.enemy ? <article className={`combatant enemy ${run.enemy.hp <= 0 ? 'down' : ''}`}><span className="slot">距离 {run.enemy.distance}</span><strong>{run.enemy.name}</strong><small>攻击 {run.enemy.damage} · 范围 {run.enemy.attackMinRange}–{run.enemy.attackMaxRange}</small><div className="bar enemy-bar"><i style={{ width: `${run.enemy.hp / run.enemy.maxHp * 100}%` }} /></div><span>生命 {run.enemy.hp}/{run.enemy.maxHp}</span></article> : <div className="rest-node"><strong>暂时安全</strong><p>这是休整节点，可以继续前进。</p></div>}</div></div><div className="run-footer"><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{(!run.enemy || run.enemy.hp === 0) && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</div></section>;
+  if (!run) return <section className="empty-state"><div><h2>尚未开始远征</h2><p>请先在酒馆选择队员并完成整备。</p><button className="primary" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}>返回酒馆</button></div></section>;
+  const party = run.formation.map((id) => state.roster.find((hero) => hero.id === id)!).filter(Boolean);
+  const node = expeditionNodes[run.nodeIndex];
+  const attack = (hero: Hero, index: number) => {
+    if (!run.enemy || !canAttack(hero, run.enemy, index) || actingHeroId) { dispatch({ type: 'ATTACK', heroId: hero.id }); return; }
+    setActingHeroId(hero.id); window.setTimeout(() => { setEnemyHit(true); dispatch({ type: 'ATTACK', heroId: hero.id }); }, 210);
+    window.setTimeout(() => setEnemyHit(false), 470); window.setTimeout(() => setActingHeroId(null), 650);
+  };
+  return <section className="page expedition-page">
+    <div className="run-header"><div><p className="eyebrow">远征 · 节点 {run.nodeIndex + 1}/{expeditionNodes.length}</p><h2>{node.title}</h2><p>{node.description}</p></div><div className="supplies"><span>绷带 × {run.supplies.bandage}</span><span>镇定剂 × {run.supplies.sedative}</span><button onClick={() => dispatch({ type: 'RETREAT' })}>撤退</button></div></div>
+    <MiniMap currentNode={run.nodeIndex} />
+    <div className="battlefield stage-battlefield">
+      <div className="scene-caption"><span>第 {run.nodeIndex + 1} 幕</span><strong>{run.enemy ? '遭遇战' : '安全区域'}</strong></div>
+      <div className="actor-party">{party.map((hero, index) => <div className={`stage-actor hero-actor rank-${index} ${actingHeroId === hero.id ? 'is-attacking' : ''} ${hero.hp <= 0 ? 'is-down' : ''}`} key={hero.id}><div className="actor-shadow"/><img src={actorImages[hero.id]} alt={`${hero.name}的全身角色形象`} /><div className="actor-nameplate"><strong>{hero.name}</strong><span>{index === 0 ? '前排' : index === party.length - 1 ? '后排' : '中排'}</span></div></div>)}</div>
+      {run.enemy ? <div className={`stage-actor enemy-actor ${enemyHit ? 'is-hit' : ''} ${run.enemy.hp <= 0 ? 'is-down' : ''}`}><div className="actor-shadow"/>{actorImages[run.enemy.id] ? <img src={actorImages[run.enemy.id]} alt={`${run.enemy.name}的全身敌人形象`} /> : <div className="enemy-silhouette">◆</div>}<div className="actor-nameplate enemy-nameplate"><strong>{run.enemy.name}</strong><span>距离 {run.enemy.distance}</span></div><div className="hit-spark" /></div> : <div className="stage-rest"><strong>暂时安全</strong><span>风穿过断裂的石柱。</span></div>}
+      <div className="stage-vignette" />
+    </div>
+    <div className="battle-hud">
+      <div className="party-hud">{party.map((hero, index) => <article className={`hud-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="hud-heading"><strong>{hero.name}</strong><small>{heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className="bar"><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /></div><div className="hud-values"><span>生命 {hero.hp}/{hero.maxHp}</span>{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}</div><div className="hud-actions"><button className="attack-button" disabled={!run.enemy || hero.hp <= 0 || !!actingHeroId} onClick={() => attack(hero, index)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>)}</div>
+      {run.enemy && <article className="enemy-hud"><div className="hud-heading"><strong>{run.enemy.name}</strong><small>攻击 {run.enemy.damage} · 范围 {run.enemy.attackMinRange}–{run.enemy.attackMaxRange}</small></div><div className="bar enemy-bar"><i style={{ width: `${run.enemy.hp / run.enemy.maxHp * 100}%` }} /></div><span>生命 {run.enemy.hp}/{run.enemy.maxHp}</span></article>}
+    </div>
+    <div className="run-footer"><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{(!run.enemy || run.enemy.hp === 0) && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</div>
+  </section>;
 }
 
 function Settings({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
