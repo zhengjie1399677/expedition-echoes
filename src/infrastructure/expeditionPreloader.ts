@@ -6,6 +6,7 @@ const EXPEDITION_ASSETS = [
   '/assets/actors-v2/scout-idle-v2.png',
   '/assets/world/quarters-hall-v1.png',
   '/assets/world/quarters-dorm-v1.png',
+  '/assets/world/tavern-hall-v1.png',
 ];
 
 interface NetworkInformation { saveData?: boolean; effectiveType?: string }

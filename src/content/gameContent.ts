@@ -1,4 +1,4 @@
-import type { Enemy, Hero, HeroClass } from '../domain/model';
+import type { Enemy, Hero, HeroClass, Mission } from '../domain/model';
 
 export const heroClassNames: Record<HeroClass, string> = { vanguard: '先锋', ranger: '游侠', mage: '术士', medic: '医师' };
 export const heroClassDescriptions: Record<HeroClass, string> = {
@@ -17,6 +17,11 @@ export const enemies: Enemy[] = [
   { id: 'scout', name: '遗迹斥候', maxHp: 26, hp: 26, distance: 1, attackMinRange: 2, attackMaxRange: 3, damage: 4 },
   { id: 'warden', name: '锈甲守卫', maxHp: 34, hp: 34, distance: 1, attackMinRange: 1, attackMaxRange: 1, damage: 5 },
   { id: 'gatekeeper', name: '遗迹门卫', maxHp: 46, hp: 46, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 7 },
+];
+export const missions: Mission[] = [
+  { id: 'border-echoes', title: '边境回声', summary: '调查遗迹道路上的异常脚步，并确认封印门厅是否安全。', difficulty: 1, reward: 45, enemyWaves: { 0: ['scout', 'warden'], 2: ['warden', 'scout'], 4: ['gatekeeper', 'warden', 'scout'] } },
+  { id: 'rusted-patrol', title: '锈甲巡逻队', summary: '一支失控的守卫队正在截断商路，需要正面突破。', difficulty: 2, reward: 62, enemyWaves: { 0: ['warden', 'scout'], 2: ['scout', 'warden'], 4: ['gatekeeper', 'warden'] } },
+  { id: 'sealed-gate', title: '封门异响', summary: '封印深处传来连续回声，公会要求带回完整调查记录。', difficulty: 3, reward: 84, enemyWaves: { 0: ['scout', 'warden'], 2: ['gatekeeper', 'scout', 'warden'], 4: ['gatekeeper', 'warden', 'scout'] } },
 ];
 export const expeditionNodes = [
   { kind: 'combat', title: '坍塌入口', description: '碎石之间传来急促脚步。', enemyIds: ['scout', 'warden'] },

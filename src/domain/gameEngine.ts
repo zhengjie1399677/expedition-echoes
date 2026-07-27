@@ -1,4 +1,4 @@
-import { baseAttack, enemies, expeditionNodes, initialHeroes } from '../content/gameContent';
+import { baseAttack, enemies, expeditionNodes, initialHeroes, missions } from '../content/gameContent';
 import type { Enemy, GameAction, GameState, Hero } from './model';
 
 const enemyById = (id: string): Enemy => ({ ...enemies.find((enemy) => enemy.id === id)! });
@@ -6,7 +6,7 @@ const addLog = (state: GameState, message: string): GameState => ({ ...state, lo
 const editHero = (state: GameState, id: string, edit: (hero: Hero) => Hero): GameState => ({ ...state, roster: state.roster.map((hero) => hero.id === id ? edit(hero) : hero) });
 
 export function createInitialGame(): GameState {
-  return { version: 4, page: 'town', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
+  return { version: 5, page: 'town', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero })), selectedHeroIds: ['lan', 'wu', 'xingluo'], selectedMissionId: missions[0].id, expedition: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆已经备好第一份远征契约。'] };
 }
 
 export function canAttack(hero: Hero, enemy: Enemy, formationIndex = 0): boolean {
@@ -33,12 +33,18 @@ function enterNode(state: GameState, nodeIndex: number): GameState {
     const roster = state.roster.map((hero) => state.expedition!.formation.includes(hero.id) ? { ...hero, hp: Math.min(hero.maxHp, hero.hp + 5), morale: Math.max(0, hero.morale - 12) } : hero);
     return addLog({ ...state, roster, expedition: { ...state.expedition, nodeIndex, enemies: [] } }, `${node.title}：${node.description}`);
   }
-  return addLog({ ...state, expedition: { ...state.expedition, nodeIndex, enemies: node.enemyIds.map(enemyById) } }, `${node.title}：${node.description}`);
+  const mission = missions.find((item) => item.id === state.expedition!.missionId) ?? missions[0];
+  const enemyIds = mission.enemyWaves[nodeIndex] ?? node.enemyIds;
+  return addLog({ ...state, expedition: { ...state.expedition, nodeIndex, enemies: enemyIds.map(enemyById) } }, `${node.title}：${node.description}`);
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'NAVIGATE': return { ...state, page: action.page };
+    case 'ACCEPT_MISSION': {
+      const mission = missions.find((item) => item.id === action.missionId);
+      return mission ? addLog({ ...state, selectedMissionId: mission.id }, `已接受任务：${mission.title}。`) : state;
+    }
     case 'TOGGLE_PARTY': {
       const hero = state.roster.find((item) => item.id === action.heroId);
       if (!hero?.recruited) return addLog(state, '需要先招募这名队员。');
@@ -60,7 +66,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case 'START_EXPEDITION': {
       if (state.selectedHeroIds.length < 2) return addLog(state, '至少选择两名队员。');
-      const prepared: GameState = { ...state, page: 'expedition', roster: state.roster.map((hero) => state.selectedHeroIds.includes(hero.id) ? { ...hero, hp: hero.maxHp, morale: 0 } : hero), expedition: { nodeIndex: 0, formation: [...state.selectedHeroIds], enemies: [], supplies: { bandage: 3, sedative: 1 } } };
+      const prepared: GameState = { ...state, page: 'expedition', roster: state.roster.map((hero) => state.selectedHeroIds.includes(hero.id) ? { ...hero, hp: hero.maxHp, morale: 0 } : hero), expedition: { missionId: state.selectedMissionId, nodeIndex: 0, formation: [...state.selectedHeroIds], enemies: [], supplies: { bandage: 3, sedative: 1 } } };
       return enterNode(prepared, 0);
     }
     case 'ATTACK': {
@@ -105,7 +111,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ADVANCE': {
       if (!state.expedition || state.expedition.enemies.some((enemy) => enemy.hp > 0)) return addLog(state, '需要先解决当前遭遇。');
       const nextIndex = state.expedition.nodeIndex + 1;
-      if (nextIndex >= expeditionNodes.length) return addLog({ ...state, page: 'town', gold: state.gold + 45, expedition: null }, '远征完成，全队带回 45 金币。');
+      if (nextIndex >= expeditionNodes.length) {
+        const reward = missions.find((mission) => mission.id === state.expedition!.missionId)?.reward ?? 45;
+        return addLog({ ...state, page: 'town', gold: state.gold + reward, expedition: null }, `远征完成，全队带回 ${reward} 金币。`);
+      }
       return enterNode(state, nextIndex);
     }
     case 'RETREAT': return addLog({ ...state, page: 'town', expedition: null }, '队伍提前撤回城镇。');

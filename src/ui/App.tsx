@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react';
-import { expeditionNodes, heroClassDescriptions, heroClassNames } from '../content/gameContent';
+import { expeditionNodes, heroClassDescriptions, heroClassNames, missions } from '../content/gameContent';
 import { canAttack, createInitialGame, enemyCanAttack, gameReducer } from '../domain/gameEngine';
 import type { GameAction, GameState, Hero } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
@@ -37,7 +37,12 @@ function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
 }
 
 function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
-  return <section className="page tavern-page"><div className="intro-panel"><p className="eyebrow">旅途酒馆 · 招募与整备</p><h2>在出发之前，决定由谁承担风险。</h2><p>酒馆同时承接远征任务、队员招募与物资补给。装备只在城内升级，进入遗迹后无法更换。</p><div className="party-summary">当前队伍：{state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).join('、') || '尚未选择'}</div><button className="primary" onClick={() => dispatch({ type: 'START_EXPEDITION' })}>整队前往城门</button></div><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></section>;
+  const selectedMission = missions.find((mission) => mission.id === state.selectedMissionId) ?? missions[0];
+  return <section className="page tavern-page tavern-scene">
+    <img className="tavern-background" src="/assets/world/tavern-hall-v1.png" alt="黄昏中的冒险者酒馆和任务板" />
+    <aside className="tavern-roster-panel"><header><p className="eyebrow">酒馆 · 队伍整备</p><strong>冒险者名册</strong><span>当前队伍：{state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).join('、') || '尚未选择'}</span></header><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></aside>
+    <aside className="mission-board-panel"><header><p className="eyebrow">公会任务板</p><strong>可接受任务</strong><span>任务数据来自内容层，可由本地内容或后续服务动态替换。</span></header><div className="mission-list">{missions.map((mission) => <button key={mission.id} className={`mission-card ${selectedMission.id === mission.id ? 'selected' : ''}`} onClick={() => dispatch({ type: 'ACCEPT_MISSION', missionId: mission.id })}><div><strong>{mission.title}</strong><span>{'◆'.repeat(mission.difficulty)}{'◇'.repeat(3 - mission.difficulty)}</span></div><p>{mission.summary}</p><small>报酬 {mission.reward} 金币 · 三段远征</small></button>)}</div><footer><div><small>已接受</small><strong>{selectedMission.title}</strong></div><button className="primary" onClick={() => dispatch({ type: 'START_EXPEDITION' })}>整队出发</button></footer></aside>
+  </section>;
 }
 
 function Quarters({ state }: { state: GameState }) {
