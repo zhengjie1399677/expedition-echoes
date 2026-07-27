@@ -1,0 +1,152 @@
+{
+  "source": "parts-sheet-v1.png",
+  "size": [
+    1536,
+    1024
+  ],
+  "parts": [
+    {
+      "id": "part-01",
+      "file": "part-01.png",
+      "bounds": [
+        427,
+        118,
+        625,
+        436
+      ],
+      "opaquePixels": 36822,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-02",
+      "file": "part-02.png",
+      "bounds": [
+        44,
+        122,
+        368,
+        397
+      ],
+      "opaquePixels": 49938,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-03",
+      "file": "part-03.png",
+      "bounds": [
+        1132,
+        161,
+        1252,
+        458
+      ],
+      "opaquePixels": 15700,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-04",
+      "file": "part-04.png",
+      "bounds": [
+        695,
+        165,
+        813,
+        419
+      ],
+      "opaquePixels": 10677,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-05",
+      "file": "part-05.png",
+      "bounds": [
+        909,
+        169,
+        1038,
+        417
+      ],
+      "opaquePixels": 10576,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-06",
+      "file": "part-06.png",
+      "bounds": [
+        1334,
+        176,
+        1442,
+        455
+      ],
+      "opaquePixels": 14680,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-07",
+      "file": "part-07.png",
+      "bounds": [
+        61,
+        583,
+        309,
+        856
+      ],
+      "opaquePixels": 46981,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-08",
+      "file": "part-08.png",
+      "bounds": [
+        869,
+        618,
+        1182,
+        825
+      ],
+      "opaquePixels": 18658,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-09",
+      "file": "part-09.png",
+      "bounds": [
+        1134,
+        659,
+        1353,
+        784
+      ],
+      "opaquePixels": 9005,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-10",
+      "file": "part-10.png",
+      "bounds": [
+        1345,
+        681,
+        1494,
+        787
+      ],
+      "opaquePixels": 6410,
+      "slot": "unassigned",
+      "anchor": null
+    },
+    {
+      "id": "part-11",
+      "file": "part-11.png",
+      "bounds": [
+        330,
+        702,
+        842,
+        770
+      ],
+      "opaquePixels": 11013,
+      "slot": "unassigned",
+      "anchor": null
+    }
+  ]
+}
