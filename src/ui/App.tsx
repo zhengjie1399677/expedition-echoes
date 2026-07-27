@@ -28,7 +28,25 @@ function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean;
 }
 
 function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
-  return <section className="page tavern-page"><div className="intro-panel"><p className="eyebrow">酒馆 · 招募与整备</p><h2>在出发之前，决定由谁承担风险。</h2><p>首版队伍由 2–3 人组成。装备只在酒馆升级，进入副本后无法更换。</p><div className="party-summary">当前队伍：{state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).join('、') || '尚未选择'}</div><button className="primary" onClick={() => dispatch({ type: 'START_EXPEDITION' })}>前往边境遗迹</button></div><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></section>;
+  const [location, setLocation] = useState<'plaza' | 'tavern'>('plaza');
+  const partyNames = state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).filter(Boolean).join('、');
+  return <section className="page town-page">
+    <div className="town-map">
+      <img src="/assets/world/town-hub-v1.png" alt="夕阳下的冒险者城镇，包含酒馆、广场、宿舍和城门" />
+      <div className="town-map-shade" />
+      <button className="map-hotspot hotspot-tavern" onClick={() => setLocation('tavern')}><strong>旅途酒馆</strong><span>招募 · 任务 · 补给</span></button>
+      <button className="map-hotspot hotspot-plaza" onClick={() => setLocation('plaza')}><strong>中央广场</strong><span>城镇据点</span></button>
+      <button className="map-hotspot hotspot-quarters" onClick={() => dispatch({ type: 'NAVIGATE', page: 'quarters' })}><strong>旅人宿舍</strong><span>休息 · 交谈</span></button>
+      <button className="map-hotspot hotspot-gate" onClick={() => dispatch({ type: 'START_EXPEDITION' })}><strong>东侧城门</strong><span>开始远征</span></button>
+      <div className="town-map-card">
+        <p className="eyebrow">{location === 'plaza' ? '据点 · 中央广场' : '据点 · 旅途酒馆'}</p>
+        <h2>{location === 'plaza' ? '新的旅程从这里展开。' : '在出发前决定由谁承担风险。'}</h2>
+        <p>{location === 'plaza' ? '酒馆负责招募、任务与物资整备；宿舍承载队员互动；穿过城门即可进入远征。' : `当前队伍：${partyNames || '尚未选择'}。装备只在城内升级，进入遗迹后无法更换。`}</p>
+        {location === 'plaza' ? <button className="primary" onClick={() => setLocation('tavern')}>前往酒馆整备</button> : <button className="primary" onClick={() => dispatch({ type: 'START_EXPEDITION' })}>整队前往城门</button>}
+      </div>
+    </div>
+    {location === 'tavern' && <div className="town-management"><div className="management-heading"><div><p className="eyebrow">酒馆 · 队伍整备</p><h2>远征成员</h2></div><button onClick={() => setLocation('plaza')}>收起面板</button></div><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></div>}
+  </section>;
 }
 
 function Quarters({ state }: { state: GameState }) {
