@@ -37,14 +37,56 @@ function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
 }
 
 function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
-  const selectedMission = missions.find((mission) => mission.id === state.selectedMissionId) ?? missions[0];
   const [rosterOpen, setRosterOpen] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
+  const [previewMissionId, setPreviewMissionId] = useState<string>();
+  const [acceptingMission, setAcceptingMission] = useState(false);
+  const previewMission = missions.find((mission) => mission.id === previewMissionId);
+  const closeBoard = () => {
+    if (acceptingMission) return;
+    setBoardOpen(false);
+    setPreviewMissionId(undefined);
+  };
+  const acceptMission = () => {
+    if (!previewMission || acceptingMission) return;
+    dispatch({ type: 'ACCEPT_MISSION', missionId: previewMission.id });
+    setAcceptingMission(true);
+    globalThis.setTimeout(() => {
+      setBoardOpen(false);
+      setPreviewMissionId(undefined);
+      setAcceptingMission(false);
+    }, 720);
+  };
   return <section className="page tavern-page tavern-scene">
     <img className="tavern-background" src="/assets/world/tavern-hall-v2.png" alt="有老板和冒险者客人的黄昏酒馆" />
-    <div className="tavern-scene-title"><p className="eyebrow">旅途酒馆</p><strong>任务、招募与远征整备</strong></div>
-    <button className="tavernkeeper-hotspot" onClick={() => setRosterOpen(true)}><strong>酒馆老板</strong><span>招募 · 编队 · 装备</span></button>
-    <div className="quest-board-pins" aria-label="公会任务板">{missions.map((mission, index) => <button key={mission.id} className={`quest-note quest-note-${index} ${selectedMission.id === mission.id ? 'selected' : ''}`} onClick={() => dispatch({ type: 'ACCEPT_MISSION', missionId: mission.id })}><strong>{mission.title}</strong><span>{'◆'.repeat(mission.difficulty)} · {mission.reward} 金币</span></button>)}</div>
-    <div className="accepted-contract"><div><small>当前任务</small><strong>{selectedMission.title}</strong><span>{selectedMission.summary}</span></div><button onClick={() => dispatch({ type: 'START_EXPEDITION' })}>整队出发</button></div>
+    <button className="scene-hotspot tavernkeeper-hotspot" aria-label="与酒馆老板交谈，打开招募与整备" onClick={() => setRosterOpen(true)}><span>酒馆老板</span></button>
+    <button className="scene-hotspot quest-board-hotspot" aria-label="查看公会任务板" onClick={() => { setBoardOpen(true); setPreviewMissionId(undefined); }}><span>查看任务板</span></button>
+    {boardOpen && !previewMission && <aside className="quest-dialog quest-list-dialog" aria-label="公会任务板">
+      <header><div><small>公会任务板</small><strong>选择远征委托</strong></div><button onClick={closeBoard}>关闭</button></header>
+      <div className="quest-dialog-list">{missions.map((mission) => <button key={mission.id} className="quest-dialog-card" onClick={() => setPreviewMissionId(mission.id)}>
+        <div><strong>{mission.title}</strong><span>{'◆'.repeat(mission.difficulty)}{'◇'.repeat(3 - mission.difficulty)}</span></div>
+        <p>{mission.summary}</p><small>{mission.reward} 金币 · 点击展开委托</small>
+      </button>)}</div>
+      <footer>选择一张委托，查看完整内容。</footer>
+    </aside>}
+    {boardOpen && previewMission && <aside className={`quest-parchment ${acceptingMission ? 'accepting' : ''}`} aria-label={`${previewMission.title}任务详情`}>
+      <button className="parchment-close" aria-label="关闭任务详情" onClick={closeBoard}>×</button>
+      <div className="parchment-kicker">冒险者公会 · 正式委托</div>
+      <h2>{previewMission.title}</h2>
+      <div className="parchment-difficulty" aria-label={`难度 ${previewMission.difficulty}`}>{'◆'.repeat(previewMission.difficulty)}{'◇'.repeat(3 - previewMission.difficulty)}</div>
+      <div className="parchment-rule" />
+      <p className="parchment-summary">{previewMission.summary}</p>
+      <dl className="parchment-details">
+        <div><dt>委托报酬</dt><dd>{previewMission.reward} 金币</dd></div>
+        <div><dt>行动区域</dt><dd>边境遗迹</dd></div>
+        <div><dt>预计行程</dt><dd>{Object.keys(previewMission.enemyWaves).length} 场遭遇</dd></div>
+      </dl>
+      <div className="parchment-actions">
+        <button onClick={() => setPreviewMissionId(undefined)}>返回任务板</button>
+        <button className="accept-mission" onClick={acceptMission}>接取任务</button>
+      </div>
+      {acceptingMission && <div className="accepted-check" aria-live="polite"><strong>✓</strong><span>任务已接取</span></div>}
+    </aside>}
     {rosterOpen && <aside className="tavern-roster-drawer"><header><div><p className="eyebrow">酒馆老板 · 队伍整备</p><strong>冒险者名册</strong></div><button onClick={() => setRosterOpen(false)}>关闭</button></header><p className="roster-summary">当前队伍：{state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).join('、') || '尚未选择'}</p><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></aside>}
   </section>;
 }
