@@ -110,6 +110,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
       const position = positions[index];
       const sprite: CombatVisual = this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index).setScale((height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / this.textures.get(`actor-${hero.id}`).getSourceImage().height);
       sprite.setAlpha(hero.hp <= 0 ? 0.35 : 1).setInteractive({ useHandCursor: true });
+      sprite.setData('baseScaleX', sprite.scaleX).setData('baseScaleY', sprite.scaleY);
       this.heroSprites.set(hero.id, sprite);
       const shadow = this.add.ellipse(position.x, position.y - 4, visualWidth(sprite) * 0.52, 24, 0x020706, 0.62).setDepth(1);
       this.heroShadows.set(hero.id, shadow);
@@ -126,13 +127,20 @@ class ExpeditionBattleScene extends Phaser.Scene {
         backgroundColor: '#10221ddd', padding: { x: 8, y: 4 },
       }).setOrigin(0.5, 1).setDepth(10);
       this.heroLabels.set(hero.id, label);
-      this.tweens.add({ targets: sprite, scaleX: sprite.scaleX * 1.012, scaleY: sprite.scaleY * 0.988, duration: 900 + index * 130, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      this.playIdle(sprite, index);
     });
     this.formationKey = this.party.map((hero) => hero.id).join('|');
   }
 
   private partyPositions(width = this.scale.width, height = this.scale.height) {
     return [{ x: width * .4, y: height * .81 }, { x: width * .27, y: height * .81 }, { x: width * .16, y: height * .81 }];
+  }
+
+  private playIdle(sprite: CombatVisual, index = 0) {
+    const baseScaleX = sprite.getData('baseScaleX') as number;
+    const baseScaleY = sprite.getData('baseScaleY') as number;
+    this.tweens.killTweensOf(sprite);
+    this.tweens.add({ targets: sprite, scaleX: baseScaleX * 1.012, scaleY: baseScaleY * .988, duration: 1000 + index * 120, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
 
   private syncFormation() {
@@ -144,7 +152,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
       const label = this.heroLabels.get(hero.id);
       if (sprite) {
         this.tweens.killTweensOf(sprite);
-        this.tweens.add({ targets: sprite, x: position.x, duration: 360, ease: 'Sine.InOut' });
+        this.tweens.add({ targets: sprite, x: position.x, duration: 420, ease: 'Sine.InOut', onComplete: () => this.playIdle(sprite, index) });
         sprite.setDepth(5 - index);
       }
       if (shadow) this.tweens.add({ targets: shadow, x: position.x, duration: 360, ease: 'Sine.InOut' });
@@ -193,28 +201,32 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.busy = true;
     this.tweens.killTweensOf(sprite);
     const targetX = this.enemySprite.x - this.enemySprite.displayWidth * 0.28;
+    const baseScaleX = sprite.getData('baseScaleX') as number;
+    const baseScaleY = sprite.getData('baseScaleY') as number;
     const attackParts = sprite instanceof Phaser.GameObjects.Container ? sprite.getData('attackParts') as Phaser.GameObjects.Image[] : [];
     this.tweens.add({ targets: attackParts, angle: -12, duration: 130, ease: 'Quad.Out' });
     this.tweens.add({
-      targets: sprite, x: targetX, duration: 220, ease: 'Cubic.In',
+      targets: sprite, x: targetX, scaleX: baseScaleX * 1.12, scaleY: baseScaleY * .9, duration: 330, ease: 'Cubic.In',
       onComplete: () => {
         this.impact(this.enemySprite!);
         this.onAttack(hero.id);
         this.time.delayedCall(140, () => this.enemyCounter());
         this.tweens.add({
-          targets: sprite, x: originX, duration: 330, ease: 'Cubic.Out',
-          onComplete: () => { this.tweens.add({ targets: attackParts, angle: 0, duration: 150 }); this.busy = false; },
+          targets: sprite, x: originX, scaleX: baseScaleX, scaleY: baseScaleY, duration: 430, ease: 'Cubic.Out',
+          onComplete: () => { this.tweens.add({ targets: attackParts, angle: 0, duration: 150 }); this.playIdle(sprite, index); this.busy = false; },
         });
       },
     });
   }
 
   private impact(target: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite) {
-    target.setTint(0xffffff);
+    target.setTint(0xff8a73);
     this.cameras.main.shake(130, 0.006);
     const flash = this.add.circle(target.x - target.displayWidth * 0.18, target.y - target.displayHeight * 0.52, 28, 0xffd36a, 0.9).setDepth(15);
     this.tweens.add({ targets: flash, scale: 3.4, alpha: 0, duration: 260, onComplete: () => flash.destroy() });
-    this.tweens.add({ targets: target, x: target.x + 18, duration: 55, yoyo: true, repeat: 2, onComplete: () => target.clearTint() });
+    const baseScaleX = target.scaleX;
+    const baseScaleY = target.scaleY;
+    this.tweens.add({ targets: target, x: target.x + 32, scaleX: baseScaleX * .84, scaleY: baseScaleY * 1.12, angle: 7, duration: 120, yoyo: true, repeat: 1, ease: 'Quad.Out', onComplete: () => { target.clearTint(); target.setAngle(0); target.setScale(baseScaleX, baseScaleY); } });
     this.showFloatingText(target.x, target.y - target.displayHeight * 0.72, '命中', '#ffe49a');
   }
 
