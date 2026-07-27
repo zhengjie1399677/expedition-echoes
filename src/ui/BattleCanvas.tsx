@@ -19,7 +19,17 @@ const ACTORS: Record<string, string> = {
   scout: '/assets/actors-v2/scout-idle-v2.png',
 };
 
+const LAN_RIG_PARTS: Record<string, string> = {
+  torso: '/assets/rigs/lan-vanguard-v1/parts/part-01.png', head: '/assets/rigs/lan-vanguard-v1/parts/part-02.png', rearLeg: '/assets/rigs/lan-vanguard-v1/parts/part-03.png', rearArm: '/assets/rigs/lan-vanguard-v1/parts/part-04.png', frontArm: '/assets/rigs/lan-vanguard-v1/parts/part-05.png', frontLeg: '/assets/rigs/lan-vanguard-v1/parts/part-06.png', shield: '/assets/rigs/lan-vanguard-v1/parts/part-07.png', scarfMain: '/assets/rigs/lan-vanguard-v1/parts/part-08.png', scarfMid: '/assets/rigs/lan-vanguard-v1/parts/part-09.png', scarfTip: '/assets/rigs/lan-vanguard-v1/parts/part-10.png', spear: '/assets/rigs/lan-vanguard-v1/parts/part-11.png',
+};
+
 const CHARACTER_HEIGHTS: Record<string, number> = { lan: 0.3, wu: 0.318, xingluo: 0.285, scout: 0.32 };
+type CombatVisual = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
+const visualWidth = (visual: CombatVisual) => visual instanceof Phaser.GameObjects.Container ? visual.getBounds().width : visual.displayWidth;
+function setVisualTint(visual: CombatVisual, tint?: number) {
+  const apply = (image: Phaser.GameObjects.Image) => tint === undefined ? image.clearTint() : image.setTint(tint);
+  if (visual instanceof Phaser.GameObjects.Container) visual.list.forEach((child) => { if (child instanceof Phaser.GameObjects.Image) apply(child); }); else apply(visual);
+}
 
 class ExpeditionBattleScene extends Phaser.Scene {
   private party: Hero[];
@@ -28,8 +38,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
   private canHeroAttack: BattleCanvasProps['canHeroAttack'];
   private onAttack: BattleCanvasProps['onAttack'];
   private counterTargetId?: string;
-  private heroSprites = new Map<string, Phaser.GameObjects.Image | Phaser.GameObjects.Sprite>();
-  private enemySprite?: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
+  private heroSprites = new Map<string, CombatVisual>();
+  private enemySprite?: Phaser.GameObjects.Image;
   private busy = false;
 
   constructor(props: BattleCanvasProps) {
@@ -45,6 +55,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   preload() {
     this.load.image('battle-bg', '/assets/world/ruins-road-battle-v1.png');
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
+    Object.entries(LAN_RIG_PARTS).forEach(([key, path]) => this.load.image(`lan-rig-${key}`, path));
   }
 
   create() {
@@ -96,16 +107,18 @@ class ExpeditionBattleScene extends Phaser.Scene {
     ];
     this.party.forEach((hero, index) => {
       const position = positions[index];
-      const sprite = this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index);
-      sprite.setScale((height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / sprite.height).setAlpha(hero.hp <= 0 ? 0.35 : 1).setInteractive({ useHandCursor: true });
+      const sprite: CombatVisual = hero.id === 'lan'
+        ? this.createLanPuppet(position.x, position.y, height * CHARACTER_HEIGHTS.lan, 5 - index)
+        : this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index).setScale((height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / this.textures.get(`actor-${hero.id}`).getSourceImage().height);
+      sprite.setAlpha(hero.hp <= 0 ? 0.35 : 1).setInteractive({ useHandCursor: true });
       this.heroSprites.set(hero.id, sprite);
-      this.add.ellipse(position.x, position.y - 4, sprite.displayWidth * 0.52, 24, 0x020706, 0.62).setDepth(1);
+      this.add.ellipse(position.x, position.y - 4, visualWidth(sprite) * 0.52, 24, 0x020706, 0.62).setDepth(1);
       const available = () => !!this.enemy && this.canHeroAttack(hero, index) && hero.hp > 0;
       sprite.on('pointerover', () => {
-        sprite.setTint(available() ? 0xffe7a0 : 0xa6adb0);
+        setVisualTint(sprite, available() ? 0xffe7a0 : 0xa6adb0);
       });
       sprite.on('pointerout', () => {
-        sprite.clearTint();
+        setVisualTint(sprite);
       });
       sprite.on('pointerdown', () => this.performAttack(hero, index, sprite, position.x));
       this.add.text(position.x, position.y - 8, hero.name, {
@@ -113,6 +126,18 @@ class ExpeditionBattleScene extends Phaser.Scene {
         backgroundColor: '#10221ddd', padding: { x: 8, y: 4 },
       }).setOrigin(0.5, 1).setDepth(10);
     });
+  }
+
+  private createLanPuppet(x: number, groundY: number, targetHeight: number, depth: number) {
+    const root = this.add.container(x, groundY).setDepth(depth).setSize(620, 760);
+    const part = (key: string, px: number, py: number, ox = .5, oy = 1) => this.add.image(px, py, `lan-rig-${key}`).setOrigin(ox, oy);
+    const scarfMain = part('scarfMain', -116, -385, .2, .5), scarfMid = part('scarfMid', -72, -352, .18, .5), scarfTip = part('scarfTip', -34, -323, .15, .5);
+    const rearLeg = part('rearLeg', -40, 0), frontLeg = part('frontLeg', 44, 0), rearArm = part('rearArm', -65, -275, .5, .14), torso = part('torso', 0, -162), head = part('head', -12, -450);
+    const spear = part('spear', 104, -266, .5, .5), frontArm = part('frontArm', 63, -275, .5, .14), shield = part('shield', 112, -300, .5, .5);
+    root.add([scarfMain, scarfMid, scarfTip, rearLeg, frontLeg, rearArm, torso, head, spear, frontArm, shield]);
+    root.setScale(targetHeight / 650); root.setData('attackParts', [spear, frontArm, shield]);
+    [[scarfMain, 2.1, 1700], [scarfMid, 3.5, 1450], [scarfTip, 5.2, 1250]].forEach(([item, angle, duration]) => this.tweens.add({ targets: item as Phaser.GameObjects.Image, angle: angle as number, duration: duration as number, yoyo: true, repeat: -1, ease: 'Sine.InOut' }));
+    return root;
   }
 
   private createEnemy(width: number, height: number) {
@@ -133,7 +158,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     }).setOrigin(0.5, 1).setDepth(10);
   }
 
-  private performAttack(hero: Hero, index: number, sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, originX: number) {
+  private performAttack(hero: Hero, index: number, sprite: CombatVisual, originX: number) {
     if (this.busy || !this.enemy || !this.enemySprite) return;
     if (!this.canHeroAttack(hero, index)) {
       this.showFloatingText(sprite.x, sprite.y - sprite.displayHeight * 0.65, '超出攻击范围', '#b9c2bd');
@@ -144,6 +169,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.busy = true;
     this.tweens.killTweensOf(sprite);
     const targetX = this.enemySprite.x - this.enemySprite.displayWidth * 0.28;
+    const attackParts = sprite instanceof Phaser.GameObjects.Container ? sprite.getData('attackParts') as Phaser.GameObjects.Image[] : [];
+    this.tweens.add({ targets: attackParts, angle: -12, duration: 130, ease: 'Quad.Out' });
     this.tweens.add({
       targets: sprite, x: targetX, y: sprite.y - 8, duration: 220, ease: 'Cubic.In',
       onComplete: () => {
@@ -152,7 +179,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
         this.time.delayedCall(140, () => this.enemyCounter());
         this.tweens.add({
           targets: sprite, x: originX, duration: 330, ease: 'Cubic.Out',
-          onComplete: () => { this.busy = false; },
+          onComplete: () => { this.tweens.add({ targets: attackParts, angle: 0, duration: 150 }); this.busy = false; },
         });
       },
     });
@@ -176,8 +203,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
       targets: this.enemySprite, x: target.x + target.displayWidth * 0.3, duration: 190, ease: 'Cubic.In',
       onComplete: () => {
         this.cameras.main.shake(110, 0.004);
-        target.setTint(0xff8877);
-        this.time.delayedCall(120, () => target.clearTint());
+        setVisualTint(target, 0xff8877);
+        this.time.delayedCall(120, () => setVisualTint(target));
         this.tweens.add({ targets: this.enemySprite, x: startX, duration: 280, ease: 'Cubic.Out' });
       },
     });
