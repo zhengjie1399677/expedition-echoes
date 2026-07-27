@@ -13,7 +13,7 @@ interface BattleCanvasProps {
 }
 
 const ACTORS: Record<string, string> = {
-  lan: '/assets/actors-v2/lan-idle-v2.png',
+  lan: '/assets/pixel/lan-vanguard-idle-v1.png',
   wu: '/assets/actors-v2/wu-idle-v2.png',
   xingluo: '/assets/actors-v2/xingluo-idle-v2.png',
   scout: '/assets/actors-v2/scout-idle-v2.png',
@@ -55,7 +55,6 @@ class ExpeditionBattleScene extends Phaser.Scene {
   preload() {
     this.load.image('battle-bg', '/assets/world/ruins-road-battle-v1.png');
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
-    Object.entries(LAN_RIG_PARTS).forEach(([key, path]) => this.load.image(`lan-rig-${key}`, path));
   }
 
   create() {
@@ -107,9 +106,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     ];
     this.party.forEach((hero, index) => {
       const position = positions[index];
-      const sprite: CombatVisual = hero.id === 'lan'
-        ? this.createLanPuppet(position.x, position.y, height * CHARACTER_HEIGHTS.lan, 5 - index)
-        : this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index).setScale((height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / this.textures.get(`actor-${hero.id}`).getSourceImage().height);
+      const sprite: CombatVisual = this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, 1).setDepth(5 - index).setScale((height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / this.textures.get(`actor-${hero.id}`).getSourceImage().height);
       sprite.setAlpha(hero.hp <= 0 ? 0.35 : 1).setInteractive({ useHandCursor: true });
       this.heroSprites.set(hero.id, sprite);
       this.add.ellipse(position.x, position.y - 4, visualWidth(sprite) * 0.52, 24, 0x020706, 0.62).setDepth(1);
