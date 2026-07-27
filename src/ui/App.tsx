@@ -38,10 +38,14 @@ function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
 
 function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
   const selectedMission = missions.find((mission) => mission.id === state.selectedMissionId) ?? missions[0];
+  const [rosterOpen, setRosterOpen] = useState(false);
   return <section className="page tavern-page tavern-scene">
-    <img className="tavern-background" src="/assets/world/tavern-hall-v1.png" alt="黄昏中的冒险者酒馆和任务板" />
-    <aside className="tavern-roster-panel"><header><p className="eyebrow">酒馆 · 队伍整备</p><strong>冒险者名册</strong><span>当前队伍：{state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).join('、') || '尚未选择'}</span></header><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></aside>
-    <aside className="mission-board-panel"><header><p className="eyebrow">公会任务板</p><strong>可接受任务</strong><span>任务数据来自内容层，可由本地内容或后续服务动态替换。</span></header><div className="mission-list">{missions.map((mission) => <button key={mission.id} className={`mission-card ${selectedMission.id === mission.id ? 'selected' : ''}`} onClick={() => dispatch({ type: 'ACCEPT_MISSION', missionId: mission.id })}><div><strong>{mission.title}</strong><span>{'◆'.repeat(mission.difficulty)}{'◇'.repeat(3 - mission.difficulty)}</span></div><p>{mission.summary}</p><small>报酬 {mission.reward} 金币 · 三段远征</small></button>)}</div><footer><div><small>已接受</small><strong>{selectedMission.title}</strong></div><button className="primary" onClick={() => dispatch({ type: 'START_EXPEDITION' })}>整队出发</button></footer></aside>
+    <img className="tavern-background" src="/assets/world/tavern-hall-v2.png" alt="有老板和冒险者客人的黄昏酒馆" />
+    <div className="tavern-scene-title"><p className="eyebrow">旅途酒馆</p><strong>任务、招募与远征整备</strong></div>
+    <button className="tavernkeeper-hotspot" onClick={() => setRosterOpen(true)}><strong>酒馆老板</strong><span>招募 · 编队 · 装备</span></button>
+    <div className="quest-board-pins" aria-label="公会任务板">{missions.map((mission, index) => <button key={mission.id} className={`quest-note quest-note-${index} ${selectedMission.id === mission.id ? 'selected' : ''}`} onClick={() => dispatch({ type: 'ACCEPT_MISSION', missionId: mission.id })}><strong>{mission.title}</strong><span>{'◆'.repeat(mission.difficulty)} · {mission.reward} 金币</span></button>)}</div>
+    <div className="accepted-contract"><div><small>当前任务</small><strong>{selectedMission.title}</strong><span>{selectedMission.summary}</span></div><button onClick={() => dispatch({ type: 'START_EXPEDITION' })}>整队出发</button></div>
+    {rosterOpen && <aside className="tavern-roster-drawer"><header><div><p className="eyebrow">酒馆老板 · 队伍整备</p><strong>冒险者名册</strong></div><button onClick={() => setRosterOpen(false)}>关闭</button></header><p className="roster-summary">当前队伍：{state.selectedHeroIds.map((id) => state.roster.find((hero) => hero.id === id)?.name).join('、') || '尚未选择'}</p><div className="roster">{state.roster.map((hero) => <HeroCard key={hero.id} hero={hero} selected={state.selectedHeroIds.includes(hero.id)} dispatch={dispatch} />)}</div></aside>}
   </section>;
 }
 
