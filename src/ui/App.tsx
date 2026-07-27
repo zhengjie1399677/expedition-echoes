@@ -115,16 +115,16 @@ function Quarters({ state }: { state: GameState }) {
 
 function MiniMap({ currentNode }: { currentNode: number }) {
   const cells = [{ column: 1, row: 2 }, { column: 2, row: 2 }, { column: 2, row: 1 }, { column: 3, row: 1 }, { column: 3, row: 2 }];
-  return <aside className="mini-map grid-mini-map" aria-label="遗迹格子地图">
-    <div className="map-heading"><strong>边境遗迹</strong><small>探索地图</small></div>
-    <div className="map-grid">
-      <svg className="map-corridors" viewBox="0 0 180 104" preserveAspectRatio="none" aria-hidden="true"><path d="M30 78 H90 V26 H150 V78" /></svg>
-      {expeditionNodes.map((node, index) => <div key={node.title} style={{ gridColumn: cells[index].column, gridRow: cells[index].row }} className={`map-cell ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={index <= currentNode ? node.title : '未知区域'}>
+  return <div className="exp-map" aria-label="遗迹格子地图">
+    <div className="exp-map-header"><strong>边境遗迹</strong><small>探索地图</small></div>
+    <div className="exp-map-grid">
+      <svg className="exp-map-corridors" viewBox="0 0 180 104" preserveAspectRatio="none" aria-hidden="true"><path d="M30 78 H90 V26 H150 V78" /></svg>
+      {expeditionNodes.map((node, index) => <div key={node.title} style={{ gridColumn: cells[index].column, gridRow: cells[index].row }} className={`exp-map-cell ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={index <= currentNode ? node.title : '未知区域'}>
         <i>{index > currentNode ? '?' : node.kind === 'combat' ? '⚔' : '✦'}</i><small>{index + 1}</small>
       </div>)}
     </div>
-    <div className="map-location"><span>当前位置</span><strong>{expeditionNodes[currentNode].title}</strong></div>
-  </aside>;
+    <div className="exp-map-location"><span>当前位置</span><strong>{expeditionNodes[currentNode].title}</strong></div>
+  </div>;
 }
 
 function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
@@ -138,15 +138,22 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
   const node = expeditionNodes[run.nodeIndex];
   const commitAttack = (heroId: string, enemyId: string) => dispatch({ type: 'ATTACK', heroId, enemyId });
   const requestAttack = (heroId: string) => setAttackRequest((current) => ({ heroId, nonce: (current?.nonce ?? 0) + 1 }));
-  return <section className="page expedition-page">
-    <div className="run-header"><div><p className="eyebrow">远征 · 节点 {run.nodeIndex + 1}/{expeditionNodes.length}</p><h2>{node.title}</h2><p>{node.description}</p></div><div className="supplies"><span>绷带 × {run.supplies.bandage}</span><span>镇定剂 × {run.supplies.sedative}</span><button onClick={() => dispatch({ type: 'RETREAT' })}>撤退</button></div></div>
-    <MiniMap currentNode={run.nodeIndex} />
-    <Suspense fallback={<div className="phaser-loading">正在展开遗迹场景…</div>}><BattleCanvas key={`${run.nodeIndex}-${run.enemies.map((enemy) => enemy.id).join('-') || 'rest'}`} party={party} enemies={run.enemies} targetEnemyId={selectedEnemy?.id} onSelectEnemy={setSelectedEnemyId} nodeIndex={run.nodeIndex} attackRequest={attackRequest} counterTargetId={selectedEnemy ? party.find((hero, index) => hero.hp > 0 && enemyCanAttack(selectedEnemy, index))?.id : undefined} canHeroAttack={(hero, index, enemy) => canAttack(hero, enemy, index)} onAttack={commitAttack} /></Suspense>
-    <div className="battle-hud">
-      <div className="party-hud">{party.map((hero, index) => <article className={`hud-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="hud-heading"><strong>{index === 0 ? '前排 · ' : ''}{hero.name}</strong><small>{heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className={`bar hp-bar ${hero.hp / hero.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /><span>{hero.hp}/{hero.maxHp}</span></div><div className="hud-values">{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}</div><div className="hud-actions"><button className="attack-button" disabled={!selectedEnemy || hero.hp <= 0} onClick={() => requestAttack(hero.id)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>)}</div>
-      <div className="enemy-party-hud">{run.enemies.map((enemy, index) => <button type="button" key={enemy.id} disabled={enemy.hp <= 0} className={`enemy-hud ${selectedEnemy?.id === enemy.id ? 'targeted' : ''}`} onClick={() => setSelectedEnemyId(enemy.id)}><div className="hud-heading"><strong>{index === 0 ? '前排 · ' : ''}{enemy.name}</strong><small>范围 {enemy.attackMinRange}–{enemy.attackMaxRange}</small></div><div className={`bar enemy-bar ${enemy.hp / enemy.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${enemy.hp / enemy.maxHp * 100}%` }} /><span>{enemy.hp}/{enemy.maxHp}</span></div></button>)}</div>
+  return <section className="page expedition-screen">
+    <header className="expedition-header">
+      <div className="expedition-header-copy"><small>远征 · 节点 {run.nodeIndex + 1}/{expeditionNodes.length}</small><strong>{node.title}</strong><span>{node.description}</span></div>
+      <div className="expedition-progress" style={{ '--expedition-progress': `${(run.nodeIndex + 1) / expeditionNodes.length * 100}%` } as React.CSSProperties}><span>{run.nodeIndex + 1}/{expeditionNodes.length}</span><i /></div>
+    </header>
+    <div className="expedition-stage"><Suspense fallback={<div className="phaser-loading">正在展开遗迹场景…</div>}><BattleCanvas key={`${run.nodeIndex}-${run.enemies.map((enemy) => enemy.id).join('-') || 'rest'}`} party={party} enemies={run.enemies} targetEnemyId={selectedEnemy?.id} onSelectEnemy={setSelectedEnemyId} nodeIndex={run.nodeIndex} attackRequest={attackRequest} counterTargetId={selectedEnemy ? party.find((hero, index) => hero.hp > 0 && enemyCanAttack(selectedEnemy, index))?.id : undefined} canHeroAttack={(hero, index, enemy) => canAttack(hero, enemy, index)} onAttack={commitAttack} /></Suspense></div>
+    <aside className="expedition-sidebar">
+      <MiniMap currentNode={run.nodeIndex} />
+      <div className="expedition-tools"><span className="expedition-tools-label">远征补给</span><span className="expedition-tool"><b>绷带</b><em>× {run.supplies.bandage}</em></span><span className="expedition-tool"><b>镇定剂</b><em>× {run.supplies.sedative}</em></span></div>
+      <button className="expedition-retreat" onClick={() => dispatch({ type: 'RETREAT' })}>撤退并返回城镇</button>
+    </aside>
+    <div className="expedition-hud">
+      <div className="expedition-party">{party.map((hero, index) => <article className={`exp-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="exp-unit-header"><strong>{index === 0 ? '前排 · ' : ''}{hero.name}</strong><small>{heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className={`exp-bar ${hero.hp / hero.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /><span>{hero.hp}/{hero.maxHp}</span></div><div className="exp-unit-meta">{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}</div><div className="exp-unit-actions"><button className="attack" disabled={!selectedEnemy || hero.hp <= 0} onClick={() => requestAttack(hero.id)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>)}</div>
+      <div className="expedition-enemies">{run.enemies.map((enemy, index) => <button type="button" key={enemy.id} disabled={enemy.hp <= 0} className={`exp-enemy ${selectedEnemy?.id === enemy.id ? 'targeted' : ''}`} onClick={() => setSelectedEnemyId(enemy.id)}><div className="exp-enemy-header"><strong>{index === 0 ? '前排 · ' : ''}{enemy.name}</strong><small>范围 {enemy.attackMinRange}–{enemy.attackMaxRange}</small></div><div className={`exp-bar ${enemy.hp / enemy.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${enemy.hp / enemy.maxHp * 100}%` }} /><span>{enemy.hp}/{enemy.maxHp}</span></div></button>)}</div>
     </div>
-    <div className="run-footer"><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{aliveEnemies.length === 0 && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</div>
+    <footer className="expedition-footer"><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{aliveEnemies.length === 0 && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</footer>
   </section>;
 }
 

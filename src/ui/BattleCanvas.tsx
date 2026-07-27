@@ -309,7 +309,7 @@ export function BattleCanvas(props: BattleCanvasProps) {
     gameRef.current = new Phaser.Game({
       type: Phaser.AUTO,
       parent: hostRef.current,
-      width: 1200,
+      width: 1440,
       height: 650,
       transparent: true,
       scene,
