@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react';
-import { expeditionNodes, heroClassDescriptions, heroClassNames, missions } from '../content/gameContent';
-import { canAttack, createInitialGame, enemyCanAttack, gameReducer } from '../domain/gameEngine';
-import type { GameAction, GameState, Hero } from '../domain/model';
+import { expeditionNodes, heroClassDescriptions, heroClassNames, itemDefinitions, missions } from '../content/gameContent';
+import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer } from '../domain/gameEngine';
+import type { EquipmentSlot, GameAction, GameState, Hero } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
 import { clearGame, loadGame, saveGame } from '../infrastructure/storage';
@@ -10,11 +10,13 @@ const BattleCanvas = lazy(() => import('./BattleCanvas').then((module) => ({ def
 
 function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean; dispatch: React.Dispatch<GameAction> }) {
   const upgradeCost = 30 + hero.gearLevel * 20;
+  const nextLevelExperience = experienceToNextLevel(hero.level);
   return <article className={`hero-card ${selected ? 'is-selected' : ''}`}>
     <div className="portrait">{hero.name.slice(0, 1)}</div><div className="hero-info">
-      <div className="hero-title"><strong>{hero.name}</strong><span>{heroClassNames[hero.heroClass]}</span></div>
+      <div className="hero-title"><strong>{hero.name}</strong><span>Lv.{hero.level} · {heroClassNames[hero.heroClass]}</span></div>
       <p>{hero.personality}</p><small>{heroClassDescriptions[hero.heroClass]}</small>
       <div className="stats"><span>生命 {hero.maxHp}</span><span>装备 +{hero.gearLevel}</span></div>
+      <div className="hero-exp" aria-label={`${hero.name}经验 ${hero.experience}/${nextLevelExperience}`}><i style={{ width: `${hero.experience / nextLevelExperience * 100}%` }} /><span>EXP {hero.experience}/{nextLevelExperience}</span></div>
       <div className="button-row">{!hero.recruited
         ? <button onClick={() => dispatch({ type: 'RECRUIT', heroId: hero.id })}>招募 · 25 金币</button>
         : <><button className={selected ? 'active' : ''} onClick={() => dispatch({ type: 'TOGGLE_PARTY', heroId: hero.id })}>{selected ? '已编入队伍' : '编入队伍'}</button><button disabled={hero.gearLevel >= 3} onClick={() => dispatch({ type: 'UPGRADE_GEAR', heroId: hero.id })}>装备升级 · {upgradeCost}</button></>}
@@ -29,10 +31,68 @@ function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
       <img src="/assets/world/town-hub-v2.png" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
       <div className="town-map-shade" />
       <button className="map-hotspot hotspot-tavern" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}><strong>旅途酒馆</strong><span>招募 · 任务 · 补给</span></button>
-      <button className="map-hotspot hotspot-plaza" aria-label="中央广场，当前所在位置"><strong>中央广场</strong><span>城镇据点</span></button>
+      <div className="map-hotspot hotspot-plaza location-marker" aria-label="中央广场，当前所在位置"><strong>中央广场</strong><span>城镇据点</span></div>
       <button className="map-hotspot hotspot-quarters" onClick={() => dispatch({ type: 'NAVIGATE', page: 'quarters' })}><strong>旅人宿舍</strong><span>休息 · 交谈</span></button>
       <button className="map-hotspot hotspot-gate" onClick={() => dispatch({ type: 'START_EXPEDITION' })}><strong>东侧城门</strong><span>开始远征</span></button>
     </div>
+  </section>;
+}
+
+const equipmentSlotNames: Record<EquipmentSlot, string> = { weapon: '武器', armor: '防具', accessory: '饰品' };
+const quartersPortraits: Record<string, string> = {
+  lan: '/assets/portraits-dorm/lan-dorm-v1.png',
+  wu: '/assets/portraits-dorm/wu-dorm-v1.png',
+  xingluo: '/assets/portraits-dorm/xingluo-dorm-v1.png',
+  scout: '/assets/actors/scout-v1.png',
+};
+const quartersGreetings: Record<string, string> = {
+  lan: '还没休息吗？进来吧，我正好在整理明天要带的东西。',
+  wu: '门没锁。要聊聊今天在路上看到的事吗？',
+  xingluo: '来得正好，我刚把星盘收起来。今晚的天象很安静。',
+};
+
+function Management({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
+  const tab = state.managementTab;
+  const managementTitle = tab === 'party' ? '队伍编成' : tab === 'equipment' ? '角色装备' : '旅行背包';
+  const recruited = state.roster.filter((hero) => hero.recruited);
+  const [heroId, setHeroId] = useState(state.selectedHeroIds[0] ?? recruited[0]?.id ?? '');
+  const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
+  const ownedItems = itemDefinitions.filter((item) => (state.inventory[item.id] ?? 0) > 0);
+  const equipmentItems = itemDefinitions.filter((item) => item.kind === 'equipment');
+  const bonuses = hero ? equipmentBonuses(hero) : { attack: 0, defense: 0 };
+  return <section className="page management-page">
+    <header className="management-title"><div><small>冒险整备</small><h2>{managementTitle}</h2></div></header>
+
+    {tab === 'party' && <div className="party-management">
+      <div className="formation-panel"><header><strong>出征队伍</strong><span>{state.selectedHeroIds.length}/3</span></header>
+        <div className="formation-list">{state.selectedHeroIds.map((id, index) => { const member = state.roster.find((item) => item.id === id)!; return <article key={id}>
+          <b>{index + 1}</b><div><strong>{member.name}</strong><span>{index === 0 ? '前排 · 靠近敌方' : `第 ${index + 1} 位 · 距离 ${index + 1}`}</span></div>
+          <div className="formation-actions"><button disabled={index === 0} onClick={() => dispatch({ type: 'MOVE_PARTY', index, direction: -1 })}>前移</button><button disabled={index === state.selectedHeroIds.length - 1} onClick={() => dispatch({ type: 'MOVE_PARTY', index, direction: 1 })}>后移</button><button onClick={() => dispatch({ type: 'TOGGLE_PARTY', heroId: id })}>移出</button></div>
+        </article>; })}</div>
+      </div>
+      <div className="reserve-panel"><header><strong>冒险者名册</strong><span>点击编入队伍</span></header>{recruited.map((member) => {
+        const selected = state.selectedHeroIds.includes(member.id); const memberBonuses = equipmentBonuses(member);
+        return <button key={member.id} className={selected ? 'selected' : ''} disabled={selected} onClick={() => dispatch({ type: 'TOGGLE_PARTY', heroId: member.id })}><span className="management-avatar">{member.name.slice(0, 1)}</span><span><strong>{member.name} · Lv.{member.level}</strong><small>{heroClassNames[member.heroClass]} · 攻击 +{memberBonuses.attack} · 防御 +{memberBonuses.defense}</small></span><em>{selected ? '已出征' : '编入'}</em></button>;
+      })}</div>
+    </div>}
+
+    {tab === 'inventory' && <div className="inventory-panel"><header><strong>旅行背包</strong><span>出发时自动携带最多 3 个绷带和 1 个镇定剂</span></header><div className="inventory-grid">{ownedItems.map((item) => {
+      const available = item.kind === 'equipment' ? availableItemCount(state, item.id) : state.inventory[item.id];
+      return <article key={item.id} className={`inventory-item ${item.kind}`}><div><strong>{item.name}</strong><b>× {state.inventory[item.id]}</b></div><p>{item.description}</p><small>{item.kind === 'equipment' ? `${item.slot ? equipmentSlotNames[item.slot] : ''} · 可用 ${available}` : '消耗品'}</small></article>;
+    })}</div></div>}
+
+    {tab === 'equipment' && hero && <div className="equipment-management">
+      <aside className="equipment-heroes">{recruited.map((member) => <button key={member.id} className={member.id === hero.id ? 'active' : ''} onClick={() => setHeroId(member.id)}><span>{member.name.slice(0, 1)}</span><div><strong>{member.name}</strong><small>Lv.{member.level} · {heroClassNames[member.heroClass]}</small></div></button>)}</aside>
+      <div className="equipment-detail"><header><div><small>当前角色</small><h3>{hero.name}</h3></div><div className="equipment-summary"><span>攻击加成 <b>+{bonuses.attack}</b></span><span>伤害减免 <b>+{bonuses.defense}</b></span></div></header>
+        <div className="equipment-slots">{(['weapon', 'armor', 'accessory'] as EquipmentSlot[]).map((slot) => {
+          const currentId = hero.equipment[slot]; const current = itemDefinitions.find((item) => item.id === currentId);
+          return <section key={slot}><header><strong>{equipmentSlotNames[slot]}</strong>{current && <button onClick={() => dispatch({ type: 'UNEQUIP_ITEM', heroId: hero.id, slot })}>卸下</button>}</header><div className="equipped-item">{current ? <><b>{current.name}</b><span>{current.description}</span></> : <span>未装备</span>}</div><div className="equipment-options">{equipmentItems.filter((item) => item.slot === slot && (!item.allowedClasses || item.allowedClasses.includes(hero.heroClass))).map((item) => {
+            const equipped = currentId === item.id; const available = availableItemCount(state, item.id);
+            return <button key={item.id} className={equipped ? 'equipped' : ''} disabled={!equipped && available < 1} onClick={() => dispatch({ type: 'EQUIP_ITEM', heroId: hero.id, itemId: item.id })}><strong>{item.name}</strong><small>{item.attack ? `攻击 +${item.attack}` : ''}{item.attack && item.defense ? ' · ' : ''}{item.defense ? `减伤 +${item.defense}` : ''} · 可用 {available}</small></button>;
+          })}</div></section>;
+        })}</div>
+      </div>
+    </div>}
   </section>;
 }
 
@@ -96,7 +156,7 @@ function Quarters({ state }: { state: GameState }) {
   const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [roomHeroId, setRoomHeroId] = useState<string | null>(null); const [line, setLine] = useState('今晚的宿舍很安静。'); const [loading, setLoading] = useState(false);
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
   const talk = async () => { if (!hero) return; setLoading(true); setLine(await narrativeService.campLine(hero, state)); setLoading(false); };
-  const enterRoom = (id: string) => { setHeroId(id); setRoomHeroId(id); setLine('今晚的宿舍很安静。'); };
+  const enterRoom = (id: string) => { setHeroId(id); setRoomHeroId(id); setLine(quartersGreetings[id] ?? '今晚的宿舍很安静。'); };
   if (!roomHeroId) return <section className="page quarters-page quarters-hall">
     <img className="quarters-background" src="/assets/world/quarters-hall-v1.png" alt="冒险者宿舍公共走廊" />
     <div className="hall-heading"><p className="eyebrow">旅人宿舍 · 公共区域</p><strong>选择要拜访的房间</strong><span>每位队员拥有独立的生活空间。</span></div>
@@ -105,6 +165,10 @@ function Quarters({ state }: { state: GameState }) {
   return <section className="page quarters-page">
     <img className="quarters-background" src="/assets/world/quarters-dorm-v1.png" alt="暮色中的冒险者宿舍" />
     <div className="quarters-topbar"><div><p className="eyebrow">{hero?.name}的房间 · 日常交谈</p><strong>远征后的安静时间</strong></div><button className="leave-room" onClick={() => setRoomHeroId(null)}>返回公共区域</button></div>
+    {hero && <div className="quarters-character" aria-hidden="true">
+      <div className="quarters-character-shadow" />
+      <img key={hero.id} src={quartersPortraits[hero.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt="" />
+    </div>}
     <div className="quarters-chat" aria-label="宿舍聊天窗口">
       <header><div><strong>{hero?.name ?? '无人'}</strong><span>{hero ? heroClassNames[hero.heroClass] : '未选择队员'}</span></div><small>{narrativeService.available && state.settings.llmEnabled ? 'LLM 交谈已连接' : '离线对白'}</small></header>
       <div className="chat-thread"><div className="chat-message companion">“{line}”</div></div>
@@ -150,7 +214,7 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
       <button className="expedition-retreat" onClick={() => dispatch({ type: 'RETREAT' })}>撤退并返回城镇</button>
     </aside>
     <div className="expedition-hud">
-      <div className="expedition-party">{party.map((hero, index) => <article className={`exp-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="exp-unit-header"><strong>{index === 0 ? '前排 · ' : ''}{hero.name}</strong><small>{heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className={`exp-bar ${hero.hp / hero.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /><span>{hero.hp}/{hero.maxHp}</span></div><div className="exp-unit-meta">{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}</div><div className="exp-unit-actions"><button className="attack" disabled={!selectedEnemy || hero.hp <= 0} onClick={() => requestAttack(hero.id)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>)}</div>
+      <div className="expedition-party">{party.map((hero, index) => { const nextLevelExperience = experienceToNextLevel(hero.level); return <article className={`exp-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="exp-unit-header"><strong>{index === 0 ? '前排 · ' : ''}{hero.name}</strong><small>Lv.{hero.level} · {heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className={`exp-bar ${hero.hp / hero.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /><span>{hero.hp}/{hero.maxHp}</span></div><div className="exp-unit-meta">{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}<span>EXP {hero.experience}/{nextLevelExperience}</span></div><div className="exp-mini-exp"><i style={{ width: `${hero.experience / nextLevelExperience * 100}%` }} /></div><div className="exp-unit-actions"><button className="attack" disabled={!selectedEnemy || hero.hp <= 0} onClick={() => requestAttack(hero.id)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>; })}</div>
       <div className="expedition-enemies">{run.enemies.map((enemy, index) => <button type="button" key={enemy.id} disabled={enemy.hp <= 0} className={`exp-enemy ${selectedEnemy?.id === enemy.id ? 'targeted' : ''}`} onClick={() => setSelectedEnemyId(enemy.id)}><div className="exp-enemy-header"><strong>{index === 0 ? '前排 · ' : ''}{enemy.name}</strong><small>范围 {enemy.attackMinRange}–{enemy.attackMaxRange}</small></div><div className={`exp-bar ${enemy.hp / enemy.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${enemy.hp / enemy.maxHp * 100}%` }} /><span>{enemy.hp}/{enemy.maxHp}</span></div></button>)}</div>
     </div>
     <footer className="expedition-footer"><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{aliveEnemies.length === 0 && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</footer>
@@ -161,9 +225,20 @@ function Settings({ state, dispatch }: { state: GameState; dispatch: React.Dispa
   return <section className="settings-page"><p className="eyebrow">设置 · 游戏规则</p><h2>按你想要的节奏游玩。</h2><div className="setting-card"><div><strong>士气系统</strong><p>开启后，受击会增加士气压力；达到 50 时进入“动摇”，攻击降低 2 点。</p></div><button onClick={() => dispatch({ type: 'TOGGLE_MORALE' })}>{state.settings.moraleEnabled ? '已开启' : '已关闭'}</button></div><div className="setting-card"><div><strong>LLM 叙事增强</strong><p>只影响宿舍对白等表现内容。关闭或不可用时自动使用本地文案。</p></div><button onClick={() => dispatch({ type: 'TOGGLE_LLM' })}>{state.settings.llmEnabled ? '已开启' : '已关闭'}</button></div><div className="setting-card danger"><div><strong>重置本地存档</strong><p>清除招募、装备升级与设置，恢复初始状态。</p></div><button onClick={() => { clearGame(); dispatch({ type: 'RESET' }); }}>重置</button></div></section>;
 }
 
+function BottomAdventureMenu({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
+  if (state.page === 'expedition' || state.page === 'settings') return null;
+  const entries = [
+    { id: 'town', label: '城镇', glyph: '◇', active: state.page === 'town', action: () => dispatch({ type: 'NAVIGATE', page: 'town' }) },
+    { id: 'party', label: '队伍', glyph: 'Ⅲ', active: state.page === 'management' && state.managementTab === 'party', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'party' }) },
+    { id: 'equipment', label: '角色', glyph: '♙', active: state.page === 'management' && state.managementTab === 'equipment', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'equipment' }) },
+    { id: 'inventory', label: '背包', glyph: '▣', active: state.page === 'management' && state.managementTab === 'inventory', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'inventory' }) },
+  ];
+  return <nav className="adventure-menu" aria-label="冒险菜单">{entries.map((entry) => <button key={entry.id} className={entry.active ? 'active' : ''} onClick={entry.action}><span className="menu-glyph">{entry.glyph}</span><strong className="menu-label">{entry.label}</strong></button>)}</nav>;
+}
+
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => loadGame() ?? createInitialGame());
   useEffect(() => saveGame(state), [state]);
   useEffect(() => warmExpeditionResources(), []);
-  return <main className="app-shell"><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>◆ {state.gold} 金币</strong></div>{state.page !== 'town' && state.page !== 'expedition' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header><div className="game-viewport">{state.page === 'town' && <Town dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}</div></main>;
+  return <main className={`app-shell ${state.page !== 'expedition' && state.page !== 'settings' ? 'with-adventure-menu' : ''}`}><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>◆ {state.gold} 金币</strong></div>{state.page === 'settings' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header><div className="game-viewport">{state.page === 'town' && <Town dispatch={dispatch} />}{state.page === 'management' && <Management state={state} dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}</div><BottomAdventureMenu state={state} dispatch={dispatch} /></main>;
 }

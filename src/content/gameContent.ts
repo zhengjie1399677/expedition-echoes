@@ -1,4 +1,4 @@
-import type { Enemy, Hero, HeroClass, Mission } from '../domain/model';
+import type { Enemy, Hero, HeroClass, ItemDefinition, Mission } from '../domain/model';
 
 export const heroClassNames: Record<HeroClass, string> = { vanguard: '先锋', ranger: '游侠', mage: '术士', medic: '医师' };
 export const heroClassDescriptions: Record<HeroClass, string> = {
@@ -7,12 +7,26 @@ export const heroClassDescriptions: Record<HeroClass, string> = {
 };
 export const baseAttack: Record<HeroClass, number> = { vanguard: 7, ranger: 6, mage: 8, medic: 3 };
 export const initialHeroes: Hero[] = [
-  { id: 'lan', name: '岚', heroClass: 'vanguard', maxHp: 32, hp: 32, morale: 0, gearLevel: 0, recruited: true, personality: '谨慎可靠，不喜欢无谓冒险' },
-  { id: 'wu', name: '雾', heroClass: 'ranger', maxHp: 24, hp: 24, morale: 0, gearLevel: 0, recruited: true, personality: '敏锐健谈，总能先发现退路' },
-  { id: 'xingluo', name: '星罗', heroClass: 'mage', maxHp: 19, hp: 19, morale: 0, gearLevel: 0, recruited: true, personality: '面对未知时格外兴奋' },
-  { id: 'cheng', name: '澄', heroClass: 'medic', maxHp: 25, hp: 25, morale: 0, gearLevel: 0, recruited: false, personality: '温和克制，留意每个人的状态' },
-  { id: 'yan', name: '砚', heroClass: 'vanguard', maxHp: 35, hp: 35, morale: 0, gearLevel: 0, recruited: false, personality: '沉默强硬，把承诺看得比报酬重要' },
+  { id: 'lan', name: '岚', heroClass: 'vanguard', maxHp: 32, hp: 32, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '谨慎可靠，不喜欢无谓冒险' },
+  { id: 'wu', name: '雾', heroClass: 'ranger', maxHp: 24, hp: 24, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '敏锐健谈，总能先发现退路' },
+  { id: 'xingluo', name: '星罗', heroClass: 'mage', maxHp: 19, hp: 19, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '面对未知时格外兴奋' },
+  { id: 'cheng', name: '澄', heroClass: 'medic', maxHp: 25, hp: 25, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '温和克制，留意每个人的状态' },
+  { id: 'yan', name: '砚', heroClass: 'vanguard', maxHp: 35, hp: 35, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '沉默强硬，把承诺看得比报酬重要' },
 ];
+export const itemDefinitions: ItemDefinition[] = [
+  { id: 'bandage', name: '绷带', kind: 'consumable', description: '远征时恢复 9 点生命。' },
+  { id: 'sedative', name: '镇定剂', kind: 'consumable', description: '远征时降低 25 点士气压力。' },
+  { id: 'vanguard-spear', name: '守望长枪', kind: 'equipment', slot: 'weapon', description: '先锋制式长枪。', attack: 2, allowedClasses: ['vanguard'] },
+  { id: 'ranger-bow', name: '白榆猎弓', kind: 'equipment', slot: 'weapon', description: '轻巧而稳定的远射武器。', attack: 2, allowedClasses: ['ranger'] },
+  { id: 'star-staff', name: '星辉法杖', kind: 'equipment', slot: 'weapon', description: '引导星术的晶石法杖。', attack: 2, allowedClasses: ['mage'] },
+  { id: 'field-mail', name: '远征锁甲', kind: 'equipment', slot: 'armor', description: '抵消 1 点受到的伤害。', defense: 1 },
+  { id: 'warded-coat', name: '刻印旅行衣', kind: 'equipment', slot: 'armor', description: '轻便且带有防护刻印。', defense: 1 },
+  { id: 'echo-charm', name: '回声护符', kind: 'equipment', slot: 'accessory', description: '微弱增幅持有者的攻击。', attack: 1 },
+];
+export const initialInventory: Record<string, number> = {
+  bandage: 5, sedative: 2, 'vanguard-spear': 1, 'ranger-bow': 1, 'star-staff': 1,
+  'field-mail': 1, 'warded-coat': 1, 'echo-charm': 1,
+};
 export const enemies: Enemy[] = [
   { id: 'scout', name: '遗迹斥候', maxHp: 26, hp: 26, distance: 1, attackMinRange: 2, attackMaxRange: 3, damage: 4 },
   { id: 'warden', name: '锈甲守卫', maxHp: 34, hp: 34, distance: 1, attackMinRange: 1, attackMaxRange: 1, damage: 5 },
