@@ -170,7 +170,6 @@ function Quarters({ state }: { state: GameState }) {
   const enterRoom = (id: string) => { setHeroId(id); setRoomHeroId(id); setMessages([{ role: 'assistant', content: quartersGreetings[id] ?? '今晚的宿舍很安静。' }]); setPlayerText(''); setHistoryOpen(false); };
   if (!roomHeroId) return <section className="page quarters-page quarters-hall">
     <img className="quarters-background" src="/assets/world/quarters-hall-v1.png" alt="冒险者宿舍公共走廊" />
-    <div className="hall-heading"><p className="eyebrow">旅人宿舍 · 公共区域</p><strong>选择要拜访的房间</strong><span>每位队员拥有独立的生活空间。</span></div>
     <div className="room-directory">{recruited.map((item, index) => <button className={`room-entry room-entry-${index}`} key={item.id} onClick={() => enterRoom(item.id)}><strong>{item.name}的房间</strong><span>{heroClassNames[item.heroClass]} · 敲门进入</span></button>)}</div>
   </section>;
   return <section className="page quarters-page">
