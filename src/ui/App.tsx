@@ -3,6 +3,7 @@ import { expeditionNodes, heroClassDescriptions, heroClassNames, itemDefinitions
 import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer } from '../domain/gameEngine';
 import type { EquipmentSlot, GameAction, GameState, Hero } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
+import type { NarrativeMessage, NarrativeProvider } from '../infrastructure/llm';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
 import { clearGame, loadGame, saveGame } from '../infrastructure/storage';
 
@@ -153,10 +154,20 @@ function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatc
 
 function Quarters({ state }: { state: GameState }) {
   const recruited = state.roster.filter((hero) => hero.recruited);
-  const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [roomHeroId, setRoomHeroId] = useState<string | null>(null); const [line, setLine] = useState('今晚的宿舍很安静。'); const [loading, setLoading] = useState(false);
+  const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [roomHeroId, setRoomHeroId] = useState<string | null>(null); const [messages, setMessages] = useState<NarrativeMessage[]>([{ role: 'assistant', content: '今晚的宿舍很安静。' }]); const [playerText, setPlayerText] = useState(''); const [loading, setLoading] = useState(false); const [historyOpen, setHistoryOpen] = useState(false);
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
-  const talk = async () => { if (!hero) return; setLoading(true); setLine(await narrativeService.campLine(hero, state)); setLoading(false); };
-  const enterRoom = (id: string) => { setHeroId(id); setRoomHeroId(id); setLine(quartersGreetings[id] ?? '今晚的宿舍很安静。'); };
+  const talk = async () => {
+    const text = playerText.trim();
+    if (!hero || !text || loading) return;
+    const history = messages;
+    setMessages((current) => [...current, { role: 'user' as const, content: text }].slice(-16));
+    setPlayerText('');
+    setLoading(true);
+    const reply = await narrativeService.chat(hero, state, history, text);
+    setMessages((current) => [...current, { role: 'assistant' as const, content: reply }].slice(-16));
+    setLoading(false);
+  };
+  const enterRoom = (id: string) => { setHeroId(id); setRoomHeroId(id); setMessages([{ role: 'assistant', content: quartersGreetings[id] ?? '今晚的宿舍很安静。' }]); setPlayerText(''); setHistoryOpen(false); };
   if (!roomHeroId) return <section className="page quarters-page quarters-hall">
     <img className="quarters-background" src="/assets/world/quarters-hall-v1.png" alt="冒险者宿舍公共走廊" />
     <div className="hall-heading"><p className="eyebrow">旅人宿舍 · 公共区域</p><strong>选择要拜访的房间</strong><span>每位队员拥有独立的生活空间。</span></div>
@@ -169,10 +180,17 @@ function Quarters({ state }: { state: GameState }) {
       <div className="quarters-character-shadow" />
       <img key={hero.id} src={quartersPortraits[hero.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt="" />
     </div>}
-    <div className="quarters-chat" aria-label="宿舍聊天窗口">
-      <header><div><strong>{hero?.name ?? '无人'}</strong><span>{hero ? heroClassNames[hero.heroClass] : '未选择队员'}</span></div><small>{narrativeService.available && state.settings.llmEnabled ? 'LLM 交谈已连接' : '离线对白'}</small></header>
-      <div className="chat-thread"><div className="chat-message companion">“{line}”</div></div>
-      <footer><span>聊天不会直接修改战斗数值。</span><button disabled={loading || !hero} onClick={talk}>{loading ? '正在回复…' : '继续交谈'}</button></footer>
+    <div
+      className={`quarters-chat gal-dialogue ${historyOpen ? 'history-open' : ''} ${loading ? 'loading' : ''}`}
+      aria-label={historyOpen ? '对话回顾' : '宿舍聊天窗口'}
+    >
+      <div className="gal-nameplate"><strong>{hero?.name ?? '无人'}</strong><span>{hero ? heroClassNames[hero.heroClass] : ''}</span></div>
+      <button className="gal-history" onClick={(event) => { event.stopPropagation(); setHistoryOpen((open) => !open); }}>{historyOpen ? '返回对白' : '回顾'}</button>
+      <div className="chat-thread">{messages.map((message, index) => <div className={`chat-message ${message.role}`} key={`${index}-${message.content}`}>{message.role === 'assistant' ? `“${message.content}”` : `你：${message.content}`}</div>)}</div>
+      {!historyOpen && <form className="gal-input" onSubmit={(event) => { event.preventDefault(); void talk(); }}>
+        <input value={playerText} onChange={(event) => setPlayerText(event.target.value)} disabled={loading || !hero} maxLength={240} placeholder={loading ? `${hero?.name ?? '对方'}正在回应…` : `和${hero?.name ?? '对方'}说点什么…`} aria-label="输入对话内容" />
+        <button disabled={loading || !playerText.trim()} type="submit">{loading ? '回应中' : '发送'}</button>
+      </form>}
     </div>
   </section>;
 }
@@ -222,7 +240,10 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
 }
 
 function Settings({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
-  return <section className="settings-page"><p className="eyebrow">设置 · 游戏规则</p><h2>按你想要的节奏游玩。</h2><div className="setting-card"><div><strong>士气系统</strong><p>开启后，受击会增加士气压力；达到 50 时进入“动摇”，攻击降低 2 点。</p></div><button onClick={() => dispatch({ type: 'TOGGLE_MORALE' })}>{state.settings.moraleEnabled ? '已开启' : '已关闭'}</button></div><div className="setting-card"><div><strong>LLM 叙事增强</strong><p>只影响宿舍对白等表现内容。关闭或不可用时自动使用本地文案。</p></div><button onClick={() => dispatch({ type: 'TOGGLE_LLM' })}>{state.settings.llmEnabled ? '已开启' : '已关闭'}</button></div><div className="setting-card danger"><div><strong>重置本地存档</strong><p>清除招募、装备升级与设置，恢复初始状态。</p></div><button onClick={() => { clearGame(); dispatch({ type: 'RESET' }); }}>重置</button></div></section>;
+  const [provider, setProvider] = useState<NarrativeProvider>(() => narrativeService.provider);
+  const connection = narrativeService.status(provider);
+  const changeProvider = (value: NarrativeProvider) => { narrativeService.provider = value; setProvider(value); };
+  return <section className="settings-page"><p className="eyebrow">设置 · 游戏规则</p><h2>按你想要的节奏游玩。</h2><div className="setting-card"><div><strong>士气系统</strong><p>开启后，受击会增加士气压力；达到 50 时进入“动摇”，攻击降低 2 点。</p></div><button onClick={() => dispatch({ type: 'TOGGLE_MORALE' })}>{state.settings.moraleEnabled ? '已开启' : '已关闭'}</button></div><div className="setting-card"><div><strong>真实角色聊天</strong><p>当前：{connection.label}。自动模式优先使用 Mobile-Tavern 插件桥接，其次使用 SillyTavern；均不可用时使用离线对白。</p><small>Mobile-Tavern {connection.mobileTavernAvailable ? '已连接' : '未连接'} · SillyTavern {connection.sillyTavernAvailable ? '已连接' : '未连接'}</small></div><div className="llm-controls"><select aria-label="聊天接口" value={provider} onChange={(event) => changeProvider(event.target.value as NarrativeProvider)}><option value="auto">自动选择</option><option value="mobile-tavern">Mobile-Tavern</option><option value="sillytavern">SillyTavern</option></select><button onClick={() => dispatch({ type: 'TOGGLE_LLM' })}>{state.settings.llmEnabled ? '已开启' : '已关闭'}</button></div></div><div className="setting-card danger"><div><strong>重置本地存档</strong><p>清除招募、装备升级与设置，恢复初始状态。</p></div><button onClick={() => { clearGame(); dispatch({ type: 'RESET' }); }}>重置</button></div></section>;
 }
 
 function BottomAdventureMenu({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
