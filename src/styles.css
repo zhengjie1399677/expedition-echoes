@@ -431,45 +431,33 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
   box-shadow:0 13px 28px rgba(90, 78, 54, 0.15),inset 0 1px rgba(255,255,255,.64);
   color: #2b403a;
 }
-.inventory-panel>header {
-  color: #493e2e;
-  border-bottom: 1px solid rgba(170, 138, 80, 0.35);
-  background: linear-gradient(90deg, rgba(170, 138, 80, 0.15), transparent);
-  display: flex;
-  justify-content: space-between;
-  padding: 13px 15px;
-}
-.inventory-panel>header span {
-  color: #5d6f66;
-  font-size: 10px;
-}
-.inventory-tabs {
+.inventory-header-tabs {
   display: flex;
   gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(170, 138, 80, 0.25);
-  background: rgba(122, 93, 44, 0.02);
+  align-self: flex-end;
+  margin-bottom: 2px;
 }
-.inventory-tabs button {
+.inventory-header-tabs button {
   background: #fdfaf2;
   border: 1px solid #c7b48c;
-  padding: 5px 12px;
+  padding: 5px 14px;
   font-size: 11px;
   border-radius: 4px;
   color: #556c64;
   font-weight: 600;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
-.inventory-tabs button:hover {
-  background: #f3ebd5;
+.inventory-header-tabs button:hover {
+  background: #ebd7a8;
   color: #38240a;
   border-color: #aa8a50;
 }
-.inventory-tabs button.active {
+.inventory-header-tabs button.active {
   background: #aa8a50;
   color: #ffffff;
   border-color: #aa8a50;
-  box-shadow: 0 2px 4px rgba(170, 138, 80, 0.2);
+  box-shadow: 0 2px 4px rgba(170, 138, 80, 0.25);
 }
 .inventory-content-wrapper {
   padding: 16px;

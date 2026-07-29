@@ -144,7 +144,20 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
   });
 
   return <section className="page management-page">
-    <header className="management-title"><div><small>冒险整备</small><h2>{managementTitle}</h2></div></header>
+    <header className="management-title">
+      <div>
+        <small>冒险整备</small>
+        <h2>{managementTitle}</h2>
+      </div>
+      {tab === 'inventory' && (
+        <div className="inventory-header-tabs">
+          <button className={categoryFilter === 'all' ? 'active' : ''} onClick={() => setCategoryFilter('all')}>全部</button>
+          <button className={categoryFilter === 'food' ? 'active' : ''} onClick={() => setCategoryFilter('food')}>口粮</button>
+          <button className={categoryFilter === 'equipment' ? 'active' : ''} onClick={() => setCategoryFilter('equipment')}>装备</button>
+          <button className={categoryFilter === 'material' ? 'active' : ''} onClick={() => setCategoryFilter('material')}>材料</button>
+        </div>
+      )}
+    </header>
 
     {tab === 'party' && <div className="party-management">
       <div className="formation-panel"><header><strong>出征队伍</strong><span>{state.selectedHeroIds.length}/3</span></header>
@@ -160,18 +173,6 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
     </div>}
 
     {tab === 'inventory' && <div className="inventory-panel">
-      <header>
-        <strong>物品清单</strong>
-        <span>出发时自动携带最多 3 个绷带和 1 个镇定剂</span>
-      </header>
-
-      <div className="inventory-tabs">
-        <button className={categoryFilter === 'all' ? 'active' : ''} onClick={() => setCategoryFilter('all')}>全部</button>
-        <button className={categoryFilter === 'food' ? 'active' : ''} onClick={() => setCategoryFilter('food')}>口粮</button>
-        <button className={categoryFilter === 'equipment' ? 'active' : ''} onClick={() => setCategoryFilter('equipment')}>装备</button>
-        <button className={categoryFilter === 'material' ? 'active' : ''} onClick={() => setCategoryFilter('material')}>材料</button>
-      </div>
-
       <div className="inventory-content-wrapper">
         {filteredItems.length === 0 ? (
           <div className="inventory-empty">此处尚未存放任何此类物品。</div>
