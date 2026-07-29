@@ -41,9 +41,9 @@ function Town({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<
 
 const equipmentSlotNames: Record<EquipmentSlot, string> = { weapon: '武器', armor: '防具', accessory: '饰品' };
 const quartersPortraits: Record<string, string> = {
-  lan: '/assets/portraits-dorm/lan-dorm-v1.png',
-  wu: '/assets/portraits-dorm/wu-dorm-v1.png',
-  xingluo: '/assets/portraits-dorm/xingluo-dorm-v1.png',
+  lan: '/assets/portraits-dorm/lan-dorm-v2.png',
+  wu: '/assets/portraits-dorm/wu-dorm-v2.png',
+  xingluo: '/assets/portraits-dorm/xingluo-dorm-v2.png',
   scout: '/assets/actors/scout-v1.png',
 };
 const quartersGreetings: Record<string, string> = {
