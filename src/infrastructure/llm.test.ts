@@ -31,6 +31,9 @@ describe('narrative provider adapters', () => {
 
     expect(result).toBe('欢迎回来。');
     expect(chat).toHaveBeenCalledOnce();
+    const systemMessage = chat.mock.calls[0][0].messages[0];
+    expect(systemMessage.content).toContain('{{user}} 是不直接参战的远征队长');
+    expect(systemMessage.content).toContain('不得替 {{user}} 发言、描述其心理或决定其行动');
     expect(chat.mock.calls[0][0].messages.at(-1)).toEqual({ role: 'user', content: '今天过得怎么样？' });
   });
 

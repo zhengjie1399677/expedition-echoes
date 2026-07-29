@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useReducer, useState } from 'react';
 import { affinityStage, craftingRecipes, dayLabel, expeditionNodes, giftDefinitions, heroClassDescriptions, heroClassNames, itemDefinitions, materialName, materialSellPrices, missions, rarityColors, rarityNames } from '../content/gameContent';
 import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer } from '../domain/gameEngine';
 import type { EquipmentSlot, GameAction, GameState, Hero, Rarity } from '../domain/model';
-import { narrativeService } from '../infrastructure/llm';
+import { narrativeService, playerPlaceholder } from '../infrastructure/llm';
 import type { NarrativeMessage, NarrativeProvider } from '../infrastructure/llm';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
 import { clearGame, loadGame, saveGame } from '../infrastructure/storage';
@@ -166,8 +166,10 @@ function Quarters({ state, dispatch, onRestClick }: { state: GameState; dispatch
   const recruited = state.roster.filter((hero) => hero.recruited);
   const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [roomHeroId, setRoomHeroId] = useState<string | null>(null); const [messages, setMessages] = useState<NarrativeMessage[]>([{ role: 'assistant', content: '今晚的宿舍很安静。' }]); const [playerText, setPlayerText] = useState(''); const [loading, setLoading] = useState(false); const [historyOpen, setHistoryOpen] = useState(false);
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
-  const talk = async () => {
-    const text = playerText.trim();
+  const connection = narrativeService.status();
+  const freeChatAvailable = state.settings.llmEnabled && connection.available;
+  const talk = async (presetText?: string) => {
+    const text = (presetText ?? playerText).trim();
     if (!hero || !text || loading) return;
     const history = messages;
     setMessages((current) => [...current, { role: 'user' as const, content: text }].slice(-16));
@@ -194,12 +196,13 @@ function Quarters({ state, dispatch, onRestClick }: { state: GameState; dispatch
       className={`quarters-chat gal-dialogue ${historyOpen ? 'history-open' : ''} ${loading ? 'loading' : ''}`}
       aria-label={historyOpen ? '对话回顾' : '宿舍聊天窗口'}
     >
-      <div className="gal-nameplate"><strong>{hero?.name ?? '无人'}</strong><span>{hero ? heroClassNames[hero.heroClass] : ''}</span></div>
+      <div className="gal-nameplate"><strong>{hero?.name ?? '无人'}</strong><span>{hero ? `${heroClassNames[hero.heroClass]} · 与队长交谈` : ''}</span></div>
       <button className="gal-history" onClick={(event) => { event.stopPropagation(); setHistoryOpen((open) => !open); }}>{historyOpen ? '返回对白' : '回顾'}</button>
-      <div className="chat-thread">{messages.map((message, index) => <div className={`chat-message ${message.role}`} key={`${index}-${message.content}`}>{message.role === 'assistant' ? `“${message.content}”` : `你：${message.content}`}</div>)}</div>
-      {!historyOpen && <form className="gal-input" onSubmit={(event) => { event.preventDefault(); void talk(); }}>
-        <input value={playerText} onChange={(event) => setPlayerText(event.target.value)} disabled={loading || !hero} maxLength={240} placeholder={loading ? `${hero?.name ?? '对方'}正在回应…` : `和${hero?.name ?? '对方'}说点什么…`} aria-label="输入对话内容" />
-        <button disabled={loading || !playerText.trim()} type="submit">{loading ? '回应中' : '发送'}</button>
+      <div className="chat-thread">{messages.map((message, index) => <div className={`chat-message ${message.role}`} key={`${index}-${message.content}`}>{message.role === 'assistant' ? `“${message.content}”` : `队长 ${playerPlaceholder}：${message.content}`}</div>)}</div>
+      {!historyOpen && <form className={`gal-input ${freeChatAvailable ? '' : 'offline'}`} onSubmit={(event) => { event.preventDefault(); void (freeChatAvailable ? talk() : talk('今晚好好休息，明天见。')); }}>
+        <span className="speaker-label">队长 {playerPlaceholder}</span>
+        <input value={playerText} onChange={(event) => setPlayerText(event.target.value)} disabled={loading || !hero || !freeChatAvailable} maxLength={240} placeholder={loading ? `${hero?.name ?? '对方'}正在回应…` : freeChatAvailable ? `和${hero?.name ?? '对方'}说点什么…` : '连接 LLM 后可自由交谈'} aria-label="以队长身份输入对话内容" />
+        <button disabled={loading || (freeChatAvailable && !playerText.trim())} type="submit">{loading ? '回应中' : freeChatAvailable ? '发送' : '简单问候'}</button>
       </form>}
     </div>
   </section>;

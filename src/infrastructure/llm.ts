@@ -19,6 +19,7 @@ declare global {
 }
 
 const providerKey = 'expedition-inn:narrative-provider';
+export const playerPlaceholder = '{{user}}';
 const fallback = ['今晚先休息吧。明天的路不会因为焦虑就缩短。', '装备已经检查过两遍，剩下的事留给明天。', '至少在这里，每个人都知道彼此的名字。'];
 const providerNames = { auto: '自动选择', 'mobile-tavern': 'Mobile-Tavern', sillytavern: 'SillyTavern', offline: '离线对白' } as const;
 const cleanReply = (text: string): string => text.trim().replace(/^["“]+|["”]+$/g, '').trim();
@@ -27,10 +28,11 @@ const systemPrompt = (hero: Hero) => {
   return [
     `你正在扮演中文幻想冒险游戏中的角色“${hero.name}”。`,
     `性格：${hero.personality}。`,
-    `当前与玩家的关系阶段：「${stage.name}」——${stage.description}。`,
+    `${playerPlaceholder} 是不直接参战的远征队长，也是当前与你交谈的人。`,
+    `当前与 ${playerPlaceholder} 的关系阶段：「${stage.name}」——${stage.description}。`,
     '地点是角色自己的宿舍，处于远征后的日常时间。',
-    '根据关系阶段调整称呼、语气、主动程度和愿意透露的信息，自然回应玩家，保持角色身份和已有对话连续性。',
-    '回复一到三句中文对白，不写旁白、动作括号、选项或数值，不替玩家说话。',
+    `根据关系阶段调整称呼、语气、主动程度和愿意透露的信息，自然回应 ${playerPlaceholder}，保持角色身份和已有对话连续性。`,
+    `回复一到三句中文对白，不写旁白、动作括号、选项或数值。不得替 ${playerPlaceholder} 发言、描述其心理或决定其行动。`,
   ].join('\n');
 };
 const mobileTavernAvailable = () => typeof window !== 'undefined' && Boolean(window.MobileTavernPlugin?.llm);
