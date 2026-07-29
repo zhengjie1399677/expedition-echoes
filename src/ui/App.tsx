@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react';
-import { expeditionNodes, heroClassDescriptions, heroClassNames, itemDefinitions, missions } from '../content/gameContent';
+import { affinityStage, craftingRecipes, dayLabel, expeditionNodes, giftDefinitions, heroClassDescriptions, heroClassNames, itemDefinitions, materialName, materialSellPrices, missions, rarityColors, rarityNames } from '../content/gameContent';
 import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer } from '../domain/gameEngine';
-import type { EquipmentSlot, GameAction, GameState, Hero } from '../domain/model';
+import type { EquipmentSlot, GameAction, GameState, Hero, Rarity } from '../domain/model';
 import { narrativeService } from '../infrastructure/llm';
 import type { NarrativeMessage, NarrativeProvider } from '../infrastructure/llm';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
@@ -26,7 +26,7 @@ function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean;
   </article>;
 }
 
-function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
+function Town({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
   return <section className="page town-page">
     <div className="town-map">
       <img src="/assets/world/town-hub-v2.png" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
@@ -34,7 +34,7 @@ function Town({ dispatch }: { dispatch: React.Dispatch<GameAction> }) {
       <button className="map-hotspot hotspot-tavern" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}><strong>旅途酒馆</strong><span>招募 · 任务 · 补给</span></button>
       <div className="map-hotspot hotspot-plaza location-marker" aria-label="中央广场，当前所在位置"><strong>中央广场</strong><span>城镇据点</span></div>
       <button className="map-hotspot hotspot-quarters" onClick={() => dispatch({ type: 'NAVIGATE', page: 'quarters' })}><strong>旅人宿舍</strong><span>休息 · 交谈</span></button>
-      <button className="map-hotspot hotspot-gate" onClick={() => dispatch({ type: 'START_EXPEDITION' })}><strong>东侧城门</strong><span>开始远征</span></button>
+      <button className={`map-hotspot hotspot-gate ${state.hasAcceptedMission ? '' : 'locked'}`} onClick={() => dispatch({ type: 'START_EXPEDITION' })}><strong>东侧城门</strong><span>{state.hasAcceptedMission ? '开始远征' : '需先接取任务'}</span></button>
     </div>
   </section>;
 }
@@ -54,13 +54,14 @@ const quartersGreetings: Record<string, string> = {
 
 function Management({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
   const tab = state.managementTab;
-  const managementTitle = tab === 'party' ? '队伍编成' : tab === 'equipment' ? '角色装备' : '旅行背包';
+  const managementTitle = tab === 'party' ? '队伍编成' : tab === 'equipment' ? '角色装备' : tab === 'craft' ? '装备打造' : '旅行背包';
   const recruited = state.roster.filter((hero) => hero.recruited);
   const [heroId, setHeroId] = useState(state.selectedHeroIds[0] ?? recruited[0]?.id ?? '');
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
   const ownedItems = itemDefinitions.filter((item) => (state.inventory[item.id] ?? 0) > 0);
   const equipmentItems = itemDefinitions.filter((item) => item.kind === 'equipment');
   const bonuses = hero ? equipmentBonuses(hero) : { attack: 0, defense: 0 };
+  const materialEntries = Object.entries(state.materials).filter(([, count]) => count > 0).map(([key, count]) => { const [typeId, rarityStr] = key.split(':'); const rarity = Number(rarityStr) as Rarity; return { typeId, rarity, count }; }).sort((a, b) => a.rarity - b.rarity || materialName(a.typeId).localeCompare(materialName(b.typeId)));
   return <section className="page management-page">
     <header className="management-title"><div><small>冒险整备</small><h2>{managementTitle}</h2></div></header>
 
@@ -80,6 +81,14 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
     {tab === 'inventory' && <div className="inventory-panel"><header><strong>旅行背包</strong><span>出发时自动携带最多 3 个绷带和 1 个镇定剂</span></header><div className="inventory-grid">{ownedItems.map((item) => {
       const available = item.kind === 'equipment' ? availableItemCount(state, item.id) : state.inventory[item.id];
       return <article key={item.id} className={`inventory-item ${item.kind}`}><div><strong>{item.name}</strong><b>× {state.inventory[item.id]}</b></div><p>{item.description}</p><small>{item.kind === 'equipment' ? `${item.slot ? equipmentSlotNames[item.slot] : ''} · 可用 ${available}` : '消耗品'}</small></article>;
+    })}</div><div className="materials-section"><header><strong>材料库存</strong><span>击败怪物与完成任务收集，按稀有度分级</span></header>{materialEntries.length === 0 ? <p className="materials-empty">尚未收集到任何材料。</p> : <div className="materials-grid">{materialEntries.map((m) => <div key={`${m.typeId}:${m.rarity}`} className="material-entry"><span className={`rarity-badge rarity-${m.rarity}`} style={{ borderColor: rarityColors[m.rarity], color: rarityColors[m.rarity] }}>{materialName(m.typeId)}·{rarityNames[m.rarity]} ×{m.count}</span><button className="sell-button" onClick={() => dispatch({ type: 'SELL_MATERIAL', typeId: m.typeId, rarity: m.rarity, count: 1 })}>售 {materialSellPrices[m.rarity]}</button></div>)}</div>}</div></div>}
+
+    {tab === 'craft' && <div className="craft-panel"><header><strong>装备打造</strong><span>消耗材料与金币，打造装备入背包</span></header><div className="craft-grid">{craftingRecipes.map((recipe) => {
+      const result = itemDefinitions.find((item) => item.id === recipe.resultItemId);
+      const goldOk = state.gold >= recipe.goldCost;
+      const matsOk = recipe.materials.every((m) => (state.materials[`${m.typeId}:${m.rarity}`] ?? 0) >= m.count);
+      const canCraft = goldOk && matsOk;
+      return <article key={recipe.id} className={`craft-card ${canCraft ? '' : 'disabled'}`}><div className="craft-result"><strong>{result?.name ?? recipe.resultItemId}</strong><small>{result?.attack ? `攻击 +${result.attack}` : ''}{result?.attack && result?.defense ? ' · ' : ''}{result?.defense ? `减伤 +${result.defense}` : ''}</small></div><div className="craft-cost"><span className="craft-mats">{recipe.materials.map((m, i) => <span key={i} className={`rarity-badge rarity-${m.rarity}`} style={{ borderColor: rarityColors[m.rarity], color: rarityColors[m.rarity] }}>{materialName(m.typeId)}·{rarityNames[m.rarity]} ×{m.count}</span>)}</span><span className="craft-gold">{recipe.goldCost} 金币</span></div><button disabled={!canCraft} onClick={() => dispatch({ type: 'CRAFT_ITEM', recipeId: recipe.id })}>{canCraft ? '打造' : '不足'}</button></article>;
     })}</div></div>}
 
     {tab === 'equipment' && hero && <div className="equipment-management">
@@ -109,7 +118,7 @@ function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatc
     setPreviewMissionId(undefined);
   };
   const acceptMission = () => {
-    if (!previewMission || acceptingMission) return;
+    if (!previewMission || acceptingMission || state.missionAcceptedToday) return;
     dispatch({ type: 'ACCEPT_MISSION', missionId: previewMission.id });
     setAcceptingMission(true);
     globalThis.setTimeout(() => {
@@ -139,12 +148,13 @@ function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatc
       <p className="parchment-summary">{previewMission.summary}</p>
       <dl className="parchment-details">
         <div><dt>委托报酬</dt><dd>{previewMission.reward} 金币</dd></div>
+        {previewMission.materialRewards?.length ? <div><dt>材料报酬</dt><dd className="parchment-materials">{previewMission.materialRewards.map((r, i) => <span key={i} className={`rarity-badge rarity-${r.rarity}`} style={{ borderColor: rarityColors[r.rarity], color: rarityColors[r.rarity] }}>{materialName(r.typeId)}·{rarityNames[r.rarity]} ×{r.count}</span>)}</dd></div> : null}
         <div><dt>行动区域</dt><dd>边境遗迹</dd></div>
         <div><dt>预计行程</dt><dd>{Object.keys(previewMission.enemyWaves).length} 场遭遇</dd></div>
       </dl>
       <div className="parchment-actions">
         <button onClick={() => setPreviewMissionId(undefined)}>返回任务板</button>
-        <button className="accept-mission" onClick={acceptMission}>接取任务</button>
+        <button className="accept-mission" disabled={state.missionAcceptedToday} onClick={acceptMission}>{state.missionAcceptedToday ? '今日已接取' : '接取任务'}</button>
       </div>
       {acceptingMission && <div className="accepted-check" aria-live="polite"><strong>✓</strong><span>任务已接取</span></div>}
     </aside>}
@@ -152,7 +162,7 @@ function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatc
   </section>;
 }
 
-function Quarters({ state }: { state: GameState }) {
+function Quarters({ state, dispatch, onRestClick }: { state: GameState; dispatch: React.Dispatch<GameAction>; onRestClick: () => void }) {
   const recruited = state.roster.filter((hero) => hero.recruited);
   const [heroId, setHeroId] = useState(recruited[0]?.id ?? ''); const [roomHeroId, setRoomHeroId] = useState<string | null>(null); const [messages, setMessages] = useState<NarrativeMessage[]>([{ role: 'assistant', content: '今晚的宿舍很安静。' }]); const [playerText, setPlayerText] = useState(''); const [loading, setLoading] = useState(false); const [historyOpen, setHistoryOpen] = useState(false);
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
@@ -171,10 +181,11 @@ function Quarters({ state }: { state: GameState }) {
   if (!roomHeroId) return <section className="page quarters-page quarters-hall">
     <img className="quarters-background" src="/assets/world/quarters-hall-v1.png" alt="冒险者宿舍公共走廊" />
     <div className="room-directory">{recruited.map((item, index) => <button className={`room-entry room-entry-${index}`} key={item.id} onClick={() => enterRoom(item.id)}><strong>{item.name}的房间</strong><span>{heroClassNames[item.heroClass]} · 敲门进入</span></button>)}</div>
+    <button className="quarters-rest-button" onClick={onRestClick}>休息至次日</button>
   </section>;
   return <section className="page quarters-page">
     <img className="quarters-background" src="/assets/world/quarters-dorm-v1.png" alt="暮色中的冒险者宿舍" />
-    <div className="quarters-topbar"><div><p className="eyebrow">{hero?.name}的房间 · 日常交谈</p><strong>远征后的安静时间</strong></div><button className="leave-room" onClick={() => setRoomHeroId(null)}>返回公共区域</button></div>
+    <div className="quarters-topbar"><div><p className="eyebrow">{hero?.name}的房间 · 日常交谈</p><strong>远征后的安静时间</strong>{hero && <div className="gift-row"><span className="gift-info">好感 {hero.affinity} · {affinityStage(hero.affinity).name}</span>{giftDefinitions.filter((g) => (state.inventory[g.id] ?? 0) > 0).map((g) => <button key={g.id} disabled={(state.giftsGivenToday[hero.id] ?? 0) >= 1} onClick={() => dispatch({ type: 'GIVE_GIFT', heroId: hero.id, giftId: g.id })}>{g.name}×{state.inventory[g.id]}{hero.preferredGiftTags.some((t) => g.tags.includes(t)) ? '★' : ''}</button>)}{(state.giftsGivenToday[hero.id] ?? 0) >= 1 && <span>今日已送</span>}</div>}</div><button className="leave-room" onClick={() => setRoomHeroId(null)}>返回公共区域</button></div>
     {hero && <div className="quarters-character" aria-hidden="true">
       <div className="quarters-character-shadow" />
       <img key={hero.id} src={quartersPortraits[hero.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt="" />
@@ -252,13 +263,15 @@ function BottomAdventureMenu({ state, dispatch }: { state: GameState; dispatch: 
     { id: 'party', label: '队伍', glyph: 'Ⅲ', active: state.page === 'management' && state.managementTab === 'party', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'party' }) },
     { id: 'equipment', label: '角色', glyph: '♙', active: state.page === 'management' && state.managementTab === 'equipment', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'equipment' }) },
     { id: 'inventory', label: '背包', glyph: '▣', active: state.page === 'management' && state.managementTab === 'inventory', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'inventory' }) },
+    { id: 'craft', label: '打造', glyph: '⚒', active: state.page === 'management' && state.managementTab === 'craft', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'craft' }) },
   ];
   return <nav className="adventure-menu" aria-label="冒险菜单">{entries.map((entry) => <button key={entry.id} className={entry.active ? 'active' : ''} onClick={entry.action}><span className="menu-glyph">{entry.glyph}</span><strong className="menu-label">{entry.label}</strong></button>)}</nav>;
 }
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => loadGame() ?? createInitialGame());
+  const [confirmRest, setConfirmRest] = useState(false);
   useEffect(() => saveGame(state), [state]);
   useEffect(() => warmExpeditionResources(), []);
-  return <main className={`app-shell ${state.page !== 'expedition' && state.page !== 'settings' ? 'with-adventure-menu' : ''}`}><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>◆ {state.gold} 金币</strong></div>{state.page === 'settings' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header><div className="game-viewport">{state.page === 'town' && <Town dispatch={dispatch} />}{state.page === 'management' && <Management state={state} dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}</div><BottomAdventureMenu state={state} dispatch={dispatch} /></main>;
+  return <main className={`app-shell ${state.page !== 'expedition' && state.page !== 'settings' ? 'with-adventure-menu' : ''}`}><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>{dayLabel(state.day)} · ◆ {state.gold} · 口粮 {state.food}{state.hunger > 0 ? ` · 饥饿${state.hunger}` : ''}</strong></div>{state.page === 'settings' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header><div className="game-viewport">{state.page === 'town' && <Town state={state} dispatch={dispatch} />}{state.page === 'management' && <Management state={state} dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} dispatch={dispatch} onRestClick={() => setConfirmRest(true)} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}</div><BottomAdventureMenu state={state} dispatch={dispatch} />{confirmRest && <div className="confirm-overlay" onClick={() => setConfirmRest(false)}><div className="confirm-dialog" onClick={(e) => e.stopPropagation()}><p>休息至次日？</p><small>将进入 {dayLabel(state.day + 1)}，新的一天可以再次接取任务。</small><div className="confirm-actions"><button onClick={() => setConfirmRest(false)}>取消</button><button className="confirm-yes" onClick={() => { dispatch({ type: 'REST_TO_NEXT_DAY' }); setConfirmRest(false); }}>确认休息</button></div></div></div>}</main>;
 }
