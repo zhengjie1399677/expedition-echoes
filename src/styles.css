@@ -255,10 +255,13 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
 .craft-card button:disabled{background:rgba(120,120,120,.14);border-color:#999;color:#777;cursor:not-allowed}
 
 /* 每日限制：宿舍休息按钮（羊皮卷风格，右上角显眼位）与接取禁用态 */
-.quarters-rest-button{position:absolute;top:82px;right:22px;padding:10px 24px;border:2px solid #6b4f22;background:linear-gradient(180deg,#f5e6c8,#ead0a3);color:#3a1f08;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;text-shadow:0 1px 0 rgba(255,255,255,.3);box-shadow:0 4px 12px rgba(0,0,0,.4);z-index:90;transition:filter .15s}
-.quarters-rest-button:hover{filter:brightness(1.08)}
+.quarters-rest-button{position:absolute;left:50%;top:27%;transform:translate(-50%,-50%);display:grid;gap:3px;min-width:176px;padding:9px 15px;border:1px solid rgba(219,184,111,.7);background:linear-gradient(110deg,rgba(18,34,30,.9),rgba(34,48,40,.82));color:#f4e8c8;border-radius:3px;font-size:13px;cursor:pointer;text-align:center;text-shadow:0 2px 3px rgba(0,0,0,.72);box-shadow:0 8px 20px rgba(9,13,11,.42),inset 0 1px rgba(255,239,190,.12);z-index:30;transition:filter .15s,transform .15s;backdrop-filter:blur(5px)}
+.quarters-rest-button:before{content:"◆";position:absolute;left:50%;top:-12px;transform:translateX(-50%);color:#f0cf7d;font-size:14px;text-shadow:0 0 8px rgba(238,196,99,.75)}
+.quarters-rest-button strong,.quarters-rest-button span{display:block}
+.quarters-rest-button strong{font-size:15px}.quarters-rest-button span{color:#c7d2c9;font-size:9px;font-weight:400}
+.quarters-rest-button:hover{filter:brightness(1.14);transform:translate(-50%,-54%)}
 .accept-mission:disabled{opacity:.5;cursor:not-allowed}
-@media(max-width:560px){.quarters-rest-button{top:60px;right:10px;padding:7px 14px;font-size:12px}}
+@media(max-width:560px){.quarters-rest-button{left:50%;top:25%;min-width:150px;padding:7px 10px}.quarters-rest-button strong{font-size:13px}.quarters-rest-button span{font-size:8px}}
 
 /* 宿舍送礼行（嵌入 topbar 内部，不独立定位避免重叠） */
 .gift-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
