@@ -35,23 +35,41 @@ export interface ItemDefinition {
   id: string; name: string; kind: 'consumable' | 'equipment'; description: string;
   slot?: EquipmentSlot; attack?: number; defense?: number; allowedClasses?: HeroClass[];
 }
-export interface Supplies { bandage: number; sedative: number }
-export interface Expedition { missionId: string; nodeIndex: number; formation: string[]; enemies: Enemy[]; supplies: Supplies }
+export interface Supplies { bandage: number; sedative: number; food: number }
+export interface Expedition {
+  missionId: string;
+  nodeIndex: number;
+  formation: string[];
+  enemies: Enemy[];
+  supplies: Supplies;
+  startSupplies: Supplies;
+  gainedGold: number;
+  gainedMaterials: MaterialInventory;
+  gainedExperience: number;
+}
 export interface GameSettings { moraleEnabled: boolean; llmEnabled: boolean }
+export interface SettlementState {
+  outcome: 'victory' | 'retreat' | 'defeated';
+  consumedSupplies: { food: number; bandage: number; sedative: number };
+  lootGold: number;
+  lootMaterials: MaterialInventory;
+  gainedExperience: number;
+}
 export interface GameState {
-  version: 11; page: Page; gold: number; roster: Hero[]; inventory: Record<string, number>;
+  version: 12; page: Page | 'settlement'; gold: number; roster: Hero[]; inventory: Record<string, number>;
   selectedHeroIds: string[]; selectedMissionId: string; managementTab: ManagementTab;
   expedition: Expedition | null; settings: GameSettings; log: string[];
   materials: MaterialInventory; hasAcceptedMission: boolean;
   day: number; missionAcceptedToday: boolean;
   food: number; hunger: number;
   giftsGivenToday: Record<string, number>;
+  settlement: SettlementState | null;
 }
 export type GameAction =
   | { type: 'NAVIGATE'; page: Page } | { type: 'RECRUIT'; heroId: string }
   | { type: 'OPEN_MANAGEMENT'; tab: ManagementTab }
   | { type: 'TOGGLE_PARTY'; heroId: string } | { type: 'UPGRADE_GEAR'; heroId: string }
-  | { type: 'START_EXPEDITION' } | { type: 'ATTACK'; heroId: string; enemyId?: string }
+  | { type: 'START_EXPEDITION'; supplies?: { food: number; bandage: number; sedative: number } } | { type: 'ATTACK'; heroId: string; enemyId?: string }
   | { type: 'ACCEPT_MISSION'; missionId: string }
   | { type: 'MOVE_PARTY'; index: number; direction: -1 | 1 }
   | { type: 'EQUIP_ITEM'; heroId: string; itemId: string }
@@ -61,4 +79,5 @@ export type GameAction =
   | { type: 'SWAP'; index: number } | { type: 'USE_BANDAGE'; heroId: string }
   | { type: 'USE_SEDATIVE'; heroId: string } | { type: 'ADVANCE' }
   | { type: 'RETREAT' } | { type: 'TOGGLE_MORALE' } | { type: 'TOGGLE_LLM' }
-  | { type: 'REST_TO_NEXT_DAY' } | { type: 'GIVE_GIFT'; heroId: string; giftId: string } | { type: 'RESET' };
+  | { type: 'REST_TO_NEXT_DAY' } | { type: 'GIVE_GIFT'; heroId: string; giftId: string } | { type: 'RESET' }
+  | { type: 'CLOSE_SETTLEMENT' };

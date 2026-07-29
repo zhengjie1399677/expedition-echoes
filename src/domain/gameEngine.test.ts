@@ -33,7 +33,16 @@ describe('队伍、背包与装备', () => {
   it('可以调整出征站位顺序', () => { const state = createInitialGame(); const moved = gameReducer(state, { type: 'MOVE_PARTY', index: 0, direction: 1 }); expect(moved.selectedHeroIds).toEqual(['wu', 'lan', 'xingluo']); });
   it('装备会占用背包数量并提供属性', () => { const state = createInitialGame(); const equipped = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'lan', itemId: 'vanguard-spear' }); const lan = equipped.roster.find((hero) => hero.id === 'lan')!; expect(lan.equipment.weapon).toBe('vanguard-spear'); expect(equipmentBonuses(lan).attack).toBe(2); expect(availableItemCount(equipped, 'vanguard-spear')).toBe(0); });
   it('职业不匹配时不能装备专属武器', () => { const state = createInitialGame(); const result = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'wu', itemId: 'vanguard-spear' }); expect(result.roster.find((hero) => hero.id === 'wu')?.equipment.weapon).toBeUndefined(); });
-  it('远征携带背包补给，撤退时返还剩余数量', () => { const started = gameReducer(ready(), { type: 'START_EXPEDITION' }); expect(started.inventory.bandage).toBe(2); expect(started.expedition?.supplies.bandage).toBe(3); const retreated = gameReducer(started, { type: 'RETREAT' }); expect(retreated.inventory.bandage).toBe(5); expect(retreated.expedition).toBeNull(); });
+  it('远征携带背包补给，撤退时返还剩余数量', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 0, bandage: 3, sedative: 1 } });
+    expect(started.inventory.bandage).toBe(2);
+    expect(started.expedition?.supplies.bandage).toBe(3);
+    const retreated = gameReducer(started, { type: 'RETREAT' });
+    expect(retreated.inventory.bandage).toBe(5);
+    expect(retreated.page).toBe('settlement');
+    expect(retreated.settlement?.outcome).toBe('retreat');
+    expect(retreated.expedition).toBeNull();
+  });
 });
 
 describe('出城前置条件', () => {
@@ -66,7 +75,8 @@ describe('完整远征状态', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
     const atLastNode: GameState = { ...started, expedition: { ...started.expedition!, nodeIndex: 4, enemies: [] } };
     const completed = gameReducer(atLastNode, { type: 'ADVANCE' });
-    expect(completed.page).toBe('town');
+    expect(completed.page).toBe('settlement');
+    expect(completed.settlement?.outcome).toBe('victory');
     expect(completed.expedition).toBeNull();
     expect(completed.hasAcceptedMission).toBe(false);
     // border-echoes 材料奖励：遗迹碎片·普通 ×2
@@ -76,6 +86,8 @@ describe('完整远征状态', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
     const retreated = gameReducer(started, { type: 'RETREAT' });
     expect(retreated.hasAcceptedMission).toBe(false);
+    expect(retreated.page).toBe('settlement');
+    expect(retreated.settlement?.outcome).toBe('retreat');
     expect(retreated.expedition).toBeNull();
   });
 });
@@ -154,18 +166,21 @@ describe('每日任务限制', () => {
 
 describe('食物消耗与饥饿', () => {
   it('进入战斗节点消耗食物，休息节点不消耗', () => {
-    const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
-    expect(started.food).toBe(4);
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    expect(started.food).toBe(1); // 5 - 4
+    expect(started.expedition?.supplies.food).toBe(3); // 4 - 1 (consumed entering node 0)
+    
     const atNode1: GameState = { ...started, expedition: { ...started.expedition!, enemies: [] } };
     const restNode = gameReducer(atNode1, { type: 'ADVANCE' });
-    expect(restNode.food).toBe(4);
+    expect(restNode.expedition?.supplies.food).toBe(3); // rest node doesn't consume
+    
     const atNode2: GameState = { ...restNode, expedition: { ...restNode.expedition!, enemies: [] } };
     const combatNode = gameReducer(atNode2, { type: 'ADVANCE' });
-    expect(combatNode.food).toBe(3);
+    expect(combatNode.expedition?.supplies.food).toBe(2); // combat node consumes 1
   });
   it('食物不足时进入战斗节点增加饥饿层数但不死档', () => {
     const noFood: GameState = { ...ready(), food: 0, hunger: 0 };
-    const started = gameReducer(noFood, { type: 'START_EXPEDITION' });
+    const started = gameReducer(noFood, { type: 'START_EXPEDITION', supplies: { food: 0, bandage: 0, sedative: 0 } });
     expect(started.food).toBe(0);
     expect(started.hunger).toBe(1);
     const atNode1: GameState = { ...started, expedition: { ...started.expedition!, enemies: [] } };
@@ -230,3 +245,86 @@ describe('礼物与好感', () => {
     expect(affinityStage(80).name).toBe('羁绊');
   });
 });
+
+describe('行囊整备、职业被动与全败结算新规则', () => {
+  it('出征行囊携带数量限制与库存校验', () => {
+    // 1. 超限（大于 10 格）应被拒绝
+    const state = ready();
+    const overLimit = gameReducer(state, { type: 'START_EXPEDITION', supplies: { food: 5, bandage: 5, sedative: 1 } });
+    expect(overLimit.page).toBe('town');
+    expect(overLimit.log[0]).toContain('空间不足');
+
+    // 2. 超出库存应被拒绝
+    const overStock = gameReducer(state, { type: 'START_EXPEDITION', supplies: { food: 10, bandage: 0, sedative: 0 } });
+    expect(overStock.page).toBe('town');
+    expect(overStock.log[0]).toContain('超过了城镇库存');
+  });
+
+  it('先锋被动坚守：前排受到伤害降低 1 并反击贴身敌人 2 伤害', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 2, bandage: 0, sedative: 0 } });
+    // 先锋 lan 在 index 0，hp = 32
+    // 敌方 scout (distance 1, range 2-3) 无法攻击 lan，但 warden (distance 1, range 1-1) 攻击 lan
+    // 守卫攻击力为 5，坚守触发：伤害减少 1，实际受到 5 - 1 = 4 点伤害，hp 变为 28
+    // 且触发反击对 warden 造成 2 点伤害，warden hp 变为 34 - 2 = 32
+    const attacked = gameReducer(started, { type: 'ATTACK', heroId: 'lan', enemyId: 'scout' });
+    const lan = attacked.roster.find(h => h.id === 'lan')!;
+    expect(lan.hp).toBe(28);
+    const scout = attacked.expedition?.enemies.find(e => e.id === 'scout')!;
+    expect(scout.hp).toBe(19); // 26 - 7 (normal attack)
+    const warden = attacked.expedition?.enemies.find(e => e.id === 'warden')!;
+    expect(warden.hp).toBe(32); // 34 - 2 (counterattack)
+    expect(attacked.log.some(l => l.includes('触发「坚守」进行了贴身反击'))).toBe(true);
+  });
+
+  it('游侠被动锐眼：后排时伤害 +2 且无攻击范围限制', () => {
+    let state = ready();
+    // 调整队伍，让雾（游侠）在后排
+    state = gameReducer(state, { type: 'MOVE_PARTY', index: 0, direction: 1 }); // roster order: wu, lan, xingluo. so wu at front, lan in middle (index 1)
+    // 重新排序：把游侠雾放到 index 1。
+    // 先开始远征
+    const started = gameReducer(state, { type: 'START_EXPEDITION' });
+    const scout = started.expedition!.enemies.find(e => e.id === 'scout')!;
+    const wu = started.roster.find(h => h.id === 'wu')!;
+    // 雾（ranger）在 index 1 应该能够攻击 scout，且伤害 +2
+    expect(canAttack(wu, scout, 1)).toBe(true);
+    const baseDamage = attackDamage(wu, false, 0, 0, []); // 6
+    const backrowDamage = attackDamage(wu, false, 0, 1, []); // 6 + 2 = 8
+    expect(backrowDamage).toBe(8);
+  });
+
+  it('术士被动共鸣：相邻有存活队友伤害 +2，孤立无援伤害 -1', () => {
+    const base = createInitialGame();
+    const mage = base.roster.find(h => h.id === 'xingluo')!;
+    const lan = base.roster.find(h => h.id === 'lan')!;
+    // 1. 相邻有存活队友 (Mage at index 1, Lan at index 0)
+    const partyWithNeighbor = [lan, mage];
+    const dmgWithNeighbor = attackDamage(mage, false, 0, 1, partyWithNeighbor); // 8 + 2 = 10
+    expect(dmgWithNeighbor).toBe(10);
+
+    // 2. 孤立无援 (Mage at index 2, Lan dead at index 1)
+    const deadLan = { ...lan, hp: 0 };
+    const partyIsolated = [mage, deadLan]; // mage is at index 0, deadLan is at index 1
+    const dmgIsolated = attackDamage(mage, false, 0, 0, partyIsolated); // 8 - 1 = 7
+    expect(dmgIsolated).toBe(7);
+  });
+
+  it('队伍全灭失败进入失败结算，不保留战利品且返还剩余行囊补给', () => {
+    let state = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 2, bandage: 3, sedative: 1 } });
+    // 记录敌人列表，把敌人的伤害改为 99 以秒杀玩家，并削弱玩家 HP（星罗设为已阵亡，只有前排两人参战）
+    state.roster = state.roster.map(h => h.id === 'xingluo' ? { ...h, hp: 0 } : { ...h, hp: 1 });
+    state.expedition!.enemies = state.expedition!.enemies.map(e => ({ ...e, damage: 99 }));
+    
+    // 玩家进行一次攻击，会引发敌方存活单位反击，秒杀所有存活玩家英雄
+    const result = gameReducer(state, { type: 'ATTACK', heroId: 'lan', enemyId: 'scout' });
+    expect(result.page).toBe('settlement');
+    expect(result.settlement?.outcome).toBe('defeated');
+    // 失败不带回任何金币和材料
+    expect(result.settlement?.lootGold).toBe(0);
+    expect(result.settlement?.lootMaterials).toEqual({});
+    // 返还剩余的补给品：绷带 3，镇定剂 1，食物 1 (消耗了 1 个，余 1 个)
+    expect(result.inventory.bandage).toBe(5); // 2 + 3
+    expect(result.inventory.sedative).toBe(2); // 1 + 1
+    expect(result.food).toBe(4); // 3 + 1
+  });
+});
+

@@ -1,34 +1,36 @@
 import { expeditionNodes, missions } from '../content/gameContent';
-import type { GameAction, GameState } from './model';
-import { addLog, enemyById } from './shared';
+import type { GameAction, GameState, SettlementState } from './model';
+import { addLog, enemyById, returnExpeditionSupplies } from './shared';
 import { addMaterials, describeMaterial } from './economy';
-
-function returnExpeditionSupplies(state: GameState): GameState {
-  if (!state.expedition) return state;
-  return {
-    ...state,
-    inventory: {
-      ...state.inventory,
-      bandage: (state.inventory.bandage ?? 0) + state.expedition.supplies.bandage,
-      sedative: (state.inventory.sedative ?? 0) + state.expedition.supplies.sedative,
-    },
-  };
-}
 
 function enterNode(state: GameState, nodeIndex: number): GameState {
   const node = expeditionNodes[nodeIndex];
   if (!state.expedition || !node) return state;
   const isRest = node.kind === 'rest';
-  const consumed = !isRest && state.food > 0;
-  const next = { ...state, food: consumed ? state.food - 1 : state.food, hunger: isRest ? state.hunger : (consumed ? state.hunger : state.hunger + 1) };
+  const consumed = !isRest && state.expedition.supplies.food > 0;
+  const nextSupplies = {
+    ...state.expedition.supplies,
+    food: consumed ? state.expedition.supplies.food - 1 : state.expedition.supplies.food
+  };
+  const next = {
+    ...state,
+    hunger: isRest ? state.hunger : (consumed ? state.hunger : state.hunger + 1),
+    expedition: {
+      ...state.expedition,
+      nodeIndex,
+      supplies: nextSupplies,
+      enemies: [] as any[]
+    }
+  };
   const foodLog = isRest ? '' : (consumed ? '' : '（食物不足，饥饿加深）');
   if (node.kind === 'rest') {
     const roster = next.roster.map((hero) => next.expedition!.formation.includes(hero.id) ? { ...hero, hp: Math.min(hero.maxHp, hero.hp + 5), morale: Math.max(0, hero.morale - 12) } : hero);
-    return addLog({ ...next, roster, expedition: { ...next.expedition!, nodeIndex, enemies: [] } }, `${node.title}：${node.description}${foodLog}`);
+    return addLog({ ...next, roster }, `${node.title}：${node.description}${foodLog}`);
   }
   const mission = missions.find((item) => item.id === next.expedition!.missionId) ?? missions[0];
   const enemyIds = mission.enemyWaves[nodeIndex] ?? node.enemyIds;
-  return addLog({ ...next, expedition: { ...next.expedition!, nodeIndex, enemies: enemyIds.map(enemyById) } }, `${node.title}：${node.description}${foodLog}`);
+  next.expedition.enemies = enemyIds.map(enemyById);
+  return addLog(next, `${node.title}：${node.description}${foodLog}`);
 }
 
 export function expeditionReducer(state: GameState, action: GameAction): GameState {
@@ -36,14 +38,41 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
     case 'START_EXPEDITION': {
       if (!state.hasAcceptedMission) return addLog(state, '请先在酒馆任务板接取一份委托，再从城门出发。');
       if (state.selectedHeroIds.length < 2) return addLog(state, '至少选择两名队员。');
-      const bandage = Math.min(3, state.inventory.bandage ?? 0);
-      const sedative = Math.min(1, state.inventory.sedative ?? 0);
+      
+      const food = action.supplies?.food ?? Math.min(2, state.food);
+      const bandage = action.supplies?.bandage ?? Math.min(3, state.inventory.bandage ?? 0);
+      const sedative = action.supplies?.sedative ?? Math.min(1, state.inventory.sedative ?? 0);
+      
+      const totalSupplies = food + bandage + sedative;
+      if (totalSupplies > 10) {
+        return addLog(state, '出征行囊空间不足（最多携带 10 件补给品）。');
+      }
+      if (food > state.food || bandage > (state.inventory.bandage ?? 0) || sedative > (state.inventory.sedative ?? 0)) {
+        return addLog(state, '携带的补给品数量超过了城镇库存。');
+      }
+      
+      const supplies = { food, bandage, sedative };
       const prepared: GameState = {
         ...state,
         page: 'expedition',
-        inventory: { ...state.inventory, bandage: (state.inventory.bandage ?? 0) - bandage, sedative: (state.inventory.sedative ?? 0) - sedative },
+        food: state.food - food,
+        inventory: {
+          ...state.inventory,
+          bandage: (state.inventory.bandage ?? 0) - bandage,
+          sedative: (state.inventory.sedative ?? 0) - sedative
+        },
         roster: state.roster.map((hero) => state.selectedHeroIds.includes(hero.id) ? { ...hero, hp: hero.maxHp, morale: 0 } : hero),
-        expedition: { missionId: state.selectedMissionId, nodeIndex: 0, formation: [...state.selectedHeroIds], enemies: [], supplies: { bandage, sedative } },
+        expedition: {
+          missionId: state.selectedMissionId,
+          nodeIndex: 0,
+          formation: [...state.selectedHeroIds],
+          enemies: [],
+          supplies,
+          startSupplies: { ...supplies },
+          gainedGold: 0,
+          gainedMaterials: {},
+          gainedExperience: 0
+        },
       };
       return enterNode(prepared, 0);
     }
@@ -73,16 +102,74 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
         const mission = missions.find((item) => item.id === state.expedition!.missionId);
         const reward = mission?.reward ?? 45;
         const rewards = mission?.materialRewards ?? [];
-        const returned = returnExpeditionSupplies(state);
-        const materials = addMaterials(returned.materials, rewards);
+        
+        const consumed = {
+          food: state.expedition.startSupplies.food - state.expedition.supplies.food,
+          bandage: state.expedition.startSupplies.bandage - state.expedition.supplies.bandage,
+          sedative: state.expedition.startSupplies.sedative - state.expedition.supplies.sedative
+        };
+        const lootGold = state.expedition.gainedGold + reward;
+        const lootMaterials = addMaterials(state.expedition.gainedMaterials, rewards);
+        
+        const settlement: SettlementState = {
+          outcome: 'victory',
+          consumedSupplies: consumed,
+          lootGold,
+          lootMaterials,
+          gainedExperience: state.expedition.gainedExperience
+        };
+        
+        let next = returnExpeditionSupplies(state);
+        next = {
+          ...next,
+          gold: next.gold + lootGold,
+          materials: addMaterials(next.materials, Object.entries(lootMaterials).map(([key, count]) => {
+            const [typeId, rarityStr] = key.split(':');
+            return { typeId, rarity: Number(rarityStr) as any, count };
+          })),
+          page: 'settlement',
+          settlement,
+          expedition: null,
+          hasAcceptedMission: false
+        };
+        
         const rewardLine = rewards.length ? `，并获得 ${rewards.map((r) => `${describeMaterial(r.typeId, r.rarity)} ×${r.count}`).join('、')}` : '';
-        return addLog({ ...returned, page: 'town', gold: returned.gold + reward, materials, expedition: null, hasAcceptedMission: false }, `远征完成，全队带回 ${reward} 金币${rewardLine}。`);
+        return addLog(next, `远征完成，全队带回 ${reward} 金币${rewardLine}。`);
       }
       return enterNode(state, nextIndex);
     }
     case 'RETREAT': {
-      const returned = returnExpeditionSupplies(state);
-      return addLog({ ...returned, page: 'town', expedition: null, hasAcceptedMission: false }, '队伍提前撤回城镇。');
+      if (!state.expedition) return state;
+      const consumed = {
+        food: state.expedition.startSupplies.food - state.expedition.supplies.food,
+        bandage: state.expedition.startSupplies.bandage - state.expedition.supplies.bandage,
+        sedative: state.expedition.startSupplies.sedative - state.expedition.supplies.sedative
+      };
+      const lootGold = state.expedition.gainedGold;
+      const lootMaterials = state.expedition.gainedMaterials;
+      
+      const settlement: SettlementState = {
+        outcome: 'retreat',
+        consumedSupplies: consumed,
+        lootGold,
+        lootMaterials,
+        gainedExperience: state.expedition.gainedExperience
+      };
+      
+      let next = returnExpeditionSupplies(state);
+      next = {
+        ...next,
+        gold: next.gold + lootGold,
+        materials: addMaterials(next.materials, Object.entries(lootMaterials).map(([key, count]) => {
+          const [typeId, rarityStr] = key.split(':');
+          return { typeId, rarity: Number(rarityStr) as any, count };
+        })),
+        page: 'settlement',
+        settlement,
+        expedition: null,
+        hasAcceptedMission: false
+      };
+      return addLog(next, '队伍提前撤回城镇。');
     }
     default: return state;
   }

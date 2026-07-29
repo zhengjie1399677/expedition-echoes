@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useReducer, useState } from 'react';
 import { affinityStage, craftingRecipes, dayLabel, expeditionNodes, giftDefinitions, heroClassDescriptions, heroClassNames, itemDefinitions, materialName, materialSellPrices, missions, rarityColors, rarityNames } from '../content/gameContent';
 import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer } from '../domain/gameEngine';
-import type { EquipmentSlot, GameAction, GameState, Hero, Rarity } from '../domain/model';
+import type { EquipmentSlot, GameAction, GameState, Hero, Rarity, SettlementState } from '../domain/model';
 import { narrativeService, playerPlaceholder } from '../infrastructure/llm';
 import type { NarrativeMessage, NarrativeProvider } from '../infrastructure/llm';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
@@ -26,20 +26,66 @@ function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean;
   </article>;
 }
 
-function Town({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
+function Town({ state, dispatch, onGateClick }: { state: GameState; dispatch: React.Dispatch<GameAction>; onGateClick: () => void }) {
+  const handleGateClick = () => {
+    if (!state.hasAcceptedMission) {
+      dispatch({ type: 'START_EXPEDITION' });
+      return;
+    }
+    onGateClick();
+  };
   return <section className="page town-page">
     <div className="town-map">
-      <img src="/assets/world/town-hub-v2.png" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
+      <img src="/assets/world/town-hub-v3.png" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
       <div className="town-map-shade" />
-      <button className="map-hotspot hotspot-tavern" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}><strong>旅途酒馆</strong><span>招募 · 任务 · 补给</span></button>
-      <div className="map-hotspot hotspot-plaza location-marker" aria-label="中央广场，当前所在位置"><strong>中央广场</strong><span>城镇据点</span></div>
-      <button className="map-hotspot hotspot-quarters" onClick={() => dispatch({ type: 'NAVIGATE', page: 'quarters' })}><strong>旅人宿舍</strong><span>休息 · 交谈</span></button>
-      <button className={`map-hotspot hotspot-gate ${state.hasAcceptedMission ? '' : 'locked'}`} onClick={() => dispatch({ type: 'START_EXPEDITION' })}><strong>东侧城门</strong><span>{state.hasAcceptedMission ? '开始远征' : '需先接取任务'}</span></button>
+      <div className="town-map-frame" />
+      
+      <div className="town-particles" aria-hidden="true">
+        <span className="particle p1"></span>
+        <span className="particle p2"></span>
+        <span className="particle p3"></span>
+        <span className="particle p4"></span>
+        <span className="particle p5"></span>
+        <span className="particle p6"></span>
+        <span className="particle p7"></span>
+        <span className="particle p8"></span>
+      </div>
+
+      <button className="map-hotspot hotspot-tavern" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}>
+        <span className="beacon-ring" />
+        <strong>旅途酒馆</strong>
+        <span>招募 · 任务 · 补给</span>
+      </button>
+      <div className="map-hotspot hotspot-plaza location-marker" aria-label="中央广场，当前所在位置">
+        <span className="beacon-ring" />
+        <strong>中央广场</strong>
+        <span>城镇据点</span>
+      </div>
+      <button className="map-hotspot hotspot-quarters" onClick={() => dispatch({ type: 'NAVIGATE', page: 'quarters' })}>
+        <span className="beacon-ring" />
+        <strong>旅人宿舍</strong>
+        <span>休息 · 交谈</span>
+      </button>
+      <button className={`map-hotspot hotspot-gate ${state.hasAcceptedMission ? '' : 'locked'}`} onClick={handleGateClick}>
+        <span className="beacon-ring" />
+        <strong>东侧城门</strong>
+        <span>{state.hasAcceptedMission ? '开始远征' : '需先接取任务'}</span>
+      </button>
     </div>
   </section>;
 }
 
 const equipmentSlotNames: Record<EquipmentSlot, string> = { weapon: '武器', armor: '防具', accessory: '饰品' };
+const itemIcons: Record<string, string> = {
+  bandage: '🩹',
+  sedative: '🧪',
+  'vanguard-spear': '🔱',
+  'ranger-bow': '🏹',
+  'star-staff': '🔮',
+  'field-mail': '🛡️',
+  'warded-coat': '🧥',
+  'echo-charm': '📿',
+};
 const quartersPortraits: Record<string, string> = {
   lan: '/assets/portraits-dorm/lan-dorm-v2.png',
   wu: '/assets/portraits-dorm/wu-dorm-v2.png',
@@ -54,6 +100,7 @@ const quartersGreetings: Record<string, string> = {
 
 function Management({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
   const tab = state.managementTab;
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'food' | 'equipment' | 'material'>('all');
   const managementTitle = tab === 'party' ? '队伍编成' : tab === 'equipment' ? '角色装备' : tab === 'craft' ? '装备打造' : '旅行背包';
   const recruited = state.roster.filter((hero) => hero.recruited);
   const [heroId, setHeroId] = useState(state.selectedHeroIds[0] ?? recruited[0]?.id ?? '');
@@ -62,6 +109,40 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
   const equipmentItems = itemDefinitions.filter((item) => item.kind === 'equipment');
   const bonuses = hero ? equipmentBonuses(hero) : { attack: 0, defense: 0 };
   const materialEntries = Object.entries(state.materials).filter(([, count]) => count > 0).map(([key, count]) => { const [typeId, rarityStr] = key.split(':'); const rarity = Number(rarityStr) as Rarity; return { typeId, rarity, count }; }).sort((a, b) => a.rarity - b.rarity || materialName(a.typeId).localeCompare(materialName(b.typeId)));
+
+  const unifiedItems = [
+    ...ownedItems.map(item => ({
+      key: `item:${item.id}`,
+      type: 'item' as const,
+      id: item.id,
+      name: item.name,
+      kind: item.kind,
+      description: item.description,
+      count: state.inventory[item.id],
+      data: item,
+      rarity: 0 as Rarity
+    })),
+    ...materialEntries.map(m => ({
+      key: `material:${m.typeId}:${m.rarity}`,
+      type: 'material' as const,
+      id: m.typeId,
+      name: `${materialName(m.typeId)}·${rarityNames[m.rarity]}`,
+      kind: 'material' as const,
+      description: `击败遗迹怪物与完成任务时获得的稀有材料。`,
+      count: m.count,
+      rarity: m.rarity,
+      data: null
+    }))
+  ];
+
+  const filteredItems = unifiedItems.filter(item => {
+    if (categoryFilter === 'all') return true;
+    if (categoryFilter === 'food') return item.kind === 'consumable';
+    if (categoryFilter === 'equipment') return item.kind === 'equipment';
+    if (categoryFilter === 'material') return item.type === 'material';
+    return true;
+  });
+
   return <section className="page management-page">
     <header className="management-title"><div><small>冒险整备</small><h2>{managementTitle}</h2></div></header>
 
@@ -78,10 +159,76 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
       })}</div>
     </div>}
 
-    {tab === 'inventory' && <div className="inventory-panel"><header><strong>旅行背包</strong><span>出发时自动携带最多 3 个绷带和 1 个镇定剂</span></header><div className="inventory-grid">{ownedItems.map((item) => {
-      const available = item.kind === 'equipment' ? availableItemCount(state, item.id) : state.inventory[item.id];
-      return <article key={item.id} className={`inventory-item ${item.kind}`}><div><strong>{item.name}</strong><b>× {state.inventory[item.id]}</b></div><p>{item.description}</p><small>{item.kind === 'equipment' ? `${item.slot ? equipmentSlotNames[item.slot] : ''} · 可用 ${available}` : '消耗品'}</small></article>;
-    })}</div><div className="materials-section"><header><strong>材料库存</strong><span>击败怪物与完成任务收集，按稀有度分级</span></header>{materialEntries.length === 0 ? <p className="materials-empty">尚未收集到任何材料。</p> : <div className="materials-grid">{materialEntries.map((m) => <div key={`${m.typeId}:${m.rarity}`} className="material-entry"><span className={`rarity-badge rarity-${m.rarity}`} style={{ borderColor: rarityColors[m.rarity], color: rarityColors[m.rarity] }}>{materialName(m.typeId)}·{rarityNames[m.rarity]} ×{m.count}</span><button className="sell-button" onClick={() => dispatch({ type: 'SELL_MATERIAL', typeId: m.typeId, rarity: m.rarity, count: 1 })}>售 {materialSellPrices[m.rarity]}</button></div>)}</div>}</div></div>}
+    {tab === 'inventory' && <div className="inventory-panel">
+      <header>
+        <strong>物品清单</strong>
+        <span>出发时自动携带最多 3 个绷带和 1 个镇定剂</span>
+      </header>
+
+      <div className="inventory-tabs">
+        <button className={categoryFilter === 'all' ? 'active' : ''} onClick={() => setCategoryFilter('all')}>全部</button>
+        <button className={categoryFilter === 'food' ? 'active' : ''} onClick={() => setCategoryFilter('food')}>口粮</button>
+        <button className={categoryFilter === 'equipment' ? 'active' : ''} onClick={() => setCategoryFilter('equipment')}>装备</button>
+        <button className={categoryFilter === 'material' ? 'active' : ''} onClick={() => setCategoryFilter('material')}>材料</button>
+      </div>
+
+      <div className="inventory-content-wrapper">
+        {filteredItems.length === 0 ? (
+          <div className="inventory-empty">此处尚未存放任何此类物品。</div>
+        ) : (
+          <div className="inventory-compact-list">
+            {filteredItems.map((item) => {
+              if (item.type === 'item') {
+                const available = item.data!.kind === 'equipment' ? availableItemCount(state, item.id) : item.count;
+                const icon = itemIcons[item.id] || '📦';
+                const kindLabel = item.data!.kind === 'equipment' ? (item.data!.slot ? equipmentSlotNames[item.data!.slot] : '装备') : '消耗品';
+                const rowClass = item.data!.kind;
+
+                return (
+                  <article key={item.key} className={`inventory-row ${rowClass}`}>
+                    <span className="item-icon-frame">{icon}</span>
+                    <div className="item-body">
+                      <div className="item-meta">
+                        <strong className="item-name">{item.name}</strong>
+                        <span className="item-badge">{kindLabel}</span>
+                      </div>
+                      <p className="item-desc">{item.description}</p>
+                    </div>
+                    <div className="item-actions">
+                      {item.data!.kind === 'equipment' && <span className="item-avail">可用 {available}</span>}
+                      <strong className="item-qty">× {item.count}</strong>
+                    </div>
+                  </article>
+                );
+              } else {
+                const icon = '💎';
+                const kindLabel = `材料 · ${rarityNames[item.rarity]}`;
+                const rowClass = `material rarity-${item.rarity}`;
+
+                return (
+                  <article key={item.key} className={`inventory-row ${rowClass}`}>
+                    <span className="item-icon-frame" style={{ borderColor: rarityColors[item.rarity] }}>{icon}</span>
+                    <div className="item-body">
+                      <div className="item-meta">
+                        <strong className="item-name" style={{ color: rarityColors[item.rarity] }}>{item.name}</strong>
+                        <span className="item-badge tag-material" style={{ color: rarityColors[item.rarity], borderColor: rarityColors[item.rarity] }}>{kindLabel}</span>
+                      </div>
+                      <p className="item-desc">{item.description}</p>
+                    </div>
+                    <div className="item-actions">
+                      <button className="sell-button compact-sell" onClick={() => dispatch({ type: 'SELL_MATERIAL', typeId: item.id, rarity: item.rarity, count: 1 })}>
+                        🪙 售 {materialSellPrices[item.rarity]}
+                      </button>
+                      <strong className="item-qty">× {item.count}</strong>
+                    </div>
+                  </article>
+                );
+              }
+            })}
+          </div>
+        )}
+      </div>
+    </div>}
 
     {tab === 'craft' && <div className="craft-panel"><header><strong>装备打造</strong><span>消耗材料与金币，打造装备入背包</span></header><div className="craft-grid">{craftingRecipes.map((recipe) => {
       const result = itemDefinitions.find((item) => item.id === recipe.resultItemId);
@@ -259,11 +406,47 @@ function Settings({ state, dispatch }: { state: GameState; dispatch: React.Dispa
   const [provider, setProvider] = useState<NarrativeProvider>(() => narrativeService.provider);
   const connection = narrativeService.status(provider);
   const changeProvider = (value: NarrativeProvider) => { narrativeService.provider = value; setProvider(value); };
-  return <section className="settings-page"><p className="eyebrow">设置 · 游戏规则</p><h2>按你想要的节奏游玩。</h2><div className="setting-card"><div><strong>士气系统</strong><p>开启后，受击会增加士气压力；达到 50 时进入“动摇”，攻击降低 2 点。</p></div><button onClick={() => dispatch({ type: 'TOGGLE_MORALE' })}>{state.settings.moraleEnabled ? '已开启' : '已关闭'}</button></div><div className="setting-card"><div><strong>真实角色聊天</strong><p>当前：{connection.label}。自动模式优先使用 Mobile-Tavern 插件桥接，其次使用 SillyTavern；均不可用时使用离线对白。</p><small>Mobile-Tavern {connection.mobileTavernAvailable ? '已连接' : '未连接'} · SillyTavern {connection.sillyTavernAvailable ? '已连接' : '未连接'}</small></div><div className="llm-controls"><select aria-label="聊天接口" value={provider} onChange={(event) => changeProvider(event.target.value as NarrativeProvider)}><option value="auto">自动选择</option><option value="mobile-tavern">Mobile-Tavern</option><option value="sillytavern">SillyTavern</option></select><button onClick={() => dispatch({ type: 'TOGGLE_LLM' })}>{state.settings.llmEnabled ? '已开启' : '已关闭'}</button></div></div><div className="setting-card danger"><div><strong>重置本地存档</strong><p>清除招募、装备升级与设置，恢复初始状态。</p></div><button onClick={() => { clearGame(); dispatch({ type: 'RESET' }); }}>重置</button></div></section>;
+  return <section className="settings-page">
+    <p className="eyebrow">设置 · 游戏规则</p>
+    <h2>按你想要的节奏游玩。</h2>
+    <div className="setting-card">
+      <div>
+        <strong>士气系统</strong>
+        <p>开启后，受击会增加士气压力；达到 50 时进入“动摇”，攻击降低 2 点。</p>
+      </div>
+      <button className={`toggle-btn ${state.settings.moraleEnabled ? 'active' : ''}`} onClick={() => dispatch({ type: 'TOGGLE_MORALE' })}>
+        {state.settings.moraleEnabled ? '已开启' : '已关闭'}
+      </button>
+    </div>
+    <div className="setting-card">
+      <div>
+        <strong>真实角色聊天</strong>
+        <p>当前：{connection.label}。自动模式优先使用 Mobile-Tavern 插件桥接，其次使用 SillyTavern；均不可用时使用离线对白。</p>
+        <small>Mobile-Tavern {connection.mobileTavernAvailable ? '已连接' : '未连接'} · SillyTavern {connection.sillyTavernAvailable ? '已连接' : '未连接'}</small>
+      </div>
+      <div className="llm-controls">
+        <select aria-label="聊天接口" value={provider} onChange={(event) => changeProvider(event.target.value as NarrativeProvider)}>
+          <option value="auto">自动选择</option>
+          <option value="mobile-tavern">Mobile-Tavern</option>
+          <option value="sillytavern">SillyTavern</option>
+        </select>
+        <button className={`toggle-btn ${state.settings.llmEnabled ? 'active' : ''}`} onClick={() => dispatch({ type: 'TOGGLE_LLM' })}>
+          {state.settings.llmEnabled ? '已开启' : '已关闭'}
+        </button>
+      </div>
+    </div>
+    <div className="setting-card danger">
+      <div>
+        <strong>重置本地存档</strong>
+        <p>清除招募、装备升级与设置，恢复初始状态。</p>
+      </div>
+      <button className="reset-btn" onClick={() => { clearGame(); dispatch({ type: 'RESET' }); }}>重置</button>
+    </div>
+  </section>;
 }
 
 function BottomAdventureMenu({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
-  if (state.page === 'expedition' || state.page === 'settings') return null;
+  if (state.page === 'expedition' || state.page === 'settings' || state.page === 'settlement') return null;
   const entries = [
     { id: 'town', label: '城镇', glyph: '◇', active: state.page === 'town', action: () => dispatch({ type: 'NAVIGATE', page: 'town' }) },
     { id: 'party', label: '队伍', glyph: 'Ⅲ', active: state.page === 'management' && state.managementTab === 'party', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'party' }) },
@@ -274,10 +457,231 @@ function BottomAdventureMenu({ state, dispatch }: { state: GameState; dispatch: 
   return <nav className="adventure-menu" aria-label="冒险菜单">{entries.map((entry) => <button key={entry.id} className={entry.active ? 'active' : ''} onClick={entry.action}><span className="menu-glyph">{entry.glyph}</span><strong className="menu-label">{entry.label}</strong></button>)}</nav>;
 }
 
+function ExpeditionPrepOverlay({ state, dispatch, onClose }: { state: GameState; dispatch: React.Dispatch<GameAction>; onClose: () => void }) {
+  const [carryFood, setCarryFood] = useState(() => {
+    try {
+      const saved = localStorage.getItem('last_expedition_supplies');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Math.min(parsed.food ?? 0, state.food);
+      }
+    } catch (e) {}
+    return 0;
+  });
+  const [carryBandage, setCarryBandage] = useState(() => {
+    try {
+      const saved = localStorage.getItem('last_expedition_supplies');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Math.min(parsed.bandage ?? 0, state.inventory.bandage ?? 0);
+      }
+    } catch (e) {}
+    return 0;
+  });
+  const [carrySedative, setCarrySedative] = useState(() => {
+    try {
+      const saved = localStorage.getItem('last_expedition_supplies');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Math.min(parsed.sedative ?? 0, state.inventory.sedative ?? 0);
+      }
+    } catch (e) {}
+    return 0;
+  });
+
+  const totalSlots = carryFood + carryBandage + carrySedative;
+  const isTeamValid = state.selectedHeroIds.length >= 2;
+
+  const handleStart = () => {
+    if (!isTeamValid || totalSlots > 10) return;
+    try {
+      localStorage.setItem('last_expedition_supplies', JSON.stringify({
+        food: carryFood,
+        bandage: carryBandage,
+        sedative: carrySedative
+      }));
+    } catch (e) {}
+    dispatch({ type: 'START_EXPEDITION', supplies: { food: carryFood, bandage: carryBandage, sedative: carrySedative } });
+    onClose();
+  };
+
+  const selectedHeroes = state.selectedHeroIds.map(id => state.roster.find(h => h.id === id)!).filter(Boolean);
+
+  return (
+    <div className="confirm-overlay prep-overlay" onClick={onClose}>
+      <div className="confirm-dialog prep-dialog" onClick={(e) => e.stopPropagation()}>
+        <header className="prep-header">
+          <h3>远征出征整备</h3>
+          <p>请挑选本次远征所携带的口粮与药剂。行囊最大容量为 10 格。</p>
+        </header>
+
+        <div className="prep-layout">
+          <section className="prep-section prep-party-list">
+            <h4>出征队伍 ({selectedHeroes.length}/3)</h4>
+            {!isTeamValid && <p className="prep-warning">⚠️ 至少需要 2 名队员出征，请先前往队伍整备！</p>}
+            <div className="prep-party-grid">
+              {selectedHeroes.map((hero, index) => {
+                const bonuses = equipmentBonuses(hero);
+                return (
+                  <div key={hero.id} className="prep-hero-card">
+                    <span className="prep-hero-idx">{index + 1}</span>
+                    <div className="prep-hero-info">
+                      <strong>{hero.name}</strong>
+                      <small>{heroClassNames[hero.heroClass]} · Lv.{hero.level}</small>
+                      <div className="prep-hero-stats">
+                        <span>生命 {hero.hp}/{hero.maxHp}</span>
+                        <span>攻击 +{bonuses.attack}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="prep-section prep-supplies-list">
+            <h4>行囊配置 (已用: {totalSlots}/10 格)</h4>
+            <div className="supply-control-row">
+              <div className="supply-label-col">
+                <strong>口粮 (食物)</strong>
+                <small>城镇库存: {state.food}</small>
+              </div>
+              <div className="supply-btn-group">
+                <button disabled={carryFood <= 0} onClick={() => setCarryFood(f => f - 1)}>-</button>
+                <span className="carry-val">{carryFood}</span>
+                <button disabled={carryFood >= state.food || totalSlots >= 10} onClick={() => setCarryFood(f => f + 1)}>+</button>
+              </div>
+            </div>
+
+            <div className="supply-control-row">
+              <div className="supply-label-col">
+                <strong>绷带</strong>
+                <small>城镇库存: {state.inventory.bandage ?? 0}</small>
+              </div>
+              <div className="supply-btn-group">
+                <button disabled={carryBandage <= 0} onClick={() => setCarryBandage(b => b - 1)}>-</button>
+                <span className="carry-val">{carryBandage}</span>
+                <button disabled={carryBandage >= (state.inventory.bandage ?? 0) || totalSlots >= 10} onClick={() => setCarryBandage(b => b + 1)}>+</button>
+              </div>
+            </div>
+
+            <div className="supply-control-row">
+              <div className="supply-label-col">
+                <strong>镇定剂</strong>
+                <small>城镇库存: {state.inventory.sedative ?? 0}</small>
+              </div>
+              <div className="supply-btn-group">
+                <button disabled={carrySedative <= 0} onClick={() => setCarrySedative(s => s - 1)}>-</button>
+                <span className="carry-val">{carrySedative}</span>
+                <button disabled={carrySedative >= (state.inventory.sedative ?? 0) || totalSlots >= 10} onClick={() => setCarrySedative(s => s + 1)}>+</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="confirm-actions prep-actions">
+          <button onClick={onClose}>返回城镇</button>
+          <button className="confirm-yes" disabled={!isTeamValid || totalSlots > 10} onClick={handleStart}>确认出发</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Settlement({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
+  const settlement = state.settlement;
+  if (!settlement) {
+    return (
+      <section className="empty-state">
+        <div>
+          <h2>无结算数据</h2>
+          <button className="primary" onClick={() => dispatch({ type: 'CLOSE_SETTLEMENT' })}>返回城镇</button>
+        </div>
+      </section>
+    );
+  }
+
+  const outcomeTitles = { victory: '远征凯旋', retreat: '战术撤退', defeated: '队伍全灭' };
+  const outcomeColors = { victory: '#d6a232', retreat: '#829ba8', defeated: '#b93a38' };
+  const outcomeClasses = { victory: 'outcome-victory', retreat: 'outcome-retreat', defeated: 'outcome-defeated' };
+  const matEntries = Object.entries(settlement.lootMaterials).filter(([, count]) => count > 0);
+
+  return (
+    <section className={`page settlement-page ${outcomeClasses[settlement.outcome]}`}>
+      <div className="settlement-card">
+        <header className="settlement-header">
+          <small>远征战役总结</small>
+          <h2 style={{ color: outcomeColors[settlement.outcome] }}>{outcomeTitles[settlement.outcome]}</h2>
+        </header>
+
+        <div className="settlement-content">
+          <section className="settlement-section">
+            <h3>战利品收益</h3>
+            <div className="settlement-loot-grid">
+              <div className="settlement-loot-item gold-loot">
+                <strong>获得金币</strong>
+                <span className="loot-val">+{settlement.lootGold} 金币</span>
+              </div>
+              <div className="settlement-loot-item exp-loot">
+                <strong>团队经验值</strong>
+                <span className="loot-val">+{settlement.gainedExperience} EXP</span>
+              </div>
+            </div>
+            {matEntries.length > 0 ? (
+              <div className="settlement-materials">
+                <strong>获得物资</strong>
+                <div className="materials-grid" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {matEntries.map(([key, count]) => {
+                    const [typeId, rarityStr] = key.split(':');
+                    const rarity = Number(rarityStr) as Rarity;
+                    return (
+                      <span key={key} className={`rarity-badge rarity-${rarity}`} style={{ borderColor: rarityColors[rarity], color: rarityColors[rarity] }}>
+                        {materialName(typeId)}·{rarityNames[rarity]} ×{count}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="no-materials-label">本次远征未获得物资材料。</p>
+            )}
+          </section>
+
+          <section className="settlement-section">
+            <h3>行囊消耗统计</h3>
+            <div className="settlement-supplies-grid">
+              <div className="settlement-supply-stat">
+                <span>食物口粮</span>
+                <strong>-{settlement.consumedSupplies.food}</strong>
+              </div>
+              <div className="settlement-supply-stat">
+                <span>绷带</span>
+                <strong>-{settlement.consumedSupplies.bandage}</strong>
+              </div>
+              <div className="settlement-supply-stat">
+                <span>镇定剂</span>
+                <strong>-{settlement.consumedSupplies.sedative}</strong>
+              </div>
+            </div>
+            <p className="supplies-return-tip">行囊内剩余的补给品已自动放回城镇背包。</p>
+          </section>
+        </div>
+
+        <footer className="settlement-footer-btn">
+          <button className="primary" onClick={() => dispatch({ type: 'CLOSE_SETTLEMENT' })}>确认并返回城镇</button>
+        </footer>
+      </div>
+    </section>
+  );
+}
+
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, undefined, () => loadGame() ?? createInitialGame());
   const [confirmRest, setConfirmRest] = useState(false);
+  const [prepOpen, setPrepOpen] = useState(false);
+
   useEffect(() => saveGame(state), [state]);
   useEffect(() => warmExpeditionResources(), []);
-  return <main className={`app-shell ${state.page !== 'expedition' && state.page !== 'settings' ? 'with-adventure-menu' : ''}`}><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>{dayLabel(state.day)} · ◆ {state.gold} · 口粮 {state.food}{state.hunger > 0 ? ` · 饥饿${state.hunger}` : ''}</strong></div>{state.page === 'settings' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header><div className="game-viewport">{state.page === 'town' && <Town state={state} dispatch={dispatch} />}{state.page === 'management' && <Management state={state} dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} dispatch={dispatch} onRestClick={() => setConfirmRest(true)} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}</div><BottomAdventureMenu state={state} dispatch={dispatch} />{confirmRest && <div className="confirm-overlay" onClick={() => setConfirmRest(false)}><div className="confirm-dialog" onClick={(e) => e.stopPropagation()}><p>上楼休息至次日？</p><small>将结束今天并进入 {dayLabel(state.day + 1)}，新的一天可以再次接取任务。</small><div className="confirm-actions"><button onClick={() => setConfirmRest(false)}>取消</button><button className="confirm-yes" onClick={() => { dispatch({ type: 'REST_TO_NEXT_DAY' }); setConfirmRest(false); }}>确认休息</button></div></div></div>}</main>;
+
+  return <main className={`app-shell ${state.page !== 'expedition' && state.page !== 'settings' && state.page !== 'settlement' ? 'with-adventure-menu' : ''}`}><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>{dayLabel(state.day)} · ◆ {state.gold} · 口粮 {state.food}{state.hunger > 0 ? ` · 饥饿${state.hunger}` : ''}</strong></div>{state.page === 'settings' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header><div className="game-viewport">{state.page === 'town' && <Town state={state} dispatch={dispatch} onGateClick={() => setPrepOpen(true)} />}{state.page === 'management' && <Management state={state} dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} dispatch={dispatch} onRestClick={() => setConfirmRest(true)} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}{state.page === 'settlement' && <Settlement state={state} dispatch={dispatch} />}</div><BottomAdventureMenu state={state} dispatch={dispatch} />{confirmRest && <div className="confirm-overlay" onClick={() => setConfirmRest(false)}><div className="confirm-dialog" onClick={(e) => e.stopPropagation()}><p>上楼休息至次日？</p><small>将结束今天并进入 {dayLabel(state.day + 1)}，新的一天可以再次接取任务。</small><div className="confirm-actions"><button onClick={() => setConfirmRest(false)}>取消</button><button className="confirm-yes" onClick={() => { dispatch({ type: 'REST_TO_NEXT_DAY' }); setConfirmRest(false); }}>确认休息</button></div></div></div>}{prepOpen && <ExpeditionPrepOverlay state={state} dispatch={dispatch} onClose={() => setPrepOpen(false)} />}</main>;
 }

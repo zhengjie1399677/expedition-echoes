@@ -5,3 +5,16 @@ import { enemies } from '../content/gameContent';
 export const enemyById = (id: string): Enemy => ({ ...enemies.find((enemy) => enemy.id === id)! });
 export const addLog = (state: GameState, message: string): GameState => ({ ...state, log: [message, ...state.log].slice(0, 8) });
 export const editHero = (state: GameState, id: string, edit: (hero: Hero) => Hero): GameState => ({ ...state, roster: state.roster.map((hero) => hero.id === id ? edit(hero) : hero) });
+
+export function returnExpeditionSupplies(state: GameState): GameState {
+  if (!state.expedition) return state;
+  return {
+    ...state,
+    food: state.food + state.expedition.supplies.food,
+    inventory: {
+      ...state.inventory,
+      bandage: (state.inventory.bandage ?? 0) + state.expedition.supplies.bandage,
+      sedative: (state.inventory.sedative ?? 0) + state.expedition.supplies.sedative,
+    },
+  };
+}

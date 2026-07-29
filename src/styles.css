@@ -188,17 +188,95 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
 @media(max-width:800px){.app-shell{width:100vw;height:100dvh;aspect-ratio:auto}.quest-dialog{right:3%;width:58%}.quest-board-hotspot{width:31%}}@media(max-width:560px){.app-shell{grid-template-rows:48px minmax(0,1fr)}.topbar{padding:4px 8px}.brand-home strong{font-size:25px}.quest-dialog{left:8px;right:8px;top:8px;width:auto;max-height:calc(100% - 16px)}}
 .quest-list-dialog{background:linear-gradient(135deg,rgba(239,220,169,.94),rgba(218,187,126,.92));color:#49351f;border-color:rgba(99,65,28,.46);border-radius:4px;backdrop-filter:blur(7px)}.quest-list-dialog>header,.quest-list-dialog>footer{background:rgba(107,70,29,.09);color:#5b4226}.quest-list-dialog>header small{color:#80633b}.quest-list-dialog>header button{color:#614422}.quest-list-dialog .quest-dialog-card{color:#49351f;border-bottom-color:rgba(97,63,27,.24)}.quest-list-dialog .quest-dialog-card p{color:#6a5132}.quest-list-dialog .quest-dialog-card:hover:not(:disabled){background:rgba(255,244,200,.44)}.quest-list-dialog .quest-dialog-card small{color:#8a5727}
 .app-shell{position:relative;display:block}.topbar{position:absolute;z-index:80;top:0;left:0;right:0;height:56px;background:linear-gradient(90deg,rgba(248,242,218,.9),rgba(248,242,218,.78));backdrop-filter:blur(5px)}.game-viewport{position:absolute;inset:0;width:100%;height:100%}.town-map{aspect-ratio:16/9}.town-map>img{object-fit:contain;object-position:center;filter:brightness(1.12) saturate(1.08) contrast(1.035)}.town-map-shade{display:none}.expedition-page{padding-top:76px}.settings-page{padding-top:82px}.quarters-topbar{top:70px}.tavern-roster-drawer{top:70px}.quest-dialog{top:70px;max-height:calc(100% - 88px)}
-.town-map>img{filter:none}.hotspot-tavern{left:20%;top:45.7%}.hotspot-plaza{left:55%;top:75.7%}.hotspot-quarters{left:61%;top:39.7%}.hotspot-gate{left:86%;top:53.7%}
+.town-map>img{filter: none; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;}.hotspot-tavern{left:20.8%;top:38.5%}.hotspot-plaza{left:55%;top:75.7%}.hotspot-quarters{left:60.5%;top:31.5%}.hotspot-gate{left:86%;top:53.7%}
 /* Corner HUD leaves the illustrated scene unobstructed. */
-.topbar{pointer-events:none;align-items:flex-start;padding:12px 14px;border:0;background:transparent;box-shadow:none;backdrop-filter:none}
-.topbar .brand-home,.topbar .topbar-actions{pointer-events:auto;border:1px solid rgba(203,169,102,.48);border-radius:2px;background:linear-gradient(110deg,rgba(18,34,30,.88),rgba(29,43,37,.76));box-shadow:0 8px 22px rgba(12,18,15,.28);backdrop-filter:blur(7px)}
-.topbar .brand-home{display:block;padding:7px 15px 8px}
-.topbar .brand-home strong{font-size:25px;line-height:1;color:#f5e8c5;text-shadow:0 1px 3px #000}
-.topbar .topbar-actions{min-height:42px;padding:5px 7px 5px 13px}
-.topbar .resource small{color:#aebfb5}
-.topbar .resource strong{color:#e2bd69}
-.topbar .return-town,.topbar .settings-entry{color:#f3e8c9}
-.topbar .return-town:hover:not(:disabled),.topbar .settings-entry:hover:not(:disabled){background:rgba(224,190,113,.16);color:#fff2c8}
+.topbar {
+  pointer-events: none;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.topbar .brand-home, .topbar .topbar-actions {
+  pointer-events: auto;
+  border: 1px solid rgba(170, 138, 80, 0.55);
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(253, 249, 237, 0.94), rgba(240, 230, 202, 0.88));
+  box-shadow: 0 6px 20px rgba(122, 93, 44, 0.12), inset 0 1px #fff;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease;
+}
+.topbar .brand-home {
+  display: block;
+  padding: 7px 15px 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.topbar .brand-home:hover {
+  border-color: #aa8a50;
+  box-shadow: 0 8px 24px rgba(170, 138, 80, 0.22), inset 0 1px #fff;
+  background: linear-gradient(135deg, rgba(255, 252, 243, 0.97), rgba(245, 236, 212, 0.92));
+}
+.topbar .brand-home strong {
+  font-size: 25px;
+  line-height: 1;
+  color: #2b3b38;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.topbar .topbar-actions {
+  min-height: 42px;
+  padding: 5px 7px 5px 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.topbar .resource small {
+  color: #556c64;
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.topbar .resource strong {
+  color: #2b3b38;
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.topbar .return-town, .topbar .settings-entry {
+  color: #3f5b52;
+  border: 1px solid rgba(170, 138, 80, 0.35);
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.topbar .settings-entry {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 16px;
+}
+.topbar .return-town:hover:not(:disabled), .topbar .settings-entry:hover:not(:disabled) {
+  background: #ebd7a8;
+  color: #364e4a;
+  border-color: #aa8a50;
+  box-shadow: 0 2px 5px rgba(170, 138, 80, 0.15);
+}
+.topbar .settings-entry.selected {
+  background: #aa8a50;
+  color: #ffffff;
+  border-color: #aa8a50;
+  box-shadow: 0 2px 6px rgba(170, 138, 80, 0.3);
+}
 #root{display:grid;place-items:center;background:#101516}.app-shell{flex:none}.game-viewport{overflow:hidden}
 .expedition-page{justify-items:stretch}.phaser-battle-shell,.phaser-loading{width:auto;height:100%;max-width:100%;aspect-ratio:1200/650;justify-self:center}.phaser-battle-shell canvas{width:100%!important;height:100%!important}
 .grid-mini-map{width:248px;padding:10px 12px 9px}.grid-mini-map .map-heading{margin-bottom:5px}.map-grid{position:relative;width:180px;height:104px;margin:0 auto;display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,42px);justify-content:space-between;align-content:space-between}.map-corridors{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.map-corridors path{fill:none;stroke:#75877d;stroke-width:5;stroke-linecap:square;stroke-linejoin:miter;opacity:.72}.map-cell{position:relative;z-index:2;width:42px;height:42px;place-self:center;display:grid;place-items:center;border:1px solid #60736a;border-radius:3px;background:#14231f;color:#73867c;box-shadow:0 0 0 3px #13201d,0 4px 9px #0006}.map-cell i{font-style:normal;font-size:15px;line-height:1}.map-cell small{position:absolute;right:3px;bottom:1px;font:7px/1 sans-serif;opacity:.58}.map-cell.passed{border-color:#849a8e;background:#435b51;color:#dbe6df}.map-cell.current{border-color:#f3dda0;background:linear-gradient(145deg,#edcf78,#b98d38);color:#18231f;box-shadow:0 0 0 3px #e3c66e35,0 0 18px #e3c66e77}.map-cell.unknown{background:#101d1a;color:#53655d;filter:saturate(.5)}.map-location{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:6px;padding-top:6px;border-top:1px solid #a9965e45}.map-location span{font-size:7px;color:#73867d}.map-location strong{overflow:hidden;font-size:9px;color:#ead38d;white-space:nowrap;text-overflow:ellipsis}
@@ -282,14 +360,16 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
 .confirm-actions button:hover{filter:brightness(1.08)}
 
 /* Management/settings backdrop pass: match the tavern's teal, dark wood and aged parchment */
-.management-page,.settings-page{
-  position:relative;
-  isolation:isolate;
-  color:#2b403a;
+.management-page {
+  position: relative;
+  isolation: isolate;
+  color: #2b403a;
   background:
-    radial-gradient(circle at 16% 10%,rgba(208,180,109,.18),transparent 28%),
-    radial-gradient(circle at 88% 82%,rgba(85,139,124,.22),transparent 32%),
-    linear-gradient(135deg,#19332f 0%,#274c43 46%,#162b29 100%);
+    radial-gradient(circle at 16% 10%,rgba(208,180,109,.15),transparent 30%),
+    radial-gradient(circle at 88% 82%,rgba(85,139,124,.12),transparent 35%),
+    linear-gradient(135deg,#fcf8ec 0%,#f0e5c9 46%,#e4d6b6 100%); /* Elegant aged parchment backdrop */
+  border: 1px solid #aa8a50;
+  box-shadow: inset 0 0 40px rgba(132, 102, 45, 0.08);
 }
 .management-page{padding-top:76px}
 .management-page:before,.settings-page:before{
@@ -298,69 +378,327 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
   z-index:-1;
   inset:0;
   pointer-events:none;
-  opacity:.36;
+  opacity:.25;
   background:
-    repeating-linear-gradient(0deg,rgba(242,220,165,.035) 0 1px,transparent 1px 7px),
-    linear-gradient(90deg,rgba(7,18,17,.28),transparent 18%,transparent 82%,rgba(7,18,17,.28));
-  box-shadow:inset 0 0 70px rgba(5,13,12,.62);
+    repeating-linear-gradient(0deg,rgba(122,93,44,.025) 0 1px,transparent 1px 7px),
+    linear-gradient(90deg,rgba(122,93,44,.05),transparent 18%,transparent 82%,rgba(122,93,44,.05));
+  box-shadow:inset 0 0 70px rgba(122,93,44,.12);
 }
 .management-title{
   padding:12px 16px 15px;
-  border:1px solid rgba(211,178,103,.52);
+  border:1px solid #aa8a50;
   border-radius:3px;
-  background:linear-gradient(100deg,rgba(14,31,28,.88),rgba(34,59,51,.78));
-  box-shadow:0 9px 22px rgba(4,12,10,.3),inset 0 1px rgba(255,239,189,.08);
+  background:linear-gradient(180deg,#f9ebd2,#ecdcb9);
+  box-shadow:0 6px 16px rgba(122,93,44,0.1),inset 0 1px rgba(255,255,255,.8);
 }
-.management-title small{color:#afc4b8}
-.management-title h2{color:#f1dfb4;text-shadow:0 2px 4px rgba(0,0,0,.34)}
-.formation-panel,.reserve-panel,.inventory-panel,.equipment-heroes,.equipment-detail,.craft-panel{
+.management-title small{color:#6e7f77}
+.management-title h2{color:#493e2e;text-shadow:none}
+.management-title nav button {
+  background: #fdfaf2;
+  border: 1px solid #c7b48c;
+  color: #556c64;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+.management-title nav button:hover:not(:disabled) {
+  background: #ebd7a8;
+  color: #38240a;
+  border-color: #aa8a50;
+}
+.management-title nav button.active {
+  background: #aa8a50;
+  color: #ffffff;
+  border-color: #aa8a50;
+}
+.formation-panel,.reserve-panel,.equipment-heroes,.equipment-detail,.craft-panel{
   border-color:#aa8a50;
   border-radius:4px;
   background:
     linear-gradient(90deg,rgba(122,93,44,.035) 1px,transparent 1px),
-    linear-gradient(180deg,#f3e8c8,#e8d7aa);
+    linear-gradient(180deg,#fcf8ec,#f0e5c9);
   background-size:7px 100%,auto;
   box-shadow:0 13px 28px rgba(5,14,12,.36),inset 0 1px rgba(255,255,255,.64);
 }
-.inventory-panel>header{
-  color:#334a43;
-  border-bottom-color:#b99a5d;
-  background:linear-gradient(90deg,rgba(201,174,108,.2),rgba(111,155,135,.12));
-}
-.inventory-panel>header span{color:#6f715f}
-.inventory-item{
-  border-color:#b99c61;
-  border-radius:4px;
-  background:linear-gradient(145deg,rgba(255,248,218,.92),rgba(228,207,154,.9));
-  box-shadow:inset 0 1px rgba(255,255,255,.7),0 5px 12px rgba(76,57,27,.1);
-}
-.inventory-item.equipment{background:linear-gradient(145deg,rgba(244,235,198,.96),rgba(192,215,190,.92))}
-.inventory-item p{color:#4f625b}.inventory-item small{color:#596c64}
 
-.settings-page{padding:86px 42px 30px;color:#e9dfc5}
-.settings-page>.eyebrow{color:#b8cbbf}
-.settings-page h2{color:#f3e5bf;text-shadow:0 3px 7px rgba(0,0,0,.35)}
-.setting-card{
-  color:#2c413b;
-  border-color:#b09157;
-  border-radius:4px;
+/* 独立重构的旅行背包面板 (温馨羊皮古卷/古铜金冒险整备行囊风格) */
+.inventory-panel {
+  border: 1px solid #aa8a50;
+  border-radius: 4px;
   background:
-    linear-gradient(90deg,rgba(116,87,39,.035) 1px,transparent 1px),
-    linear-gradient(145deg,rgba(249,239,205,.97),rgba(220,222,188,.96));
+    linear-gradient(90deg,rgba(122,93,44,.035) 1px,transparent 1px),
+    linear-gradient(180deg,#f3e8c8,#e8d7aa);
   background-size:7px 100%,auto;
-  box-shadow:0 12px 25px rgba(5,14,12,.34),inset 0 1px rgba(255,255,255,.62);
+  box-shadow:0 13px 28px rgba(90, 78, 54, 0.15),inset 0 1px rgba(255,255,255,.64);
+  color: #2b403a;
 }
-.setting-card p{color:#4d625b}.setting-card small{color:#66776f}
-.setting-card.danger{border-color:#9b6457;background:linear-gradient(145deg,rgba(247,231,199,.97),rgba(225,203,175,.96))}
-.setting-card button{
-  min-width:76px;
-  color:#fff2cc;
-  border-color:#92743f;
-  background:linear-gradient(180deg,#426a60,#294f47);
-  box-shadow:inset 0 1px rgba(255,255,255,.14);
+.inventory-panel>header {
+  color: #493e2e;
+  border-bottom: 1px solid rgba(170, 138, 80, 0.35);
+  background: linear-gradient(90deg, rgba(170, 138, 80, 0.15), transparent);
+  display: flex;
+  justify-content: space-between;
+  padding: 13px 15px;
 }
-.setting-card button:hover:not(:disabled){color:#fff7df;background:linear-gradient(180deg,#557d71,#356057)}
-.setting-card.danger button{color:#fff0d3;border-color:#825449;background:linear-gradient(180deg,#8f554b,#673d37)}
+.inventory-panel>header span {
+  color: #5d6f66;
+  font-size: 10px;
+}
+.inventory-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(170, 138, 80, 0.25);
+  background: rgba(122, 93, 44, 0.02);
+}
+.inventory-tabs button {
+  background: #fdfaf2;
+  border: 1px solid #c7b48c;
+  padding: 5px 12px;
+  font-size: 11px;
+  border-radius: 4px;
+  color: #556c64;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.inventory-tabs button:hover {
+  background: #f3ebd5;
+  color: #38240a;
+  border-color: #aa8a50;
+}
+.inventory-tabs button.active {
+  background: #aa8a50;
+  color: #ffffff;
+  border-color: #aa8a50;
+  box-shadow: 0 2px 4px rgba(170, 138, 80, 0.2);
+}
+.inventory-content-wrapper {
+  padding: 16px;
+  min-height: 400px;
+}
+.inventory-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: #8da397;
+  font-size: 12px;
+  border: 1px dashed rgba(170, 138, 80, 0.22);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.25);
+}
+.inventory-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inventory-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border: 1px solid #d4cbb3;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ffffff, #fbfaf5);
+  box-shadow: 0 1px 3px rgba(90, 78, 54, 0.04), inset 0 1px #fff;
+  transition: all 0.18s ease;
+  position: relative;
+  gap: 12px;
+}
+.inventory-row:hover {
+  transform: translateX(3px);
+  border-color: #c79445;
+  box-shadow: 0 4px 10px rgba(170, 138, 80, 0.12), inset 0 1px #fff;
+  background: #fffdf8;
+}
+.inventory-row.consumable {
+  border-left: 4px solid #aa8a50;
+}
+.inventory-row.equipment {
+  border-left: 4px solid #6c98ae;
+  background: linear-gradient(180deg, #fdfdfb, #f3f7ee);
+  border-color: #c7bda2 #c7bda2 #c7bda2 #6c98ae;
+}
+.inventory-row.equipment:hover {
+  border-color: #74a0b5;
+  background: #f7faf3;
+}
+.item-icon-frame {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  border: 1px solid #c7b48c;
+  background: #fdfaf2;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.item-name {
+  font-size: 13px;
+  color: #263b38;
+  font-weight: 700;
+}
+.item-badge {
+  font-size: 8px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid #c7b48c;
+  background: #fdfaf2;
+  color: #9a6c27;
+  line-height: 1;
+  font-weight: 600;
+}
+.item-badge.tag-material {
+  background: transparent;
+  border-style: solid;
+}
+.item-desc {
+  font-size: 10px;
+  color: #62736b;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.item-avail {
+  font-size: 10px;
+  color: #62786f;
+  background: #eef3e9;
+  border: 1px solid #cbdcc0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.item-qty {
+  font-size: 13px;
+  color: #9a6c27;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: right;
+}
+.sell-button {
+  padding: 3px 8px;
+  font-size: 10px;
+  color: #704d16;
+  border: 1px solid #c9b48c;
+  background: linear-gradient(180deg, #fdf8e8, #f5ebd2);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.sell-button:hover {
+  background: #ebd7a8;
+  border-color: #aa8a50;
+  color: #52370c;
+}
+.sell-button:active {
+  transform: scale(0.95);
+  box-shadow: none;
+}
+
+.settings-page {
+  padding: 86px 42px 30px;
+  color: #2b3b38;
+  background: radial-gradient(circle at 16% 10%, rgba(208, 180, 109, 0.15), transparent 30%),
+              radial-gradient(circle at 88% 82%, rgba(85, 139, 124, 0.12), transparent 35%),
+              linear-gradient(135deg, #fcf8ec 0%, #f0e5c9 46%, #e4d6b6 100%);
+  border: 1px solid #aa8a50;
+  box-shadow: inset 0 0 40px rgba(132, 102, 45, 0.08);
+}
+.settings-page > .eyebrow {
+  color: #556c64;
+  font-weight: 600;
+}
+.settings-page h2 {
+  color: #2b3b38;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.setting-card {
+  color: #2c413b;
+  border: 1px solid #d4cbb3;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffffff, #fdfaf2);
+  box-shadow: 0 4px 12px rgba(122, 93, 44, 0.08), inset 0 1px #fff;
+  padding: 20px;
+  margin-top: 12px;
+}
+.setting-card p {
+  color: #556c64;
+}
+.setting-card small {
+  color: #6e7f77;
+}
+.setting-card.danger {
+  border-color: #c9988f;
+  background: linear-gradient(180deg, #fffaf9, #fbeee8);
+}
+.setting-card .toggle-btn {
+  min-width: 88px;
+  background: #fdfaf2;
+  border: 1px solid #c7b48c;
+  color: #556c64;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.setting-card .toggle-btn:hover:not(:disabled) {
+  background: #f3ebd5;
+  color: #38240a;
+  border-color: #aa8a50;
+  box-shadow: 0 2px 5px rgba(170, 138, 80, 0.15);
+}
+.setting-card .toggle-btn.active {
+  background: #aa8a50;
+  color: #ffffff;
+  border-color: #aa8a50;
+  box-shadow: 0 2px 6px rgba(170, 138, 80, 0.25);
+}
+.setting-card .reset-btn {
+  min-width: 88px;
+  background: linear-gradient(180deg, #d88b83, #b86259);
+  border: 1px solid #9b4c46;
+  color: #ffffff;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.setting-card .reset-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e49991, #c56e65);
+  border-color: #8c3e39;
+  box-shadow: 0 2px 6px rgba(184, 98, 89, 0.25);
+}
+.setting-card .llm-controls select {
+  min-width: 150px;
+  padding: 8px;
+  border: 1px solid #c7b48c;
+  border-radius: 4px;
+  background: #fdfaf2;
+  color: #2b3b38;
+  font-weight: 600;
+}
+
 
 .adventure-menu{
   padding:0 9%;
@@ -391,3 +729,98 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
   .management-page{padding:64px 14px 14px}
   .adventure-menu{padding:0 7%}
 }
+
+/* 城镇主页面层次深度与氛围特效重构 */
+.town-map-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border: 1px solid rgba(170, 138, 80, 0.45);
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.35);
+  border-radius: inherit;
+}
+
+.beacon-ring {
+  position: absolute;
+  left: 50%;
+  top: 9px;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+}
+.beacon-ring::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border: 2px solid #fff1b6;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ffe083;
+  animation: beaconPulse 2.2s infinite ease-out;
+}
+@keyframes beaconPulse {
+  0% {
+    width: 9px;
+    height: 9px;
+    opacity: 0.95;
+    border-color: #fff1b6;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    width: 36px;
+    height: 36px;
+    opacity: 0;
+    border-color: #e8c76d;
+  }
+}
+
+.town-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.town-particles .particle {
+  position: absolute;
+  bottom: -15px;
+  width: 5px;
+  height: 5px;
+  background: radial-gradient(circle, #ffffff 0%, rgba(245, 215, 148, 0.9) 60%, transparent 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ffd984, 0 0 16px rgba(245, 215, 148, 0.4);
+  opacity: 0;
+  animation: floatParticle 12s infinite linear;
+}
+@keyframes floatParticle {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.72;
+  }
+  85% {
+    opacity: 0.72;
+  }
+  100% {
+    transform: translateY(-680px) translateX(50px) scale(1.3);
+    opacity: 0;
+  }
+}
+
+.town-particles .p1 { left: 12%; animation-delay: 0s; animation-duration: 10s; }
+.town-particles .p2 { left: 32%; animation-delay: 3s; animation-duration: 14s; }
+.town-particles .p3 { left: 52%; animation-delay: 1.5s; animation-duration: 11s; }
+.town-particles .p4 { left: 72%; animation-delay: 5s; animation-duration: 16s; }
+.town-particles .p5 { left: 22%; animation-delay: 7s; animation-duration: 13s; }
+.town-particles .p6 { left: 45%; animation-delay: 9s; animation-duration: 12s; }
+.town-particles .p7 { left: 65%; animation-delay: 0.8s; animation-duration: 15s; }
+.town-particles .p8 { left: 85%; animation-delay: 5.5s; animation-duration: 10.5s; }
