@@ -25,6 +25,7 @@ export interface Enemy {
   id: string; name: string; maxHp: number; hp: number; distance: number;
   attackMinRange: number; attackMaxRange: number; damage: number;
   drops?: DropEntry[];
+  trait?: 'pack' | 'thorns' | 'spores' | 'rock-armor' | 'ancient-core';
 }
 export interface Mission {
   id: string; title: string; summary: string; difficulty: 1 | 2 | 3;
@@ -50,6 +51,7 @@ export interface ExpeditionNode {
   kind: 'combat' | 'event';
   title: string;
   description: string;
+  background?: string;
   enemyIds?: string[];
   event?: ExpeditionEvent;
 }
@@ -75,6 +77,14 @@ export interface SettlementState {
   lootMaterials: MaterialInventory;
   gainedExperience: number;
 }
+export interface DayReport {
+  completedDay: number;
+  outcome?: SettlementState['outcome'];
+  missionTitle?: string;
+  townNews: string;
+  recovery: { name: string; hp: number; pressure: number; affinity: number }[];
+  reactions: { heroId: string; name: string; line: string }[];
+}
 export interface GameState {
   version: 12; page: Page | 'settlement'; gold: number; roster: Hero[]; inventory: Record<string, number>;
   selectedHeroIds: string[]; selectedMissionId: string; managementTab: ManagementTab;
@@ -84,6 +94,7 @@ export interface GameState {
   food: number; hunger: number;
   giftsGivenToday: Record<string, number>;
   settlement: SettlementState | null;
+  dayReport: DayReport | null;
 }
 export type GameAction =
   | { type: 'NAVIGATE'; page: Page } | { type: 'RECRUIT'; heroId: string }
@@ -96,10 +107,11 @@ export type GameAction =
   | { type: 'EQUIP_ITEM'; heroId: string; itemId: string }
   | { type: 'UNEQUIP_ITEM'; heroId: string; slot: EquipmentSlot }
   | { type: 'SELL_MATERIAL'; typeId: string; rarity: Rarity; count: number }
+  | { type: 'BUY_ITEM'; itemId: string }
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'SWAP'; index: number } | { type: 'USE_BANDAGE'; heroId: string }
   | { type: 'USE_SEDATIVE'; heroId: string } | { type: 'ADVANCE' }
   | { type: 'RESOLVE_EVENT'; eventId: string; choiceId: string }
   | { type: 'RETREAT' } | { type: 'TOGGLE_MORALE' } | { type: 'TOGGLE_LLM' }
   | { type: 'REST_TO_NEXT_DAY' } | { type: 'GIVE_GIFT'; heroId: string; giftId: string } | { type: 'RESET' }
-  | { type: 'CLOSE_SETTLEMENT' };
+  | { type: 'CLOSE_SETTLEMENT' } | { type: 'CLOSE_DAY_REPORT' };

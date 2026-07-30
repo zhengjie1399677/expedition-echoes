@@ -1,4 +1,4 @@
-import { craftingRecipes, itemDefinitions, materialName, materialSellPrices, rarityNames } from '../content/gameContent';
+import { craftingRecipes, giftDefinitions, itemDefinitions, marketPrices, materialName, materialSellPrices, missions, rarityNames } from '../content/gameContent';
 import type { Enemy, GameAction, GameState, MaterialInventory, Rarity, SettlementState } from './model';
 import { addLog, returnExpeditionSupplies } from './shared';
 
@@ -59,6 +59,7 @@ export function settleExpedition(
     sedative: state.expedition.startSupplies.sedative - state.expedition.supplies.sedative,
   };
   const settlement: SettlementState = { outcome, consumedSupplies: consumed, lootGold, lootMaterials, gainedExperience };
+  const missionTitle = missions.find((mission) => mission.id === state.expedition!.missionId)?.title;
   const returned = returnExpeditionSupplies(state);
   const next: GameState = {
     ...returned,
@@ -66,6 +67,7 @@ export function settleExpedition(
     materials: addMaterials(returned.materials, materialsFromInventory(lootMaterials)),
     page: 'settlement',
     settlement,
+    dayReport: { completedDay: state.day, outcome, missionTitle, townNews: '', recovery: [], reactions: [] },
     expedition: null,
     hasAcceptedMission: false,
   };
@@ -74,6 +76,15 @@ export function settleExpedition(
 
 export function economyReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+    case 'BUY_ITEM': {
+      const price = marketPrices[action.itemId];
+      const item = itemDefinitions.find((entry) => entry.id === action.itemId);
+      const gift = giftDefinitions.find((entry) => entry.id === action.itemId);
+      if (!price || (!item && !gift)) return addLog(state, '该商品暂不在中央广场出售。');
+      if (state.gold < price) return addLog(state, '金币不足，暂时买不起这件商品。');
+      const name = item?.name ?? gift!.name;
+      return addLog({ ...state, gold: state.gold - price, inventory: { ...state.inventory, [action.itemId]: (state.inventory[action.itemId] ?? 0) + 1 } }, `在中央广场购入${name}，花费 ${price} 金币。`);
+    }
     case 'SELL_MATERIAL': {
       const count = Math.max(0, action.count);
       if (count === 0) return addLog(state, '出售数量必须大于 0。');

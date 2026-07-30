@@ -7,6 +7,7 @@ interface BattleCanvasProps {
   enemies: Enemy[];
   targetEnemyId?: string;
   nodeIndex: number;
+  backgroundPath?: string;
   counterTargetId?: string;
   canHeroAttack: (hero: Hero, index: number, enemy: Enemy) => boolean;
   onAttack: (heroId: string, enemyId: string) => void;
@@ -19,6 +20,11 @@ const ACTORS: Record<string, string> = {
   wu: '/assets/pixel/wu-archer-idle-v3.png',
   xingluo: '/assets/pixel/xingluo-mage-idle-v3.png',
   scout: '/assets/actors-v2/scout-idle-v2.png',
+  'ash-wolf': '/assets/enemies/forest-v1/ash-wolf-v1.png',
+  'thorn-stag': '/assets/enemies/forest-v1/thorn-stag-v1.png',
+  'spore-beast': '/assets/enemies/forest-v1/spore-beast-v3.png',
+  'rock-lizard': '/assets/enemies/forest-v1/rock-lizard-v1.png',
+  'grove-guardian': '/assets/enemies/forest-v1/grove-guardian-v1.png',
 };
 
 const ACTION_ACTORS: Record<string, string> = {
@@ -31,10 +37,17 @@ const LAN_RIG_PARTS: Record<string, string> = {
   torso: '/assets/rigs/lan-vanguard-v1/parts/part-01.png', head: '/assets/rigs/lan-vanguard-v1/parts/part-02.png', rearLeg: '/assets/rigs/lan-vanguard-v1/parts/part-03.png', rearArm: '/assets/rigs/lan-vanguard-v1/parts/part-04.png', frontArm: '/assets/rigs/lan-vanguard-v1/parts/part-05.png', frontLeg: '/assets/rigs/lan-vanguard-v1/parts/part-06.png', shield: '/assets/rigs/lan-vanguard-v1/parts/part-07.png', scarfMain: '/assets/rigs/lan-vanguard-v1/parts/part-08.png', scarfMid: '/assets/rigs/lan-vanguard-v1/parts/part-09.png', scarfTip: '/assets/rigs/lan-vanguard-v1/parts/part-10.png', spear: '/assets/rigs/lan-vanguard-v1/parts/part-11.png',
 };
 
-const CHARACTER_HEIGHTS: Record<string, number> = { lan: 0.3, wu: 0.31, xingluo: 0.31, scout: 0.32 };
-const IDLE_FOOT_ORIGIN_Y: Record<string, number> = { lan: 1, wu: 0.933, xingluo: 0.969, scout: 0.974 };
+const CHARACTER_HEIGHTS: Record<string, number> = {
+  lan: 0.3, wu: 0.31, xingluo: 0.31, scout: 0.32,
+  'ash-wolf': 0.2, 'thorn-stag': 0.31, 'spore-beast': 0.28, 'rock-lizard': 0.22, 'grove-guardian': 0.48,
+};
+const IDLE_FOOT_ORIGIN_Y: Record<string, number> = {
+  lan: 1, wu: 0.933, xingluo: 0.969, scout: 0.974,
+  'ash-wolf': 0.96, 'thorn-stag': 0.96, 'spore-beast': 0.96, 'rock-lizard': 0.96, 'grove-guardian': 0.96,
+};
 const ACTION_FOOT_ORIGIN_Y: Record<string, number> = { lan: 0.918, wu: 0.929, xingluo: 0.944 };
 type CombatVisual = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
+const actorIdForEnemy = (enemy: Enemy) => enemy.id.replace(/-\d+$/, '');
 const visualWidth = (visual: CombatVisual) => visual instanceof Phaser.GameObjects.Container ? visual.getBounds().width : visual.displayWidth;
 function setVisualTint(visual: CombatVisual, tint?: number) {
   const apply = (image: Phaser.GameObjects.Image) => tint === undefined ? image.clearTint() : image.setTint(tint);
@@ -46,6 +59,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   private enemies: Enemy[];
   private targetEnemyId?: string;
   private nodeIndex: number;
+  private backgroundPath?: string;
   private canHeroAttack: BattleCanvasProps['canHeroAttack'];
   private onAttack: BattleCanvasProps['onAttack'];
   private onSelectEnemy: BattleCanvasProps['onSelectEnemy'];
@@ -64,6 +78,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.enemies = props.enemies;
     this.targetEnemyId = props.targetEnemyId;
     this.nodeIndex = props.nodeIndex;
+    this.backgroundPath = props.backgroundPath;
     this.canHeroAttack = props.canHeroAttack;
     this.onAttack = props.onAttack;
     this.onSelectEnemy = props.onSelectEnemy;
@@ -71,7 +86,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('battle-bg', '/assets/world/ruins-road-battle-v2.png');
+    this.load.image('battle-bg', this.backgroundPath ?? '/assets/world/ruins-road-battle-v2.png');
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
     Object.entries(ACTION_ACTORS).forEach(([key, path]) => this.load.image(`actor-action-${key}`, path));
   }
@@ -208,9 +223,10 @@ class ExpeditionBattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(10);
       return;
     }
-    const key = this.textures.exists(`actor-${primaryEnemy.id}`) ? `actor-${primaryEnemy.id}` : 'actor-scout';
-    const sprite = this.add.image(width * 0.68, height * 0.81, key).setOrigin(0.5, IDLE_FOOT_ORIGIN_Y[primaryEnemy.id] ?? IDLE_FOOT_ORIGIN_Y.scout).setDepth(4).setInteractive({ useHandCursor: true });
-    sprite.setScale((height * (CHARACTER_HEIGHTS[primaryEnemy.id] ?? 0.27)) / sprite.height).setAlpha(primaryEnemy.hp <= 0 ? 0.25 : 1);
+    const primaryActorId = actorIdForEnemy(primaryEnemy);
+    const key = this.textures.exists(`actor-${primaryActorId}`) ? `actor-${primaryActorId}` : 'actor-scout';
+    const sprite = this.add.image(width * 0.68, height * 0.81, key).setOrigin(0.5, IDLE_FOOT_ORIGIN_Y[primaryActorId] ?? IDLE_FOOT_ORIGIN_Y.scout).setDepth(4).setInteractive({ useHandCursor: true });
+    sprite.setScale((height * (CHARACTER_HEIGHTS[primaryActorId] ?? 0.27)) / sprite.height).setAlpha(primaryEnemy.hp <= 0 ? 0.25 : 1);
     sprite.on('pointerdown', () => this.onSelectEnemy(primaryEnemy.id));
     this.enemySprites.set(primaryEnemy.id, sprite);
     this.enemySprite = sprite;
@@ -221,9 +237,10 @@ class ExpeditionBattleScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(10);
     this.enemies.slice(1).forEach((enemy, index) => {
       const x = width * (0.79 + index * 0.11);
-      const actorKey = this.textures.exists(`actor-${enemy.id}`) ? `actor-${enemy.id}` : 'actor-scout';
-      const actor = this.add.image(x, height * .81, actorKey).setOrigin(.5, IDLE_FOOT_ORIGIN_Y[enemy.id] ?? IDLE_FOOT_ORIGIN_Y.scout).setDepth(3 - index).setInteractive({ useHandCursor: true });
-      actor.setScale((height * (CHARACTER_HEIGHTS[enemy.id] ?? .25)) / actor.height).setAlpha(enemy.hp <= 0 ? .22 : 1);
+      const actorId = actorIdForEnemy(enemy);
+      const actorKey = this.textures.exists(`actor-${actorId}`) ? `actor-${actorId}` : 'actor-scout';
+      const actor = this.add.image(x, height * .81, actorKey).setOrigin(.5, IDLE_FOOT_ORIGIN_Y[actorId] ?? IDLE_FOOT_ORIGIN_Y.scout).setDepth(3 - index).setInteractive({ useHandCursor: true });
+      actor.setScale((height * (CHARACTER_HEIGHTS[actorId] ?? .25)) / actor.height).setAlpha(enemy.hp <= 0 ? .22 : 1);
       actor.on('pointerdown', () => this.onSelectEnemy(enemy.id));
       this.enemySprites.set(enemy.id, actor);
       this.add.ellipse(x, height * .81 + 2, actor.displayWidth * .42, 10, 0x07110e, .28).setDepth(1);

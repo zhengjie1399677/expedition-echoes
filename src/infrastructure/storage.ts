@@ -14,7 +14,7 @@ const SUPPORTED_VERSION_MIN = 5;
 const SUPPORTED_VERSION_MAX = 12;
 
 type StoredHero = Omit<Hero, 'level' | 'experience' | 'equipment' | 'affinity' | 'preferredGiftTags'> & Partial<Pick<Hero, 'level' | 'experience' | 'equipment' | 'affinity' | 'preferredGiftTags'>>;
-type StoredGame = Omit<GameState, 'version' | 'roster' | 'inventory' | 'materials' | 'hasAcceptedMission' | 'day' | 'missionAcceptedToday' | 'food' | 'hunger' | 'giftsGivenToday' | 'settlement'> & {
+type StoredGame = Omit<GameState, 'version' | 'roster' | 'inventory' | 'materials' | 'hasAcceptedMission' | 'day' | 'missionAcceptedToday' | 'food' | 'hunger' | 'giftsGivenToday' | 'settlement' | 'dayReport'> & {
   version: number;
   roster: StoredHero[];
   inventory?: Record<string, number>;
@@ -26,6 +26,7 @@ type StoredGame = Omit<GameState, 'version' | 'roster' | 'inventory' | 'material
   hunger?: number;
   giftsGivenToday?: Record<string, number>;
   settlement?: GameState['settlement'];
+  dayReport?: GameState['dayReport'];
 };
 
 // 数值字段统一兜底：非有限数退回默认值，避免 NaN 传染。
@@ -164,6 +165,7 @@ export function loadGame(): GameState | null {
       hunger: num(parsed.hunger, 0),
       giftsGivenToday: cleanRecord(parsed.giftsGivenToday),
       settlement: parsed.settlement ?? null,
+      dayReport: parsed.dayReport ?? null,
     };
 
     // 升级后清理旧版 key，避免下次再走迁移分支。

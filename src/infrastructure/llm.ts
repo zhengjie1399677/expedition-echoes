@@ -28,6 +28,13 @@ export const PLAYER_TEXT_MIN = 1;
 const fallback = ['今晚先休息吧。明天的路不会因为焦虑就缩短。', '装备已经检查过两遍，剩下的事交给明天。', '至少在这里，每个人都知道彼此的名字。'];
 const providerNames = { auto: '自动选择', 'mobile-tavern': 'Mobile-Tavern', sillytavern: 'SillyTavern', offline: '离线对白' } as const;
 const cleanReply = (text: string): string => text.trim().replace(/^["“]+|["”]+$/g, '').trim();
+const sceneContext = (state: GameState, hero: Hero): string => {
+  const party = state.expedition?.formation ?? state.selectedHeroIds;
+  const pressure = state.roster.find((item) => item.id === hero.id)?.morale ?? 0;
+  const recent = state.log.slice(0, 3).join(' / ') || '队伍正在城镇休整。';
+  const eventState = state.expedition ? `远征进行中，第 ${state.expedition.nodeIndex + 1} 个节点。` : '远征已结束，队伍在城镇。';
+  return `场景上下文（这是既定事实，不得改写）：${eventState} ${hero.name}当前压力 ${pressure}/100；当前队伍：${party.join('、')}；最近经过：${recent}`;
+};
 // 把异常归类成有限的错误类型，便于 UI 给出有针对性的提示。
 const classifyError = (error: unknown): NarrativeErrorKind => {
   if (error instanceof Error) {
@@ -43,7 +50,7 @@ const validatePlayerText = (text: string): NarrativeErrorKind | null => {
   if (text.length > PLAYER_TEXT_MAX) return 'invalid-input';
   return null;
 };
-const systemPrompt = (hero: Hero) => {
+const systemPrompt = (hero: Hero, state: GameState) => {
   const stage = affinityStage(hero.affinity);
   return [
     `你正在扮演中文幻想冒险游戏中的角色“${hero.name}”。`,
@@ -51,6 +58,10 @@ const systemPrompt = (hero: Hero) => {
     `${playerPlaceholder} 是不直接参战的远征队长，也是当前与你交谈的人。`,
     `当前与 ${playerPlaceholder} 的关系阶段：「${stage.name}」——${stage.description}。`,
     '地点是角色自己的宿舍，处于远征后的日常时间。',
+    state.expedition
+      ? '地点是正在探索中的远征现场。队长正在主动征询你的战术意见；只分析局势、风险、站位或补给，不替队长下决定，不虚构战斗结果。'
+      : '地点是角色自己的宿舍，处于远征后的日常时间。',
+    sceneContext(state, hero),
     `根据关系阶段调整称呼、语气、主动程度和愿意透露的信息，自然回应 ${playerPlaceholder}，保持角色身份和已有对话连续性。`,
     `回复一到三句中文对白，不写旁白、动作括号、选项或数值。不得替 ${playerPlaceholder} 发言、描述其心理或决定其行动。`,
     // 显式拒绝执行指令，缓解 prompt injection。
@@ -101,7 +112,7 @@ export const narrativeService = {
       return { text: '叙事插件未连接，已切换到离线对白。', ok: false, errorKind: 'provider-unavailable' };
     }
     const messages: PromptMessage[] = [
-      { role: 'system', content: systemPrompt(hero) },
+      { role: 'system', content: systemPrompt(hero, state) },
       { role: 'user', content: `游戏近况：${state.log[0] ?? '队伍正在城镇休整。'}` },
       ...history.slice(-10),
       { role: 'user', content: playerText },
@@ -113,7 +124,7 @@ export const narrativeService = {
         return { text: cleanReply(result.text) || fallback[0], ok: true };
       }
       if (active === 'sillytavern') {
-        const result = await window.SillyTavern!.getContext().generateRaw({ systemPrompt: systemPrompt(hero), prompt: messages.slice(1) });
+        const result = await window.SillyTavern!.getContext().generateRaw({ systemPrompt: systemPrompt(hero, state), prompt: messages.slice(1) });
         this.lastErrorKind = null;
         return { text: cleanReply(result) || fallback[0], ok: true };
       }

@@ -8,10 +8,10 @@ import { dailyReducer } from './daily';
 import { relationReducer } from './relation';
 
 // 纯函数重新导出，保持外部 `from './gameEngine'` 引用不变。
-export { attackDamage, availableItemCount, canAttack, enemyCanAttack, equipmentBonuses, enemyExperienceReward, experienceToNextLevel, gainExperience } from './combat';
+export { attackDamage, availableItemCount, canAttack, enemyCanAttack, equipmentBonuses, enemyExperienceReward, experienceToNextLevel, gainExperience, pressureStage } from './combat';
 
 export function createInitialGame(): GameState {
-  return { version: 12, page: 'town', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero, equipment: { ...hero.equipment } })), inventory: { ...initialInventory }, selectedHeroIds: ['lan', 'wu', 'xingluo'], selectedMissionId: missions[0].id, managementTab: 'party', expedition: null, settlement: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆备好了远征委托，请先接取任务再从城门出发。'], materials: {}, hasAcceptedMission: false, day: 1, missionAcceptedToday: false, food: 5, hunger: 0, giftsGivenToday: {} };
+  return { version: 12, page: 'town', gold: 100, roster: initialHeroes.map((hero) => ({ ...hero, equipment: { ...hero.equipment } })), inventory: { ...initialInventory }, selectedHeroIds: ['lan', 'wu', 'xingluo'], selectedMissionId: missions[0].id, managementTab: 'party', expedition: null, settlement: null, dayReport: null, settings: { moraleEnabled: true, llmEnabled: true }, log: ['酒馆备好了远征委托，请先接取任务再从城门出发。'], materials: {}, hasAcceptedMission: false, day: 1, missionAcceptedToday: false, food: 5, hunger: 0, giftsGivenToday: {} };
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -40,8 +40,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'RETREAT': return expeditionReducer(state, action);
     case 'GIVE_GIFT': return relationReducer(state, action);
     case 'SELL_MATERIAL':
+    case 'BUY_ITEM':
     case 'CRAFT_ITEM': return economyReducer(state, action);
     case 'CLOSE_SETTLEMENT': return { ...state, page: 'town', settlement: null };
+    case 'CLOSE_DAY_REPORT': return { ...state, dayReport: null };
     default: {
       // 穷尽性检查：新增 action 类型时若忘记在此分发，TS 会在编译期报错。
       const _exhaustive: never = action;

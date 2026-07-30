@@ -34,6 +34,7 @@ describe('narrative provider adapters', () => {
     const systemMessage = chat.mock.calls[0][0].messages[0];
     expect(systemMessage.content).toContain('{{user}} 是不直接参战的远征队长');
     expect(systemMessage.content).toContain('不得替 {{user}} 发言、描述其心理或决定其行动');
+    expect(systemMessage.content).toContain('场景上下文（这是既定事实，不得改写）');
     expect(chat.mock.calls[0][0].messages.at(-1)).toEqual({ role: 'user', content: '今天过得怎么样？' });
   });
 

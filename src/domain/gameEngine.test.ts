@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { attackDamage, availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gainExperience, gameReducer } from './gameEngine';
+import { attackDamage, availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gainExperience, gameReducer, pressureStage } from './gameEngine';
 import type { Enemy, GameState } from './model';
-import { affinityStage } from '../content/gameContent';
+import { affinityStage, nodesForMission } from '../content/gameContent';
 
 const target = (distance: number): Enemy => ({ id: 'a', name: '目标', hp: 1, maxHp: 1, distance, attackMinRange: 1, attackMaxRange: 3, damage: 1 });
 // 远征前必须先接取任务，统一用 border-echoes 作为默认委托。
@@ -19,8 +19,25 @@ describe('双方攻击距离', () => {
 });
 
 describe('士气与装备', () => {
+  it('压力阶段在阈值处明确变化', () => { expect(pressureStage(0).name).toBe('沉着'); expect(pressureStage(30).name).toBe('紧绷'); expect(pressureStage(50).name).toBe('动摇'); expect(pressureStage(75).name).toBe('临界'); });
   it('动摇降低 2 点攻击，关闭士气后不生效', () => { const hero = { ...createInitialGame().roster[0], morale: 50, gearLevel: 1 }; expect(attackDamage(hero, true)).toBe(6); expect(attackDamage(hero, false)).toBe(8); });
   it('装备只能在有足够金币时升级', () => { const initial = createInitialGame(); const upgraded = gameReducer(initial, { type: 'UPGRADE_GEAR', heroId: 'lan' }); expect(upgraded.roster[0].gearLevel).toBe(1); expect(upgraded.gold).toBe(70); });
+});
+
+describe('day transition feedback', () => {
+  it('turns a completed expedition into a next-day report and applies overnight recovery', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
+    const completed = gameReducer({ ...started, expedition: { ...started.expedition!, nodeIndex: 4, enemies: [] } }, { type: 'ADVANCE' });
+    const wounded = { ...completed, roster: completed.roster.map((hero) => hero.id === 'lan' ? { ...hero, hp: 10, morale: 30 } : hero) };
+    const nextDay = gameReducer(wounded, { type: 'REST_TO_NEXT_DAY' });
+    const lan = nextDay.roster.find((hero) => hero.id === 'lan')!;
+    expect(nextDay.page).toBe('town');
+    expect(nextDay.dayReport?.outcome).toBe('victory');
+    expect(nextDay.dayReport?.townNews).toContain('告示板');
+    expect(lan.hp).toBe(28);
+    expect(lan.morale).toBe(14);
+    expect(lan.affinity).toBe(wounded.roster.find((hero) => hero.id === 'lan')!.affinity + 1);
+  });
 });
 
 describe('角色主动技能', () => {
@@ -49,6 +66,13 @@ describe('等级与经验', () => {
 });
 
 describe('队伍、背包与装备', () => {
+  it('中央广场购买会扣除金币并将合法商品放入背包', () => {
+    const initial = createInitialGame();
+    const bought = gameReducer(initial, { type: 'BUY_ITEM', itemId: 'echo-charm' });
+    expect(bought.gold).toBe(68);
+    expect(bought.inventory['echo-charm']).toBe(2);
+    expect(gameReducer({ ...initial, gold: 0 }, { type: 'BUY_ITEM', itemId: 'echo-charm' }).inventory['echo-charm']).toBe(1);
+  });
   it('可以调整出征站位顺序', () => { const state = createInitialGame(); const moved = gameReducer(state, { type: 'MOVE_PARTY', index: 0, direction: 1 }); expect(moved.selectedHeroIds).toEqual(['wu', 'lan', 'xingluo']); });
   it('装备会占用背包数量并提供属性', () => { const state = createInitialGame(); const equipped = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'lan', itemId: 'vanguard-spear' }); const lan = equipped.roster.find((hero) => hero.id === 'lan')!; expect(lan.equipment.weapon).toBe('vanguard-spear'); expect(equipmentBonuses(lan).attack).toBe(2); expect(availableItemCount(equipped, 'vanguard-spear')).toBe(0); });
   it('职业不匹配时不能装备专属武器', () => { const state = createInitialGame(); const result = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'wu', itemId: 'vanguard-spear' }); expect(result.roster.find((hero) => hero.id === 'wu')?.equipment.weapon).toBeUndefined(); });
@@ -87,6 +111,22 @@ describe('完整远征状态', () => {
   it('可连续击败两个敌人并进入下一节点', () => { const started = gameReducer(ready(), { type: 'START_EXPEDITION' }); const weakened = { ...started, expedition: { ...started.expedition!, enemies: started.expedition!.enemies.map((enemy) => ({ ...enemy, hp: 1 })) } }; const firstDown = gameReducer(weakened, { type: 'ATTACK', heroId: 'lan', enemyId: 'scout' }); const secondDown = gameReducer(firstDown, { type: 'ATTACK', heroId: 'lan', enemyId: 'warden' }); expect(secondDown.expedition?.enemies.every((enemy) => enemy.hp === 0)).toBe(true); const advanced = gameReducer(secondDown, { type: 'ADVANCE' }); expect(advanced.expedition?.nodeIndex).toBe(1); });
   it('接受任务会更新当前任务', () => { const state = gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'rusted-patrol' }); expect(state.selectedMissionId).toBe('rusted-patrol'); });
   it('远征会保存接受的任务并使用其首个敌人波次', () => { const accepted = gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'rusted-patrol' }); const started = gameReducer(accepted, { type: 'START_EXPEDITION' }); expect(started.expedition?.missionId).toBe('rusted-patrol'); expect(started.expedition?.enemies.map((enemy) => enemy.id)).toEqual(['warden', 'scout']); });
+  it('林地异变会使用独立地图、营地与首领圣所背景', () => {
+    const nodes = nodesForMission('forest-disturbance');
+    expect(nodes.map((node) => node.background)).toEqual([
+      '/assets/world/forest-v1/forest-road-v1.png',
+      '/assets/world/forest-v1/forest-camp-v1.png',
+      '/assets/world/forest-v1/forest-road-v1.png',
+      '/assets/world/forest-v1/forest-camp-v1.png',
+      '/assets/world/forest-v1/grove-sanctuary-v1.png',
+    ]);
+  });
+  it('林地任务生成具有唯一实例 ID 的狼群', () => {
+    const accepted = gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'forest-disturbance' });
+    const started = gameReducer(accepted, { type: 'START_EXPEDITION' });
+    expect(started.expedition?.enemies.map((enemy) => enemy.id)).toEqual(['ash-wolf', 'ash-wolf-2']);
+    expect(started.expedition?.enemies.every((enemy) => enemy.trait === 'pack')).toBe(true);
+  });
   it('击败敌人前不能前进', () => { const started = gameReducer(ready(), { type: 'START_EXPEDITION' }); const blocked = gameReducer(started, { type: 'ADVANCE' }); expect(blocked.expedition?.nodeIndex).toBe(0); });
   it('换位会交换当前位与后一位，且第一位仍代表靠近敌方的前排', () => { const started = gameReducer(ready(), { type: 'START_EXPEDITION' }); const before = started.expedition!.formation; const swapped = gameReducer(started, { type: 'SWAP', index: 0 }); expect(swapped.expedition?.formation).toEqual([before[1], before[0], ...before.slice(2)]); });
   it('绷带会治疗指定角色并消耗数量', () => { let state = gameReducer(ready(), { type: 'START_EXPEDITION' }); state = { ...state, roster: state.roster.map((hero) => hero.id === 'lan' ? { ...hero, hp: 10 } : hero) }; const healed = gameReducer(state, { type: 'USE_BANDAGE', heroId: 'lan' }); expect(healed.roster[0].hp).toBe(19); expect(healed.expedition?.supplies.bandage).toBe(2); });

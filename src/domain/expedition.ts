@@ -1,11 +1,11 @@
-import { expeditionNodes, missions } from '../content/gameContent';
+import { missions, nodesForMission } from '../content/gameContent';
 import type { Enemy, GameAction, GameState } from './model';
 import { addLog, enemyById } from './shared';
 import { addMaterials, describeMaterial, materialKey, settleExpedition } from './economy';
 import { BALANCE } from './config';
 
 function enterNode(state: GameState, nodeIndex: number): GameState {
-  const node = expeditionNodes[nodeIndex];
+  const node = state.expedition ? nodesForMission(state.expedition.missionId)[nodeIndex] : undefined;
   if (!state.expedition || !node) return state;
   const isEvent = node.kind === 'event';
   const consumed = !isEvent && state.expedition.supplies.food > 0;
@@ -30,7 +30,13 @@ function enterNode(state: GameState, nodeIndex: number): GameState {
   const mission = missions.find((item) => item.id === next.expedition!.missionId) ?? missions[0];
   const enemyIds = mission.enemyWaves[nodeIndex] ?? node.enemyIds;
   const expedition = next.expedition!;
-  expedition.enemies = enemyIds.map(enemyById);
+  const occurrences = new Map<string, number>();
+  expedition.enemies = enemyIds.map((enemyId) => {
+    const enemy = enemyById(enemyId);
+    const occurrence = (occurrences.get(enemyId) ?? 0) + 1;
+    occurrences.set(enemyId, occurrence);
+    return occurrence === 1 ? enemy : { ...enemy, id: `${enemy.id}-${occurrence}` };
+  });
   return addLog({ ...next, expedition }, `${node.title}：${node.description}${foodLog}`);
 }
 
@@ -101,10 +107,11 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
     }
     case 'ADVANCE': {
       if (!state.expedition || state.expedition.enemies.some((enemy) => enemy.hp > 0)) return addLog(state, '需要先解决当前遭遇。');
-      const currentNode = expeditionNodes[state.expedition.nodeIndex];
+      const nodes = nodesForMission(state.expedition.missionId);
+      const currentNode = nodes[state.expedition.nodeIndex];
       if (currentNode?.kind === 'event' && !state.expedition.eventResolved) return addLog(state, '请先决定如何处理当前的远征事件。');
       const nextIndex = state.expedition.nodeIndex + 1;
-      if (nextIndex >= expeditionNodes.length) {
+      if (nextIndex >= nodes.length) {
         const mission = missions.find((item) => item.id === state.expedition!.missionId);
         const reward = mission?.reward ?? BALANCE.missionDefaultReward;
         const rewards = mission?.materialRewards ?? [];
@@ -124,7 +131,7 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
     }
     case 'RESOLVE_EVENT': {
       if (!state.expedition) return addLog(state, '当前不在远征途中。');
-      const node = expeditionNodes[state.expedition.nodeIndex];
+      const node = nodesForMission(state.expedition.missionId)[state.expedition.nodeIndex];
       const event = node?.kind === 'event' && node.event?.id === action.eventId ? node.event : undefined;
       const choice = event?.choices.find((item) => item.id === action.choiceId);
       if (!event || !choice || state.expedition.eventResolved) return addLog(state, '该远征事件无法再次处理。');

@@ -6,6 +6,12 @@ import { BALANCE } from './config';
 
 export const experienceToNextLevel = (level: number): number => BALANCE.experienceBase + Math.max(1, level) * BALANCE.experiencePerLevel;
 export const enemyExperienceReward = (enemy: Enemy): number => BALANCE.enemyExperienceBase + Math.ceil(enemy.maxHp / BALANCE.enemyExperiencePerHp);
+export const pressureStage = (pressure: number): { name: string; tone: 'steady' | 'tense' | 'shaken' | 'critical' } => {
+  if (pressure >= 75) return { name: '临界', tone: 'critical' };
+  if (pressure >= BALANCE.moraleThreshold) return { name: '动摇', tone: 'shaken' };
+  if (pressure >= 30) return { name: '紧绷', tone: 'tense' };
+  return { name: '沉着', tone: 'steady' };
+};
 
 export function gainExperience(hero: Hero, amount: number): Hero {
   let level = Math.max(1, hero.level);
@@ -94,14 +100,15 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
         const enemy = state.expedition.enemies.find((item) => item.id === action.enemyId && item.hp > 0) ?? state.expedition.enemies.find((item) => item.hp > 0);
         if (!enemy) return state;
         const party = state.expedition.formation.map((id) => state.roster.find((item) => item.id === id)).filter((item): item is Hero => Boolean(item));
-        const damage = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party) + 3;
+        const rawDamage = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party) + 3;
+        const damage = Math.max(1, rawDamage - (enemy.trait === 'rock-armor' ? 2 : 0));
         // 技能不单独结算击杀奖励；保留至少 1 点生命，避免绕开普通攻击的结算与掉落流程。
         const enemies = state.expedition.enemies.map((item) => item.id === enemy.id ? { ...item, hp: Math.max(1, item.hp - damage) } : item);
         return addLog(markUsed({ ...state, expedition: { ...state.expedition, enemies } }), `${hero.name}发动「贯风箭」，无视距离对${enemy.name}造成 ${damage} 点伤害。`);
       }
       if (hero.id === 'xingluo') {
         // 同上，范围技能用于压低全体血线，不跳过战斗结算。
-        const enemies = state.expedition.enemies.map((item) => item.hp > 0 ? { ...item, hp: Math.max(1, item.hp - 6) } : item);
+        const enemies = state.expedition.enemies.map((item) => item.hp > 0 ? { ...item, hp: Math.max(1, item.hp - Math.max(1, 6 - (item.trait === 'rock-armor' ? 2 : 0))) } : item);
         return addLog(markUsed({ ...state, expedition: { ...state.expedition, enemies } }), `${hero.name}发动「星辉爆裂」，对所有存活敌人造成 6 点伤害。`);
       }
       return addLog(state, `${hero.name}尚未掌握可用的远征技能。`);
@@ -121,7 +128,9 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
       const party = state.expedition.formation
         .map((id) => state.roster.find((h) => h.id === id))
         .filter((h): h is Hero => Boolean(h));
-      const damage = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party);
+      const rawDamage = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party);
+      const armorReduction = enemy.trait === 'rock-armor' ? 2 : 0;
+      const damage = Math.max(1, rawDamage - armorReduction);
       const nextEnemy = { ...enemy, hp: Math.max(0, enemy.hp - damage) };
       let next: GameState = { ...state, expedition: { ...state.expedition, enemies: state.expedition.enemies.map((item) => item.id === enemy.id ? nextEnemy : item) } };
       
@@ -159,7 +168,14 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
         return addLog(next, `${hero.name}击败了敌人。${experienceLog}战斗结束，队伍获得战利品${dropLine}。`);
       }
       
-      let logMsg = `${hero.name}对${enemy.name}造成 ${damage} 点伤害。${experienceLog}`;
+      let logMsg = `${hero.name}对${enemy.name}造成 ${damage} 点伤害。${armorReduction ? `岩甲抵消了 ${armorReduction} 点伤害。` : ''}${experienceLog}`;
+      if (enemy.trait === 'thorns') {
+        next = editHero(next, hero.id, (attacker) => ({
+          ...attacker,
+          morale: state.settings.moraleEnabled ? Math.min(BALANCE.moraleCap, attacker.morale + 4) : attacker.morale,
+        }));
+        logMsg += `荆棘反震令${hero.name}压力 +4。`;
+      }
       
       // Surviving enemies counterattack
       const survivingAttackers = next.expedition!.enemies.filter((item) => item.hp > 0);
@@ -179,11 +195,14 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
             const isVanguard = target.heroClass === 'vanguard';
             const isFrontRow = targetIndex === 0;
             const damageRed = (isVanguard && isFrontRow) ? BALANCE.vanguardDamageReduction : 0;
-            const incomingDmg = Math.max(1, attacker.damage - equipmentBonuses(target).defense - damageRed);
+            const packBonus = attacker.trait === 'pack' && survivingAttackers.filter((item) => item.trait === 'pack').length > 1 ? 2 : 0;
+            const ancientCoreBonus = attacker.trait === 'ancient-core' && attacker.hp <= attacker.maxHp / 2 ? 3 : 0;
+            const incomingDmg = Math.max(1, attacker.damage + packBonus + ancientCoreBonus - equipmentBonuses(target).defense - damageRed);
+            const sporePressure = attacker.trait === 'spores' ? 5 : 0;
             return {
               ...target,
               hp: Math.max(0, target.hp - incomingDmg),
-              morale: state.settings.moraleEnabled ? Math.min(BALANCE.moraleCap, target.morale + BALANCE.counterattackMoraleGain) : target.morale
+              morale: state.settings.moraleEnabled ? Math.min(BALANCE.moraleCap, target.morale + BALANCE.counterattackMoraleGain + sporePressure) : target.morale
             };
           });
 

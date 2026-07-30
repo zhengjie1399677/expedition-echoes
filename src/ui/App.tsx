@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { affinityStage, craftingRecipes, dayLabel, expeditionNodes, giftDefinitions, heroClassDescriptions, heroClassNames, itemDefinitions, materialName, materialSellPrices, missions, rarityColors, rarityNames } from '../content/gameContent';
-import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer } from '../domain/gameEngine';
-import type { EquipmentSlot, GameAction, GameState, Hero, Rarity, SettlementState } from '../domain/model';
+import { affinityStage, craftingRecipes, dayLabel, giftDefinitions, heroClassDescriptions, heroClassNames, itemDefinitions, marketPrices, materialName, materialSellPrices, missionOpinions, missions, nodesForMission, rarityColors, rarityNames } from '../content/gameContent';
+import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer, pressureStage } from '../domain/gameEngine';
+import type { Enemy, EquipmentSlot, GameAction, GameState, Hero, Rarity, SettlementState } from '../domain/model';
 import { narrativeService, playerPlaceholder } from '../infrastructure/llm';
 import type { NarrativeMessage, NarrativeProvider } from '../infrastructure/llm';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
@@ -27,6 +27,8 @@ function HeroCard({ hero, selected, dispatch }: { hero: Hero; selected: boolean;
 }
 
 function Town({ state, dispatch, onGateClick }: { state: GameState; dispatch: React.Dispatch<GameAction>; onGateClick: () => void }) {
+  const [marketOpen, setMarketOpen] = useState(false);
+  const [marketStall, setMarketStall] = useState<'equipment' | 'accessory' | 'gift' | null>(null);
   const handleGateClick = () => {
     if (!state.hasAcceptedMission) {
       dispatch({ type: 'START_EXPEDITION' });
@@ -34,11 +36,21 @@ function Town({ state, dispatch, onGateClick }: { state: GameState; dispatch: Re
     }
     onGateClick();
   };
+  const stallTitle = marketStall === 'equipment' ? '装备商' : marketStall === 'accessory' ? '饰品商' : '礼物摊';
+  const stallItems = marketStall === 'equipment'
+    ? itemDefinitions.filter((item) => item.kind === 'equipment' && item.slot !== 'accessory')
+    : marketStall === 'accessory'
+      ? itemDefinitions.filter((item) => item.slot === 'accessory')
+      : giftDefinitions.map((gift) => ({ ...gift, description: `送给队员的${gift.name}` }));
+  if (marketOpen) return <section className="page town-page plaza-page"><div className="plaza-scene"><img src="/assets/world/central-market-v1.png" alt="阳光下的中央广场集市，左侧是装备商，右侧是饰品商和礼物摊" /><div className="plaza-scene-vignette" /><button className="plaza-back" onClick={() => { setMarketOpen(false); setMarketStall(null); }}>返回城镇</button><button className="plaza-hotspot plaza-equipment" onClick={() => setMarketStall('equipment')}><strong>装备商</strong><span>武器 · 防具</span></button><button className="plaza-hotspot plaza-accessories" onClick={() => setMarketStall('accessory')}><strong>饰品商</strong><span>护符 · 挂件</span></button><button className="plaza-hotspot plaza-gifts" onClick={() => setMarketStall('gift')}><strong>礼物摊</strong><span>花束 · 酒 · 诗集</span></button>{marketStall && <aside className="market-stall-panel" aria-label={stallTitle}><header><div><small>中央广场 · {stallTitle}</small><strong>{stallTitle}</strong></div><button onClick={() => setMarketStall(null)}>收起</button></header><div>{stallItems.map((item) => <article key={item.id}><div><strong>{item.name}</strong><small>{item.description}</small></div><button disabled={state.gold < marketPrices[item.id]} onClick={() => dispatch({ type: 'BUY_ITEM', itemId: item.id })}>{marketPrices[item.id]} 金币</button></article>)}</div></aside>}</div></section>;
   return <section className="page town-page">
     <div className="town-map">
       <img src="/assets/world/town-hub-v3.png" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
       <div className="town-map-shade" />
+      <div className="town-sun-haze" aria-hidden="true" />
+      <div className="town-distance-mist" aria-hidden="true" />
       <div className="town-map-frame" />
+      {state.dayReport && <div className="town-news-plaque" aria-label="今日城镇消息"><small>晨间告示</small><strong>{state.dayReport.townNews}</strong></div>}
       
       <div className="town-particles" aria-hidden="true">
         <span className="particle p1"></span>
@@ -50,17 +62,18 @@ function Town({ state, dispatch, onGateClick }: { state: GameState; dispatch: Re
         <span className="particle p7"></span>
         <span className="particle p8"></span>
       </div>
+      <div className="town-foreground" aria-hidden="true"><i /><i /><i /><i /></div>
 
       <button className="map-hotspot hotspot-tavern" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}>
         <span className="beacon-ring" />
         <strong>旅途酒馆</strong>
         <span>招募 · 任务 · 补给</span>
       </button>
-      <div className="map-hotspot hotspot-plaza location-marker" aria-label="中央广场，当前所在位置">
+      <button className="map-hotspot hotspot-plaza location-marker" aria-label="打开中央广场集市" onClick={() => setMarketOpen(true)}>
         <span className="beacon-ring" />
         <strong>中央广场</strong>
-        <span>城镇据点</span>
-      </div>
+        <span>集市 · 礼物 · 装备</span>
+      </button>
       <button className="map-hotspot hotspot-quarters" onClick={() => dispatch({ type: 'NAVIGATE', page: 'quarters' })}>
         <span className="beacon-ring" />
         <strong>旅人宿舍</strong>
@@ -101,6 +114,18 @@ const skillDetails: Record<string, { name: string; hint: string }> = {
   lan: { name: '守望号令', hint: '全队压力 -8' },
   wu: { name: '贯风箭', hint: '无视距离，伤害 +3' },
   xingluo: { name: '星辉爆裂', hint: '全体敌人各受 6 伤害' },
+};
+const enemyTraitDetails: Record<NonNullable<Enemy['trait']>, { name: string; hint: string }> = {
+  pack: { name: '群猎', hint: '两只以上狼存活时，狼群反击伤害提高。' },
+  thorns: { name: '荆棘反震', hint: '攻击它的队员会额外积累压力。' },
+  spores: { name: '毒孢侵蚀', hint: '反击会令目标额外积累压力。' },
+  'rock-armor': { name: '岩甲', hint: '每次受到攻击时抵消 2 点伤害。' },
+  'ancient-core': { name: '古核苏醒', hint: '生命降至一半后，反击伤害提高。' },
+};
+const pressureRemarks: Record<string, Partial<Record<'tense' | 'shaken' | 'critical', string>>> = {
+  lan: { tense: '岚的目光一直停在出口。', shaken: '岚反复确认队形。', critical: '岚的声音比平时更低。' },
+  wu: { tense: '雾的玩笑变得密了。', shaken: '雾已经数过三次退路。', critical: '雾难得安静下来。' },
+  xingluo: { tense: '星罗捏紧了法杖。', shaken: '星罗的推演开始断断续续。', critical: '星罗的呼吸有些乱。' },
 };
 const postExpeditionGreeting = (heroId: string, log: string) => {
   if (log.includes('远征完成')) return { lan: '回来就好。先把伤口和补给清点完，别急着庆祝。', wu: '这次路没白走。队长，下次我们要不要试试另一条岔路？', xingluo: '封印的回声还在耳边……但我们确实带回了新的线索。' }[heroId];
@@ -184,7 +209,13 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
       })}</div>
     </div>}
 
-    {tab === 'inventory' && <div className="inventory-panel">
+    {tab === 'inventory' && <div className="inventory-panel inventory-with-loadout">
+      {hero && <aside className="inventory-loadout">
+        <div className="loadout-hero-switch" aria-label="切换查看角色">{recruited.map((member) => <button key={member.id} className={member.id === hero.id ? 'active' : ''} onClick={() => setHeroId(member.id)}>{member.name}</button>)}</div>
+        <div className="loadout-portrait"><img src={quartersPortraits[hero.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt={`${hero.name}的日常立绘`} /><div><strong>{hero.name}</strong><span>{heroClassNames[hero.heroClass]} · Lv.{hero.level}</span></div></div>
+        <div className="loadout-vitals"><span>生命 <b>{hero.hp}/{hero.maxHp}</b></span><span className={`pressure-state ${pressureStage(hero.morale).tone}`}>压力 <b>{hero.morale}/100 · {pressureStage(hero.morale).name}</b></span></div>
+        <div className="loadout-slots">{(['weapon', 'armor', 'accessory'] as EquipmentSlot[]).map((slot) => { const equipped = itemDefinitions.find((item) => item.id === hero.equipment[slot]); return <button key={slot} onClick={() => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'equipment' })}><small>{equipmentSlotNames[slot]}</small><strong>{equipped?.name ?? '未装备'}</strong><span>{equipped ? equipped.description : '点击前往装备管理'}</span></button>; })}</div>
+      </aside>}
       <div className="inventory-content-wrapper">
         {filteredItems.length === 0 ? (
           <div className="inventory-empty">此处尚未存放任何此类物品。</div>
@@ -334,6 +365,7 @@ function Tavern({ state, dispatch }: { state: GameState; dispatch: React.Dispatc
       <div className="parchment-difficulty" aria-label={`难度 ${previewMission.difficulty}`}>{'◆'.repeat(previewMission.difficulty)}{'◇'.repeat(3 - previewMission.difficulty)}</div>
       <div className="parchment-rule" />
       <p className="parchment-summary">{previewMission.summary}</p>
+      <section className="mission-opinions" aria-label="队员意见"><h3>队员意见</h3>{state.roster.filter((hero) => state.selectedHeroIds.includes(hero.id)).map((hero) => <div key={hero.id}><strong>{hero.name}</strong><span>{missionOpinions[previewMission.id]?.[hero.id] ?? '我会听从队长的判断。'}</span></div>)}</section>
       <dl className="parchment-details">
         <div><dt>委托报酬</dt><dd>{previewMission.reward} 金币</dd></div>
         {previewMission.materialRewards?.length ? <div><dt>材料报酬</dt><dd className="parchment-materials">{previewMission.materialRewards.map((r, i) => <span key={i} className={`rarity-badge rarity-${r.rarity}`} style={{ borderColor: rarityColors[r.rarity], color: rarityColors[r.rarity] }}>{materialName(r.typeId)}·{rarityNames[r.rarity]} ×{r.count}</span>)}</dd></div> : null}
@@ -410,23 +442,26 @@ function Quarters({ state, dispatch, onRestClick }: { state: GameState; dispatch
   </section>;
 }
 
-function MiniMap({ currentNode }: { currentNode: number }) {
+function MiniMap({ currentNode, nodes }: { currentNode: number; nodes: ReturnType<typeof nodesForMission> }) {
   const cells = [{ column: 1, row: 2 }, { column: 2, row: 2 }, { column: 2, row: 1 }, { column: 3, row: 1 }, { column: 3, row: 2 }];
   return <div className="exp-map" aria-label="遗迹格子地图">
     <div className="exp-map-header"><strong>边境遗迹</strong><small>探索地图</small></div>
     <div className="exp-map-grid">
       <svg className="exp-map-corridors" viewBox="0 0 180 104" preserveAspectRatio="none" aria-hidden="true"><path d="M30 78 H90 V26 H150 V78" /></svg>
-      {expeditionNodes.map((node, index) => <div key={node.title} style={{ gridColumn: cells[index].column, gridRow: cells[index].row }} className={`exp-map-cell ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={index <= currentNode ? node.title : '未知区域'}>
+      {nodes.map((node, index) => <div key={node.title} style={{ gridColumn: cells[index].column, gridRow: cells[index].row }} className={`exp-map-cell ${index === currentNode ? 'current' : index < currentNode ? 'passed' : 'unknown'}`} title={index <= currentNode ? node.title : '未知区域'}>
         <i>{index > currentNode ? '?' : node.kind === 'combat' ? '⚔' : '✦'}</i><small>{index + 1}</small>
       </div>)}
     </div>
-    <div className="exp-map-location"><span>当前位置</span><strong>{expeditionNodes[currentNode].title}</strong></div>
+    <div className="exp-map-location"><span>当前位置</span><strong>{nodes[currentNode].title}</strong></div>
   </div>;
 }
 
 function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
   const [attackRequest, setAttackRequest] = useState<{ heroId: string; nonce: number }>();
   const [selectedEnemyId, setSelectedEnemyId] = useState<string>();
+  const [advisorId, setAdvisorId] = useState('');
+  const [consultation, setConsultation] = useState('');
+  const [consulting, setConsulting] = useState(false);
   const run = state.expedition;
   // 所有 Hook 必须在条件 return 之前调用，否则违反 Hooks 规则。
   // useMemo 的依赖中包含 run，run 为 null 时返回空数组，避免访问 run.formation 报错。
@@ -434,24 +469,36 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
   const aliveEnemies = useMemo(() => (run ? run.enemies.filter((enemy) => enemy.hp > 0) : []), [run]);
   if (!run) return <section className="empty-state"><div><h2>尚未开始远征</h2><p>请先在酒馆选择队员并完成整备。</p><button className="primary" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}>返回酒馆</button></div></section>;
   const selectedEnemy = aliveEnemies.find((enemy) => enemy.id === selectedEnemyId) ?? aliveEnemies[0];
-  const node = expeditionNodes[run.nodeIndex];
+  const nodes = nodesForMission(run.missionId);
+  const node = nodes[run.nodeIndex];
   const commitAttack = (heroId: string, enemyId: string) => dispatch({ type: 'ATTACK', heroId, enemyId });
   const requestAttack = (heroId: string) => setAttackRequest((current) => ({ heroId, nonce: (current?.nonce ?? 0) + 1 }));
+  const advisor = party.find((hero) => hero.id === advisorId) ?? party[0];
+  const askAdvisor = async () => {
+    if (!advisor || consulting) return;
+    const enemyLine = aliveEnemies.map((enemy) => `${enemy.name} ${enemy.hp}/${enemy.maxHp}，攻击范围 ${enemy.attackMinRange}-${enemy.attackMaxRange}`).join('；');
+    setConsulting(true);
+    const result = await narrativeService.chatWithStatus(advisor, state, [], `队长想听你的战术建议。当前地点：${node.title}。敌方：${enemyLine}。请用两句以内说出最重要的风险和一个可执行建议。`);
+    setConsultation(result.text);
+    setConsulting(false);
+  };
   return <section className="page expedition-screen">
     <header className="expedition-header">
-      <div className="expedition-header-copy"><small>远征 · 节点 {run.nodeIndex + 1}/{expeditionNodes.length}</small><strong>{node.title}</strong><span>{node.description}</span></div>
-      <div className="expedition-progress" style={{ '--expedition-progress': `${(run.nodeIndex + 1) / expeditionNodes.length * 100}%` } as React.CSSProperties}><span>{run.nodeIndex + 1}/{expeditionNodes.length}</span><i /></div>
+      <div className="expedition-header-copy"><small>远征 · 节点 {run.nodeIndex + 1}/{nodes.length}</small><strong>{node.title}</strong><span>{node.description}</span></div>
+      <div className="expedition-progress" style={{ '--expedition-progress': `${(run.nodeIndex + 1) / nodes.length * 100}%` } as React.CSSProperties}><span>{run.nodeIndex + 1}/{nodes.length}</span><i /></div>
     </header>
-    <div className="expedition-stage"><Suspense fallback={<div className="phaser-loading">正在展开遗迹场景…</div>}><BattleCanvas key={`${run.nodeIndex}-${run.enemies.map((enemy) => enemy.id).join('-') || 'rest'}`} party={party} enemies={run.enemies} targetEnemyId={selectedEnemy?.id} onSelectEnemy={setSelectedEnemyId} nodeIndex={run.nodeIndex} attackRequest={attackRequest} counterTargetId={selectedEnemy ? party.find((hero, index) => hero.hp > 0 && enemyCanAttack(selectedEnemy, index))?.id : undefined} canHeroAttack={(hero, index, enemy) => canAttack(hero, enemy, index)} onAttack={commitAttack} /></Suspense></div>
+    <div className="expedition-stage"><Suspense fallback={<div className="phaser-loading">正在展开远征场景…</div>}><BattleCanvas key={`${run.missionId}-${run.nodeIndex}-${run.enemies.map((enemy) => enemy.id).join('-') || 'rest'}`} party={party} enemies={run.enemies} targetEnemyId={selectedEnemy?.id} onSelectEnemy={setSelectedEnemyId} nodeIndex={run.nodeIndex} backgroundPath={node.background} attackRequest={attackRequest} counterTargetId={selectedEnemy ? party.find((hero, index) => hero.hp > 0 && enemyCanAttack(selectedEnemy, index))?.id : undefined} canHeroAttack={(hero, index, enemy) => canAttack(hero, enemy, index)} onAttack={commitAttack} /></Suspense></div>
     <aside className="expedition-sidebar">
-      <MiniMap currentNode={run.nodeIndex} />
+      <MiniMap currentNode={run.nodeIndex} nodes={nodes} />
       <div className="expedition-tools"><span className="expedition-tools-label">远征补给</span><span className="expedition-tool"><b>绷带</b><em>× {run.supplies.bandage}</em></span><span className="expedition-tool"><b>镇定剂</b><em>× {run.supplies.sedative}</em></span></div>
+      <section className="tactical-consult" aria-label="队员战术咨询"><div><small>队长主动咨询 · 可选</small><strong>询问队员</strong></div><div className="tactical-consult-controls">{party.filter((hero) => hero.hp > 0).map((hero) => <button key={hero.id} className={advisor?.id === hero.id ? 'selected' : ''} onClick={() => setAdvisorId(hero.id)}>{hero.name}</button>)}<button className="consult-ask" disabled={!advisor || consulting || !state.settings.llmEnabled || !narrativeService.available} onClick={() => void askAdvisor()}>{consulting ? '思考中…' : '征询建议'}</button></div>{consultation ? <p>「{consultation}」</p> : <span>{state.settings.llmEnabled && narrativeService.available ? '不会自动调用；由队长决定是否询问。' : 'LLM 未连接；战斗仍可完全正常进行。'}</span>}</section>
       <button className="expedition-retreat" onClick={() => dispatch({ type: 'RETREAT' })}>撤退并返回城镇</button>
     </aside>
     <div className="expedition-hud">
       <div className="expedition-party">
         {party.map((hero, index) => {
           const nextLevelExperience = experienceToNextLevel(hero.level);
+          const pressure = pressureStage(hero.morale);
           return (
             <article className={`exp-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}>
               <div className="exp-unit-header">
@@ -463,7 +510,7 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
                 <span>{hero.hp}/{hero.maxHp}</span>
               </div>
               <div className="exp-unit-meta">
-                {state.settings.moraleEnabled && <span>压力 {hero.morale}/100</span>}
+                {state.settings.moraleEnabled && <span className={`pressure-state ${pressure.tone}`} title={pressureRemarks[hero.id]?.[pressure.tone as 'tense' | 'shaken' | 'critical']}>压力 {hero.morale}/100 · {pressure.name}</span>}
                 <span>EXP {hero.experience}/{nextLevelExperience}</span>
               </div>
               <div className="exp-mini-exp"><i style={{ width: `${hero.experience / nextLevelExperience * 100}%` }} /></div>
@@ -489,8 +536,9 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
           >
             <div className="exp-enemy-header">
               <strong>{index === 0 ? '前排 · ' : ''}{enemy.name}</strong>
-              <small>范围 {enemy.attackMinRange}–{enemy.attackMaxRange}</small>
+              <small>攻击范围 {enemy.attackMinRange}–{enemy.attackMaxRange} · 意图：{party.find((hero, heroIndex) => hero.hp > 0 && enemyCanAttack(enemy, heroIndex))?.name ?? '暂无目标'}</small>
             </div>
+            {enemy.trait && <span className="enemy-trait" title={enemyTraitDetails[enemy.trait].hint}>{enemyTraitDetails[enemy.trait].name} · {enemyTraitDetails[enemy.trait].hint}</span>}
             <div className={`exp-bar ${enemy.hp / enemy.maxHp <= .3 ? 'critical' : ''}`}>
               <i style={{ width: `${enemy.hp / enemy.maxHp * 100}%` }} />
               <span>{enemy.hp}/{enemy.maxHp}</span>
@@ -502,7 +550,7 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
     <footer className={`expedition-footer ${node.kind === 'event' && !run.eventResolved ? 'expedition-event-footer' : ''}`}>
       {node.kind === 'event' && !run.eventResolved && node.event ? (
         <div className="expedition-event-choice"><div><strong>{node.event.prompt}</strong><p>选择会改变本次远征的收益或队伍状态。</p></div><div className="event-choice-actions">{node.event.choices.map((choice) => <button key={choice.id} className="event-choice" onClick={() => dispatch({ type: 'RESOLVE_EVENT', eventId: node.event!.id, choiceId: choice.id })}><strong>{choice.label}</strong><small>{choice.description}</small></button>)}</div></div>
-      ) : <><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{aliveEnemies.length === 0 && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</>}
+      ) : <><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{aliveEnemies.length === 0 && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === nodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</>}
     </footer>
   </section>;
 }
@@ -557,7 +605,6 @@ function BottomAdventureMenu({ state, dispatch }: { state: GameState; dispatch: 
     { id: 'party', label: '队伍', glyph: 'Ⅲ', active: state.page === 'management' && state.managementTab === 'party', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'party' }) },
     { id: 'equipment', label: '角色', glyph: '♙', active: state.page === 'management' && state.managementTab === 'equipment', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'equipment' }) },
     { id: 'inventory', label: '背包', glyph: '▣', active: state.page === 'management' && state.managementTab === 'inventory', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'inventory' }) },
-    { id: 'craft', label: '打造', glyph: '⚒', active: state.page === 'management' && state.managementTab === 'craft', action: () => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'craft' }) },
   ];
   return <nav className="adventure-menu" aria-label="冒险菜单">{entries.map((entry) => <button key={entry.id} className={entry.active ? 'active' : ''} onClick={entry.action}><span className="menu-glyph">{entry.glyph}</span><strong className="menu-label">{entry.label}</strong></button>)}</nav>;
 }
@@ -694,6 +741,22 @@ function ExpeditionPrepOverlay({ state, dispatch, onClose }: { state: GameState;
       </div>
     </div>
   );
+}
+
+function DayReportOverlay({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
+  const report = state.dayReport;
+  if (!report) return null;
+  const outcomeTitle = report.outcome === 'victory' ? '远征成果传回城镇' : report.outcome === 'retreat' ? '整备后迎来清晨' : report.outcome === 'defeated' ? '重整队伍的清晨' : '新的清晨';
+  return <div className="day-report-overlay" role="dialog" aria-modal="true" aria-label="次日晨报">
+    <section className="day-report-sheet">
+      <header><small>第 {report.completedDay} 日结算 · {dayLabel(state.day)}</small><h2>{outcomeTitle}</h2></header>
+      {report.missionTitle && <p className="day-report-mission">昨日委托：{report.missionTitle}</p>}
+      <p className="day-report-news">{report.townNews}</p>
+      <section className="day-report-recovery"><h3>夜间恢复</h3>{report.recovery.map((hero) => <span key={hero.name}>{hero.name} · 生命 +{hero.hp} · 压力 -{hero.pressure}{hero.affinity ? ` · 好感 +${hero.affinity}` : ''}</span>)}</section>
+      <section className="day-report-reactions"><h3>队员晨语</h3>{report.reactions.map((reaction) => <p key={reaction.heroId}><strong>{reaction.name}</strong>「{reaction.line}」</p>)}</section>
+      <button className="primary" onClick={() => dispatch({ type: 'CLOSE_DAY_REPORT' })}>开始今天</button>
+    </section>
+  </div>;
 }
 
 function Settlement({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
@@ -843,6 +906,7 @@ export function App() {
         {state.page === 'settlement' && <Settlement state={state} dispatch={dispatch} />}
       </div>
       <BottomAdventureMenu state={state} dispatch={dispatch} />
+      {state.dayReport && <DayReportOverlay state={state} dispatch={dispatch} />}
       {confirmRest && (
         <div className="confirm-overlay" onClick={() => setConfirmRest(false)}>
           <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>

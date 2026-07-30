@@ -63,6 +63,12 @@ export const itemDefinitions: ItemDefinition[] = [
 
 // 装备查询的 O(1) 索引：避免 combat/economy 等处反复 itemDefinitions.find。
 export const itemById: ReadonlyMap<string, ItemDefinition> = new Map(itemDefinitions.map((item) => [item.id, item]));
+// 中央广场集市的固定售价。只有这里列出的装备、饰品与礼物可以直接购买。
+export const marketPrices: Record<string, number> = {
+  'vanguard-spear': 36, 'ranger-bow': 36, 'star-staff': 40,
+  'field-mail': 42, 'warded-coat': 38, 'echo-charm': 32,
+  wildflower: 5, ale: 8, 'old-book': 15, charm: 40,
+};
 export const initialInventory: Record<string, number> = {
   bandage: 5, sedative: 2, 'vanguard-spear': 1, 'ranger-bow': 1, 'star-staff': 1,
   'field-mail': 1, 'warded-coat': 1, 'echo-charm': 1,
@@ -84,6 +90,16 @@ export const enemies: Enemy[] = [
       { typeId: 'rust-iron', rarity: 1, chance: 0.5 },
       { typeId: 'ruin-shard', rarity: 1, chance: 0.35 },
     ] },
+  { id: 'ash-wolf', name: '灰烬林狼', maxHp: 20, hp: 20, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 4, trait: 'pack',
+    drops: [{ typeId: 'ruin-shard', rarity: 0, chance: 0.35 }] },
+  { id: 'thorn-stag', name: '荆角巨鹿', maxHp: 38, hp: 38, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 6, trait: 'thorns',
+    drops: [{ typeId: 'ruin-shard', rarity: 1, chance: 0.45 }] },
+  { id: 'spore-beast', name: '毒蕈孢子兽', maxHp: 30, hp: 30, distance: 2, attackMinRange: 2, attackMaxRange: 3, damage: 3, trait: 'spores',
+    drops: [{ typeId: 'ruin-shard', rarity: 0, chance: 0.55 }] },
+  { id: 'rock-lizard', name: '岩甲蜥', maxHp: 42, hp: 42, distance: 1, attackMinRange: 1, attackMaxRange: 1, damage: 5, trait: 'rock-armor',
+    drops: [{ typeId: 'rust-iron', rarity: 1, chance: 0.5 }] },
+  { id: 'grove-guardian', name: '古树守卫', maxHp: 88, hp: 88, distance: 1, attackMinRange: 1, attackMaxRange: 3, damage: 8, trait: 'ancient-core',
+    drops: [{ typeId: 'ruin-shard', rarity: 2, chance: 1 }, { typeId: 'rust-iron', rarity: 2, chance: 0.5 }] },
 ];
 export const missions: Mission[] = [
   { id: 'border-echoes', title: '边境回声', summary: '调查遗迹道路上的异常脚步，并确认封印门厅是否安全。', difficulty: 1, reward: 45, enemyWaves: { 0: ['scout', 'warden'], 2: ['warden', 'scout'], 4: ['gatekeeper', 'warden', 'scout'] },
@@ -92,7 +108,32 @@ export const missions: Mission[] = [
     materialRewards: [{ typeId: 'rust-iron', rarity: 1, count: 1 }, { typeId: 'ruin-shard', rarity: 1, count: 1 }] },
   { id: 'sealed-gate', title: '封门异响', summary: '封印深处传来连续回声，公会要求带回完整调查记录。', difficulty: 3, reward: 84, enemyWaves: { 0: ['scout', 'warden'], 2: ['gatekeeper', 'scout', 'warden'], 4: ['gatekeeper', 'warden', 'scout'] },
     materialRewards: [{ typeId: 'ruin-shard', rarity: 2, count: 1 }, { typeId: 'rust-iron', rarity: 1, count: 2 }] },
+  { id: 'forest-disturbance', title: '林地异变', summary: '城镇外的古道被异化生物占据，追踪孢子源头并平息古树圣所。', difficulty: 2, reward: 76, enemyWaves: { 0: ['ash-wolf', 'ash-wolf'], 2: ['spore-beast', 'rock-lizard', 'thorn-stag'], 4: ['grove-guardian'] },
+    materialRewards: [{ typeId: 'ruin-shard', rarity: 1, count: 2 }] },
 ];
+// 任务板默认意见：必须即时显示、离线可用，不触发 LLM 请求。
+export const missionOpinions: Record<string, Record<string, string>> = {
+  'border-echoes': {
+    lan: '先确认封印门厅是否还稳固。若情况不对，队伍必须立刻撤回。',
+    wu: '异响多半有来路，记得留一份口粮给回程。',
+    xingluo: '回声会保留施术痕迹……我想亲眼看看那条路。',
+  },
+  'rusted-patrol': {
+    lan: '正面突破会很危险，但商路不能一直断着。',
+    wu: '守卫巡逻有规律，找到空隙比硬撞更聪明。',
+    xingluo: '它们的锈甲上也许还留着旧式驱动符文。',
+  },
+  'sealed-gate': {
+    lan: '这是最危险的委托。补给不足就不该接。',
+    wu: '封印深处没有好消息，不过我会记好每条退路。',
+    xingluo: '连续回声意味着封印正在回应什么……不能贸然破坏它。',
+  },
+  'forest-disturbance': {
+    lan: '林地里的生物不是各自行动。先拆散狼群，别让孢子拖垮队伍。',
+    wu: '这条旧猎径我认得，但树根和足迹都变了。营地是我们最稳妥的退路。',
+    xingluo: '异变像是从古树圣所向外扩散。守卫的核心进入暗红状态时会更加危险。',
+  },
+};
 export const expeditionNodes: ExpeditionNode[] = [
   { kind: 'combat', title: '坍塌入口', description: '碎石之间传来急促脚步。', enemyIds: ['scout', 'warden'] },
   { kind: 'event', title: '废弃补给室', description: '封存药箱仍可使用，但深处也有未被触碰的箱柜。', event: { id: 'supply-room', prompt: '队伍在补给室停下。是先照料彼此，还是冒着不安的气息翻找遗物？', choices: [
@@ -106,6 +147,20 @@ export const expeditionNodes: ExpeditionNode[] = [
   ] } },
   { kind: 'combat', title: '封印门厅', description: '门卫挡在出口前，这是最后一战。', enemyIds: ['gatekeeper', 'warden', 'scout'] },
 ] as const;
+export const forestExpeditionNodes: ExpeditionNode[] = [
+  { kind: 'combat', title: '林缘古道', description: '灰色兽影从阳光与树影之间逼近。', background: '/assets/world/forest-v1/forest-road-v1.png', enemyIds: ['ash-wolf', 'ash-wolf'] },
+  { kind: 'event', title: '临时营地', description: '火光尚暖，岔路在暮色中伸向不同方向。', background: '/assets/world/forest-v1/forest-camp-v1.png', event: { id: 'supply-room', prompt: '队伍在林间营地停下。先检查伤势，还是搜索周围的孢子痕迹？', choices: [
+    { id: 'recover', label: '围火休整', description: '全队恢复生命并平复压力。', effect: 'recover' },
+    { id: 'scavenge', label: '搜索孢子', description: '获得材料，但全队压力上升。', effect: 'scavenge' },
+  ] } },
+  { kind: 'combat', title: '孢子林径', description: '菌盖与岩甲在幽暗林径中同时活动。', background: '/assets/world/forest-v1/forest-road-v1.png', enemyIds: ['spore-beast', 'rock-lizard', 'thorn-stag'] },
+  { kind: 'event', title: '暮色营火', description: '圣所就在前方，最后一次整备机会已经到来。', background: '/assets/world/forest-v1/forest-camp-v1.png', event: { id: 'old-campfire', prompt: '队伍听见古树深处的沉重回响。休整，还是先观察守卫的行动？', choices: [
+    { id: 'recover', label: '安静休整', description: '全队恢复生命并平复压力。', effect: 'recover' },
+    { id: 'track', label: '侦察圣所', description: '获得额外金币，但全队压力上升。', effect: 'track' },
+  ] } },
+  { kind: 'combat', title: '古树圣所', description: '古树守卫从根系王座前苏醒。', background: '/assets/world/forest-v1/grove-sanctuary-v1.png', enemyIds: ['grove-guardian'] },
+] as const;
+export const nodesForMission = (missionId: string): readonly ExpeditionNode[] => missionId === 'forest-disturbance' ? forestExpeditionNodes : expeditionNodes;
 // 装备打造配方。产物均沿用 itemDefinitions 中的装备，材料+金币消耗后装备入背包。
 // 配方表后续可继续追加，逻辑不写死数量。
 export const craftingRecipes: CraftingRecipe[] = [
