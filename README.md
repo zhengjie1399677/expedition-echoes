@@ -2,6 +2,8 @@
 
 一个中文优先、可独立运行的轻量小队远征游戏。游戏规则不依赖 LLM；宿舍对白等叙事内容可以由 Mobile Tavern 宿主增强，接口不可用时自动回退到本地文案。
 
+项目开发以 [整体开发指导](docs/PROJECT_DEVELOPMENT_GUIDE.md) 为准。
+
 ## 开发
 
 ```bash

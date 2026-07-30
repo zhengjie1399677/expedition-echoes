@@ -1,6 +1,6 @@
 import { craftingRecipes, itemDefinitions, materialName, materialSellPrices, rarityNames } from '../content/gameContent';
-import type { Enemy, GameAction, GameState, MaterialInventory, Rarity } from './model';
-import { addLog } from './shared';
+import type { Enemy, GameAction, GameState, MaterialInventory, Rarity, SettlementState } from './model';
+import { addLog, returnExpeditionSupplies } from './shared';
 
 // 材料库存与掉落工具。key 形如 `${typeId}:${rarity}`，避免在多处拼字符串。
 export const materialKey = (typeId: string, rarity: Rarity) => `${typeId}:${rarity}`;
@@ -13,6 +13,25 @@ export const addMaterials = (inventory: MaterialInventory, gains: { typeId: stri
   }
   return next;
 };
+
+// 把库存 key 解析回结构化对象，统一处理越界/异常值，避免 as any。
+export function parseRarityKey(key: string): { typeId: string; rarity: Rarity; count: number } | null {
+  const [typeId, rarityStr] = key.split(':');
+  const rarity = Number(rarityStr);
+  if (!typeId || !Number.isInteger(rarity) || rarity < 0 || rarity > 4) return null;
+  return { typeId, rarity: rarity as Rarity, count: 0 };
+}
+
+// 把 expedition.gainedMaterials 的 key 形式转成结构化列表，便于 addMaterials 复用。
+export function materialsFromInventory(inventory: MaterialInventory): { typeId: string; rarity: Rarity; count: number }[] {
+  const out: { typeId: string; rarity: Rarity; count: number }[] = [];
+  for (const [key, count] of Object.entries(inventory)) {
+    const parsed = parseRarityKey(key);
+    if (parsed && count > 0) out.push({ typeId: parsed.typeId, rarity: parsed.rarity, count });
+  }
+  return out;
+}
+
 // 遍历当前波次敌人的掉落表，按 chance 独立结算。
 export const rollDrops = (enemyList: Enemy[]): { typeId: string; rarity: Rarity }[] => {
   const drops: { typeId: string; rarity: Rarity }[] = [];
@@ -22,6 +41,36 @@ export const rollDrops = (enemyList: Enemy[]): { typeId: string; rarity: Rarity 
   }
   return drops;
 };
+
+// 远征结算公共逻辑：撤销 expedition、返还剩余补给、发放战利品、设置 settlement 页面。
+// 用于 ADVANCE（胜利）、RETREAT（撤退）、ATTACK 全灭（失败）三种结束流程，避免三处重复。
+export function settleExpedition(
+  state: GameState,
+  outcome: SettlementState['outcome'],
+  lootGold: number,
+  lootMaterials: MaterialInventory,
+  gainedExperience: number,
+  logMessage: string,
+): GameState {
+  if (!state.expedition) return state;
+  const consumed = {
+    food: state.expedition.startSupplies.food - state.expedition.supplies.food,
+    bandage: state.expedition.startSupplies.bandage - state.expedition.supplies.bandage,
+    sedative: state.expedition.startSupplies.sedative - state.expedition.supplies.sedative,
+  };
+  const settlement: SettlementState = { outcome, consumedSupplies: consumed, lootGold, lootMaterials, gainedExperience };
+  const returned = returnExpeditionSupplies(state);
+  const next: GameState = {
+    ...returned,
+    gold: returned.gold + lootGold,
+    materials: addMaterials(returned.materials, materialsFromInventory(lootMaterials)),
+    page: 'settlement',
+    settlement,
+    expedition: null,
+    hasAcceptedMission: false,
+  };
+  return addLog(next, logMessage);
+}
 
 export function economyReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -38,7 +87,7 @@ export function economyReducer(state: GameState, action: GameAction): GameState 
     }
     case 'CRAFT_ITEM': {
       const recipe = craftingRecipes.find((item) => item.id === action.recipeId);
-      if (!recipe) return state;
+      if (!recipe) return addLog(state, '未找到该打造配方。');
       if (state.gold < recipe.goldCost) return addLog(state, '金币不足以支付打造费用。');
       const missing = recipe.materials.find((m) => (state.materials[materialKey(m.typeId, m.rarity)] ?? 0) < m.count);
       if (missing) return addLog(state, `${describeMaterial(missing.typeId, missing.rarity)} 库存不足，无法打造。`);

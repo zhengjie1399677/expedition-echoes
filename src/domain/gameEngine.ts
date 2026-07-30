@@ -29,16 +29,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'UNEQUIP_ITEM':
     case 'RECRUIT':
     case 'UPGRADE_GEAR': return partyReducer(state, action);
-    case 'ATTACK': return combatReducer(state, action);
+    case 'ATTACK':
+    case 'USE_SKILL': return combatReducer(state, action);
     case 'START_EXPEDITION':
     case 'SWAP':
     case 'USE_BANDAGE':
     case 'USE_SEDATIVE':
+    case 'RESOLVE_EVENT':
     case 'ADVANCE':
     case 'RETREAT': return expeditionReducer(state, action);
     case 'GIVE_GIFT': return relationReducer(state, action);
     case 'SELL_MATERIAL':
     case 'CRAFT_ITEM': return economyReducer(state, action);
     case 'CLOSE_SETTLEMENT': return { ...state, page: 'town', settlement: null };
+    default: {
+      // 穷尽性检查：新增 action 类型时若忘记在此分发，TS 会在编译期报错。
+      const _exhaustive: never = action;
+      void _exhaustive;
+      return state;
+    }
   }
 }

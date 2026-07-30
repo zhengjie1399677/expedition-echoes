@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useReducer, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { affinityStage, craftingRecipes, dayLabel, expeditionNodes, giftDefinitions, heroClassDescriptions, heroClassNames, itemDefinitions, materialName, materialSellPrices, missions, rarityColors, rarityNames } from '../content/gameContent';
 import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer } from '../domain/gameEngine';
 import type { EquipmentSlot, GameAction, GameState, Hero, Rarity, SettlementState } from '../domain/model';
@@ -97,6 +97,17 @@ const quartersGreetings: Record<string, string> = {
   wu: '门没锁。要聊聊今天在路上看到的事吗？',
   xingluo: '来得正好，我刚把星盘收起来。今晚的天象很安静。',
 };
+const skillDetails: Record<string, { name: string; hint: string }> = {
+  lan: { name: '守望号令', hint: '全队压力 -8' },
+  wu: { name: '贯风箭', hint: '无视距离，伤害 +3' },
+  xingluo: { name: '星辉爆裂', hint: '全体敌人各受 6 伤害' },
+};
+const postExpeditionGreeting = (heroId: string, log: string) => {
+  if (log.includes('远征完成')) return { lan: '回来就好。先把伤口和补给清点完，别急着庆祝。', wu: '这次路没白走。队长，下次我们要不要试试另一条岔路？', xingluo: '封印的回声还在耳边……但我们确实带回了新的线索。' }[heroId];
+  if (log.includes('提前撤回')) return { lan: '及时撤回是正确判断。活着回来，才有下一次远征。', wu: '我就知道队长不会把撤退当成丢脸的事。下次换个走法。', xingluo: '虽然没能看完，但那些痕迹不会消失。我们准备好再去。' }[heroId];
+  if (log.includes('体力竭')) return { lan: '别勉强说话，先休息。责任不该只落在一个人身上。', wu: '我把门关好了。今晚不谈遗迹，只谈怎么把大家养回来。', xingluo: '是我太急了……不过，能回来就还有重新计算的机会。' }[heroId];
+  return undefined;
+};
 
 function Management({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
   const tab = state.managementTab;
@@ -105,10 +116,11 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
   const recruited = state.roster.filter((hero) => hero.recruited);
   const [heroId, setHeroId] = useState(state.selectedHeroIds[0] ?? recruited[0]?.id ?? '');
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
-  const ownedItems = itemDefinitions.filter((item) => (state.inventory[item.id] ?? 0) > 0);
-  const equipmentItems = itemDefinitions.filter((item) => item.kind === 'equipment');
+  const ownedItems = useMemo(() => itemDefinitions.filter((item) => (state.inventory[item.id] ?? 0) > 0), [state.inventory]);
+  const equipmentItems = useMemo(() => itemDefinitions.filter((item) => item.kind === 'equipment'), []);
   const bonuses = hero ? equipmentBonuses(hero) : { attack: 0, defense: 0 };
-  const materialEntries = Object.entries(state.materials).filter(([, count]) => count > 0).map(([key, count]) => { const [typeId, rarityStr] = key.split(':'); const rarity = Number(rarityStr) as Rarity; return { typeId, rarity, count }; }).sort((a, b) => a.rarity - b.rarity || materialName(a.typeId).localeCompare(materialName(b.typeId)));
+  // materialEntries 在每次 render 都重建并排序；用 useMemo 避免无关 state 变更触发重排。
+  const materialEntries = useMemo(() => Object.entries(state.materials).filter(([, count]) => count > 0).map(([key, count]) => { const [typeId, rarityStr] = key.split(':'); const rarity = Number(rarityStr) as Rarity; return { typeId, rarity, count }; }).sort((a, b) => a.rarity - b.rarity || materialName(a.typeId).localeCompare(materialName(b.typeId))), [state.materials]);
 
   const unifiedItems = [
     ...ownedItems.map(item => ({
@@ -236,7 +248,35 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
       const goldOk = state.gold >= recipe.goldCost;
       const matsOk = recipe.materials.every((m) => (state.materials[`${m.typeId}:${m.rarity}`] ?? 0) >= m.count);
       const canCraft = goldOk && matsOk;
-      return <article key={recipe.id} className={`craft-card ${canCraft ? '' : 'disabled'}`}><div className="craft-result"><strong>{result?.name ?? recipe.resultItemId}</strong><small>{result?.attack ? `攻击 +${result.attack}` : ''}{result?.attack && result?.defense ? ' · ' : ''}{result?.defense ? `减伤 +${result.defense}` : ''}</small></div><div className="craft-cost"><span className="craft-mats">{recipe.materials.map((m, i) => <span key={i} className={`rarity-badge rarity-${m.rarity}`} style={{ borderColor: rarityColors[m.rarity], color: rarityColors[m.rarity] }}>{materialName(m.typeId)}·{rarityNames[m.rarity]} ×{m.count}</span>)}</span><span className="craft-gold">{recipe.goldCost} 金币</span></div><button disabled={!canCraft} onClick={() => dispatch({ type: 'CRAFT_ITEM', recipeId: recipe.id })}>{canCraft ? '打造' : '不足'}</button></article>;
+      return (
+        <article key={recipe.id} className={`craft-card ${canCraft ? '' : 'disabled'}`}>
+          <div className="craft-result">
+            <strong>{result?.name ?? recipe.resultItemId}</strong>
+            <small>
+              {result?.attack ? `攻击 +${result.attack}` : ''}
+              {result?.attack && result?.defense ? ' · ' : ''}
+              {result?.defense ? `减伤 +${result.defense}` : ''}
+            </small>
+          </div>
+          <div className="craft-cost">
+            <span className="craft-mats">
+              {recipe.materials.map((m, i) => (
+                <span
+                  key={i}
+                  className={`rarity-badge rarity-${m.rarity}`}
+                  style={{ borderColor: rarityColors[m.rarity], color: rarityColors[m.rarity] }}
+                >
+                  {materialName(m.typeId)}·{rarityNames[m.rarity]} ×{m.count}
+                </span>
+              ))}
+            </span>
+            <span className="craft-gold">{recipe.goldCost} 金币</span>
+          </div>
+          <button disabled={!canCraft} onClick={() => dispatch({ type: 'CRAFT_ITEM', recipeId: recipe.id })}>
+            {canCraft ? '打造' : '不足'}
+          </button>
+        </article>
+      );
     })}</div></div>}
 
     {tab === 'equipment' && hero && <div className="equipment-management">
@@ -323,11 +363,22 @@ function Quarters({ state, dispatch, onRestClick }: { state: GameState; dispatch
     setMessages((current) => [...current, { role: 'user' as const, content: text }].slice(-16));
     setPlayerText('');
     setLoading(true);
-    const reply = await narrativeService.chat(hero, state, history, text);
-    setMessages((current) => [...current, { role: 'assistant' as const, content: reply }].slice(-16));
+    // 用 chatWithStatus 拿到 errorKind，便于在 UI 区分"暂时走神"与"插件未连接"等故障。
+    const result = await narrativeService.chatWithStatus(hero, state, history, text);
+    setMessages((current) => [...current, { role: 'assistant' as const, content: result.text }].slice(-16));
+    if (!result.ok && result.errorKind) {
+      // 持续故障时通过 console 提示，避免在游戏对白流中弹出侵入式错误。
+      console.warn('[narrative] 对白生成失败', result.errorKind);
+    }
     setLoading(false);
   };
-  const enterRoom = (id: string) => { setHeroId(id); setRoomHeroId(id); setMessages([{ role: 'assistant', content: quartersGreetings[id] ?? '今晚的宿舍很安静。' }]); setPlayerText(''); setHistoryOpen(false); };
+  const enterRoom = (id: string) => {
+    setHeroId(id);
+    setRoomHeroId(id);
+    setMessages([{ role: 'assistant', content: postExpeditionGreeting(id, state.log[0] ?? '') ?? quartersGreetings[id] ?? '今晚的宿舍很安静。' }]);
+    setPlayerText('');
+    setHistoryOpen(false);
+  };
   if (!roomHeroId) return <section className="page quarters-page quarters-hall">
     <img className="quarters-background" src="/assets/world/quarters-hall-v1.png" alt="冒险者宿舍公共走廊" />
     <div className="room-directory">{recruited.map((item, index) => <button className={`room-entry room-entry-${index}`} key={item.id} onClick={() => enterRoom(item.id)}><strong>{item.name}的房间</strong><span>{heroClassNames[item.heroClass]} · 敲门进入</span></button>)}</div>
@@ -377,9 +428,11 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
   const [attackRequest, setAttackRequest] = useState<{ heroId: string; nonce: number }>();
   const [selectedEnemyId, setSelectedEnemyId] = useState<string>();
   const run = state.expedition;
+  // 所有 Hook 必须在条件 return 之前调用，否则违反 Hooks 规则。
+  // useMemo 的依赖中包含 run，run 为 null 时返回空数组，避免访问 run.formation 报错。
+  const party = useMemo<Hero[]>(() => (run ? run.formation.map((id) => state.roster.find((hero) => hero.id === id)).filter((hero): hero is Hero => Boolean(hero)) : []), [run, state.roster]);
+  const aliveEnemies = useMemo(() => (run ? run.enemies.filter((enemy) => enemy.hp > 0) : []), [run]);
   if (!run) return <section className="empty-state"><div><h2>尚未开始远征</h2><p>请先在酒馆选择队员并完成整备。</p><button className="primary" onClick={() => dispatch({ type: 'NAVIGATE', page: 'tavern' })}>返回酒馆</button></div></section>;
-  const party = run.formation.map((id) => state.roster.find((hero) => hero.id === id)!).filter(Boolean);
-  const aliveEnemies = run.enemies.filter((enemy) => enemy.hp > 0);
   const selectedEnemy = aliveEnemies.find((enemy) => enemy.id === selectedEnemyId) ?? aliveEnemies[0];
   const node = expeditionNodes[run.nodeIndex];
   const commitAttack = (heroId: string, enemyId: string) => dispatch({ type: 'ATTACK', heroId, enemyId });
@@ -396,10 +449,61 @@ function Expedition({ state, dispatch }: { state: GameState; dispatch: React.Dis
       <button className="expedition-retreat" onClick={() => dispatch({ type: 'RETREAT' })}>撤退并返回城镇</button>
     </aside>
     <div className="expedition-hud">
-      <div className="expedition-party">{party.map((hero, index) => { const nextLevelExperience = experienceToNextLevel(hero.level); return <article className={`exp-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}><div className="exp-unit-header"><strong>{index === 0 ? '前排 · ' : ''}{hero.name}</strong><small>Lv.{hero.level} · {heroClassNames[hero.heroClass]} · 距离 {index + 1}</small></div><div className={`exp-bar ${hero.hp / hero.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} /><span>{hero.hp}/{hero.maxHp}</span></div><div className="exp-unit-meta">{state.settings.moraleEnabled && <span>士气 {hero.morale}/100</span>}<span>EXP {hero.experience}/{nextLevelExperience}</span></div><div className="exp-mini-exp"><i style={{ width: `${hero.experience / nextLevelExperience * 100}%` }} /></div><div className="exp-unit-actions"><button className="attack" disabled={!selectedEnemy || hero.hp <= 0} onClick={() => requestAttack(hero.id)}>攻击</button><button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button><button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>{index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}</div></article>; })}</div>
-      <div className="expedition-enemies">{run.enemies.map((enemy, index) => <button type="button" key={enemy.id} disabled={enemy.hp <= 0} className={`exp-enemy ${selectedEnemy?.id === enemy.id ? 'targeted' : ''}`} onClick={() => setSelectedEnemyId(enemy.id)}><div className="exp-enemy-header"><strong>{index === 0 ? '前排 · ' : ''}{enemy.name}</strong><small>范围 {enemy.attackMinRange}–{enemy.attackMaxRange}</small></div><div className={`exp-bar ${enemy.hp / enemy.maxHp <= .3 ? 'critical' : ''}`}><i style={{ width: `${enemy.hp / enemy.maxHp * 100}%` }} /><span>{enemy.hp}/{enemy.maxHp}</span></div></button>)}</div>
+      <div className="expedition-party">
+        {party.map((hero, index) => {
+          const nextLevelExperience = experienceToNextLevel(hero.level);
+          return (
+            <article className={`exp-unit ${hero.hp <= 0 ? 'down' : ''}`} key={hero.id}>
+              <div className="exp-unit-header">
+                <strong>{index === 0 ? '前排 · ' : ''}{hero.name}</strong>
+                <small>Lv.{hero.level} · {heroClassNames[hero.heroClass]} · 距离 {index + 1}</small>
+              </div>
+              <div className={`exp-bar ${hero.hp / hero.maxHp <= .3 ? 'critical' : ''}`}>
+                <i style={{ width: `${hero.hp / hero.maxHp * 100}%` }} />
+                <span>{hero.hp}/{hero.maxHp}</span>
+              </div>
+              <div className="exp-unit-meta">
+                {state.settings.moraleEnabled && <span>压力 {hero.morale}/100</span>}
+                <span>EXP {hero.experience}/{nextLevelExperience}</span>
+              </div>
+              <div className="exp-mini-exp"><i style={{ width: `${hero.experience / nextLevelExperience * 100}%` }} /></div>
+              <div className="exp-unit-actions">
+                <button className="attack" disabled={!selectedEnemy || hero.hp <= 0} onClick={() => requestAttack(hero.id)}>攻击</button>
+                {skillDetails[hero.id] && <button className="skill" title={skillDetails[hero.id].hint} disabled={hero.hp <= 0 || run.skillUses[hero.id]} onClick={() => dispatch({ type: 'USE_SKILL', heroId: hero.id, enemyId: selectedEnemy?.id })}>{run.skillUses[hero.id] ? '已施放' : skillDetails[hero.id].name}</button>}
+                <button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button>
+                <button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>
+                {index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <div className="expedition-enemies">
+        {run.enemies.map((enemy, index) => (
+          <button
+            type="button"
+            key={enemy.id}
+            disabled={enemy.hp <= 0}
+            className={`exp-enemy ${selectedEnemy?.id === enemy.id ? 'targeted' : ''}`}
+            onClick={() => setSelectedEnemyId(enemy.id)}
+          >
+            <div className="exp-enemy-header">
+              <strong>{index === 0 ? '前排 · ' : ''}{enemy.name}</strong>
+              <small>范围 {enemy.attackMinRange}–{enemy.attackMaxRange}</small>
+            </div>
+            <div className={`exp-bar ${enemy.hp / enemy.maxHp <= .3 ? 'critical' : ''}`}>
+              <i style={{ width: `${enemy.hp / enemy.maxHp * 100}%` }} />
+              <span>{enemy.hp}/{enemy.maxHp}</span>
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
-    <footer className="expedition-footer"><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{aliveEnemies.length === 0 && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</footer>
+    <footer className={`expedition-footer ${node.kind === 'event' && !run.eventResolved ? 'expedition-event-footer' : ''}`}>
+      {node.kind === 'event' && !run.eventResolved && node.event ? (
+        <div className="expedition-event-choice"><div><strong>{node.event.prompt}</strong><p>选择会改变本次远征的收益或队伍状态。</p></div><div className="event-choice-actions">{node.event.choices.map((choice) => <button key={choice.id} className="event-choice" onClick={() => dispatch({ type: 'RESOLVE_EVENT', eventId: node.event!.id, choiceId: choice.id })}><strong>{choice.label}</strong><small>{choice.description}</small></button>)}</div></div>
+      ) : <><div><strong>最近记录</strong><p>{state.log[0]}</p></div>{aliveEnemies.length === 0 && <button className="primary" onClick={() => dispatch({ type: 'ADVANCE' })}>{run.nodeIndex === expeditionNodes.length - 1 ? '完成远征' : '前往下一节点'}</button>}</>}
+    </footer>
   </section>;
 }
 
@@ -412,8 +516,8 @@ function Settings({ state, dispatch }: { state: GameState; dispatch: React.Dispa
     <h2>按你想要的节奏游玩。</h2>
     <div className="setting-card">
       <div>
-        <strong>士气系统</strong>
-        <p>开启后，受击会增加士气压力；达到 50 时进入“动摇”，攻击降低 2 点。</p>
+        <strong>压力系统</strong>
+        <p>开启后，受击与冒险会增加压力；达到 50 时进入“动摇”，攻击降低 2 点。</p>
       </div>
       <button className={`toggle-btn ${state.settings.moraleEnabled ? 'active' : ''}`} onClick={() => dispatch({ type: 'TOGGLE_MORALE' })}>
         {state.settings.moraleEnabled ? '已开启' : '已关闭'}
@@ -542,6 +646,9 @@ function ExpeditionPrepOverlay({ state, dispatch, onClose }: { state: GameState;
 
           <section className="prep-section prep-supplies-list">
             <h4>行囊配置 (已用: {totalSlots}/10 格)</h4>
+            <div className="prep-capacity" aria-label={`行囊已使用 ${totalSlots} 格，共 10 格`}>
+              {Array.from({ length: 10 }, (_, index) => <i key={index} className={index < totalSlots ? 'is-filled' : ''} />)}
+            </div>
             <div className="supply-control-row">
               <div className="supply-label-col">
                 <strong>口粮 (食物)</strong>
@@ -681,8 +788,77 @@ export function App() {
   const [confirmRest, setConfirmRest] = useState(false);
   const [prepOpen, setPrepOpen] = useState(false);
 
-  useEffect(() => saveGame(state), [state]);
+  // 存档写入 debounce：每次 state 变更都同步 JSON.stringify + localStorage.setItem 可能在大型存档下造成卡顿，
+  // 改成 400ms 内多次变更只写一次；用 ref 跟踪最新 state，组件卸载时立即 flush，避免关闭页面丢失最后一次变更。
+  const latestStateRef = useRef(state);
+  latestStateRef.current = state;
+  useEffect(() => {
+    const timer = setTimeout(() => saveGame(state), 400);
+    return () => clearTimeout(timer);
+  }, [state]);
+  useEffect(() => {
+    const flush = () => saveGame(latestStateRef.current);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      flush();
+    };
+  }, []);
   useEffect(() => warmExpeditionResources(), []);
 
-  return <main className={`app-shell ${state.page !== 'expedition' && state.page !== 'settings' && state.page !== 'settlement' ? 'with-adventure-menu' : ''}`}><header className="topbar"><button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}><span className="eyebrow">边境远征队 · 第一版</span><strong>远征余响</strong></button><div className="topbar-actions"><div className="resource"><small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small><strong>{dayLabel(state.day)} · ◆ {state.gold} · 口粮 {state.food}{state.hunger > 0 ? ` · 饥饿${state.hunger}` : ''}</strong></div>{state.page === 'settings' && <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>}<button className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`} aria-label="设置" title="设置" onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}>⚙</button></div></header><div className="game-viewport">{state.page === 'town' && <Town state={state} dispatch={dispatch} onGateClick={() => setPrepOpen(true)} />}{state.page === 'management' && <Management state={state} dispatch={dispatch} />}{state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}{state.page === 'quarters' && <Quarters state={state} dispatch={dispatch} onRestClick={() => setConfirmRest(true)} />}{state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}{state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}{state.page === 'settlement' && <Settlement state={state} dispatch={dispatch} />}</div><BottomAdventureMenu state={state} dispatch={dispatch} />{confirmRest && <div className="confirm-overlay" onClick={() => setConfirmRest(false)}><div className="confirm-dialog" onClick={(e) => e.stopPropagation()}><p>上楼休息至次日？</p><small>将结束今天并进入 {dayLabel(state.day + 1)}，新的一天可以再次接取任务。</small><div className="confirm-actions"><button onClick={() => setConfirmRest(false)}>取消</button><button className="confirm-yes" onClick={() => { dispatch({ type: 'REST_TO_NEXT_DAY' }); setConfirmRest(false); }}>确认休息</button></div></div></div>}{prepOpen && <ExpeditionPrepOverlay state={state} dispatch={dispatch} onClose={() => setPrepOpen(false)} />}</main>;
+  const showAdventureMenu = state.page !== 'expedition' && state.page !== 'settings' && state.page !== 'settlement';
+  return (
+    <main className={`app-shell ${showAdventureMenu ? 'with-adventure-menu' : ''}`}>
+      <header className="topbar">
+        <button className="brand-home" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>
+          <span className="eyebrow">边境远征队 · 第一版</span>
+          <strong>远征余响</strong>
+        </button>
+        <div className="topbar-actions">
+          <div className="resource">
+            <small>{state.page === 'town' ? '城镇据点' : '◆ 当前地点'}</small>
+            <strong>
+              {dayLabel(state.day)} · ◆ {state.gold} · 口粮 {state.food}
+              {state.hunger > 0 ? ` · 饥饿${state.hunger}` : ''}
+            </strong>
+          </div>
+          {state.page === 'settings' && (
+            <button className="return-town" onClick={() => dispatch({ type: 'NAVIGATE', page: 'town' })}>返回城镇</button>
+          )}
+          <button
+            className={`settings-entry ${state.page === 'settings' ? 'selected' : ''}`}
+            aria-label="设置"
+            title="设置"
+            onClick={() => dispatch({ type: 'NAVIGATE', page: 'settings' })}
+          >⚙</button>
+        </div>
+      </header>
+      <div className="game-viewport">
+        {state.page === 'town' && <Town state={state} dispatch={dispatch} onGateClick={() => setPrepOpen(true)} />}
+        {state.page === 'management' && <Management state={state} dispatch={dispatch} />}
+        {state.page === 'tavern' && <Tavern state={state} dispatch={dispatch} />}
+        {state.page === 'quarters' && <Quarters state={state} dispatch={dispatch} onRestClick={() => setConfirmRest(true)} />}
+        {state.page === 'expedition' && <Expedition state={state} dispatch={dispatch} />}
+        {state.page === 'settings' && <Settings state={state} dispatch={dispatch} />}
+        {state.page === 'settlement' && <Settlement state={state} dispatch={dispatch} />}
+      </div>
+      <BottomAdventureMenu state={state} dispatch={dispatch} />
+      {confirmRest && (
+        <div className="confirm-overlay" onClick={() => setConfirmRest(false)}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <p>上楼休息至次日？</p>
+            <small>将结束今天并进入 {dayLabel(state.day + 1)}，新的一天可以再次接取任务。</small>
+            <div className="confirm-actions">
+              <button onClick={() => setConfirmRest(false)}>取消</button>
+              <button
+                className="confirm-yes"
+                onClick={() => { dispatch({ type: 'REST_TO_NEXT_DAY' }); setConfirmRest(false); }}
+              >确认休息</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {prepOpen && <ExpeditionPrepOverlay state={state} dispatch={dispatch} onClose={() => setPrepOpen(false)} />}
+    </main>
+  );
 }

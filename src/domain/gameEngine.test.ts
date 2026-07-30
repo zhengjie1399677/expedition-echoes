@@ -23,6 +23,25 @@ describe('士气与装备', () => {
   it('装备只能在有足够金币时升级', () => { const initial = createInitialGame(); const upgraded = gameReducer(initial, { type: 'UPGRADE_GEAR', heroId: 'lan' }); expect(upgraded.roster[0].gearLevel).toBe(1); expect(upgraded.gold).toBe(70); });
 });
 
+describe('角色主动技能', () => {
+  it('岚的守望号令会降低全队压力，且每场只能使用一次', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
+    const pressured = { ...started, roster: started.roster.map((hero) => started.expedition!.formation.includes(hero.id) ? { ...hero, morale: 20 } : hero) };
+    const used = gameReducer(pressured, { type: 'USE_SKILL', heroId: 'lan' });
+    expect(used.roster.filter((hero) => used.expedition!.formation.includes(hero.id)).every((hero) => hero.morale === 12)).toBe(true);
+    expect(used.expedition?.skillUses.lan).toBe(true);
+    expect(gameReducer(used, { type: 'USE_SKILL', heroId: 'lan' }).roster[0].morale).toBe(12);
+  });
+  it('雾与星罗的技能会造成伤害，但不绕开普通攻击的击杀结算', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
+    const wuUsed = gameReducer(started, { type: 'USE_SKILL', heroId: 'wu', enemyId: 'scout' });
+    expect(wuUsed.expedition?.enemies.find((enemy) => enemy.id === 'scout')?.hp).toBeLessThan(started.expedition!.enemies.find((enemy) => enemy.id === 'scout')!.hp);
+    const nearlyDefeated = { ...started, expedition: { ...started.expedition!, enemies: started.expedition!.enemies.map((enemy) => ({ ...enemy, hp: 1 })) } };
+    const xingluoUsed = gameReducer(nearlyDefeated, { type: 'USE_SKILL', heroId: 'xingluo' });
+    expect(xingluoUsed.expedition?.enemies.every((enemy) => enemy.hp === 1)).toBe(true);
+  });
+});
+
 describe('等级与经验', () => {
   it('一级升二级需要 30 经验', () => { expect(experienceToNextLevel(1)).toBe(30); });
   it('升级会保留溢出经验并提高、补充生命', () => { const hero = { ...createInitialGame().roster[0], hp: 20 }; const leveled = gainExperience(hero, 35); expect(leveled.level).toBe(2); expect(leveled.experience).toBe(5); expect(leveled.maxHp).toBe(35); expect(leveled.hp).toBe(23); });
@@ -174,7 +193,8 @@ describe('食物消耗与饥饿', () => {
     const restNode = gameReducer(atNode1, { type: 'ADVANCE' });
     expect(restNode.expedition?.supplies.food).toBe(3); // rest node doesn't consume
     
-    const atNode2: GameState = { ...restNode, expedition: { ...restNode.expedition!, enemies: [] } };
+    const resolvedEvent = gameReducer(restNode, { type: 'RESOLVE_EVENT', eventId: 'supply-room', choiceId: 'recover' });
+    const atNode2: GameState = { ...resolvedEvent, expedition: { ...resolvedEvent.expedition!, enemies: [] } };
     const combatNode = gameReducer(atNode2, { type: 'ADVANCE' });
     expect(combatNode.expedition?.supplies.food).toBe(2); // combat node consumes 1
   });
@@ -186,7 +206,8 @@ describe('食物消耗与饥饿', () => {
     const atNode1: GameState = { ...started, expedition: { ...started.expedition!, enemies: [] } };
     const restNode = gameReducer(atNode1, { type: 'ADVANCE' });
     expect(restNode.hunger).toBe(1);
-    const atNode2: GameState = { ...restNode, expedition: { ...restNode.expedition!, enemies: [] } };
+    const resolvedEvent = gameReducer(restNode, { type: 'RESOLVE_EVENT', eventId: 'supply-room', choiceId: 'recover' });
+    const atNode2: GameState = { ...resolvedEvent, expedition: { ...resolvedEvent.expedition!, enemies: [] } };
     const combatNode = gameReducer(atNode2, { type: 'ADVANCE' });
     expect(combatNode.hunger).toBe(2);
     expect(combatNode.expedition).not.toBeNull();

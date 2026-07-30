@@ -35,6 +35,24 @@ export interface ItemDefinition {
   id: string; name: string; kind: 'consumable' | 'equipment'; description: string;
   slot?: EquipmentSlot; attack?: number; defense?: number; allowedClasses?: HeroClass[];
 }
+export interface ExpeditionEventChoice {
+  id: string;
+  label: string;
+  description: string;
+  effect: 'recover' | 'scavenge' | 'track';
+}
+export interface ExpeditionEvent {
+  id: string;
+  prompt: string;
+  choices: ExpeditionEventChoice[];
+}
+export interface ExpeditionNode {
+  kind: 'combat' | 'event';
+  title: string;
+  description: string;
+  enemyIds?: string[];
+  event?: ExpeditionEvent;
+}
 export interface Supplies { bandage: number; sedative: number; food: number }
 export interface Expedition {
   missionId: string;
@@ -46,6 +64,8 @@ export interface Expedition {
   gainedGold: number;
   gainedMaterials: MaterialInventory;
   gainedExperience: number;
+  eventResolved: boolean;
+  skillUses: Record<string, boolean>;
 }
 export interface GameSettings { moraleEnabled: boolean; llmEnabled: boolean }
 export interface SettlementState {
@@ -70,6 +90,7 @@ export type GameAction =
   | { type: 'OPEN_MANAGEMENT'; tab: ManagementTab }
   | { type: 'TOGGLE_PARTY'; heroId: string } | { type: 'UPGRADE_GEAR'; heroId: string }
   | { type: 'START_EXPEDITION'; supplies?: { food: number; bandage: number; sedative: number } } | { type: 'ATTACK'; heroId: string; enemyId?: string }
+  | { type: 'USE_SKILL'; heroId: string; enemyId?: string }
   | { type: 'ACCEPT_MISSION'; missionId: string }
   | { type: 'MOVE_PARTY'; index: number; direction: -1 | 1 }
   | { type: 'EQUIP_ITEM'; heroId: string; itemId: string }
@@ -78,6 +99,7 @@ export type GameAction =
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'SWAP'; index: number } | { type: 'USE_BANDAGE'; heroId: string }
   | { type: 'USE_SEDATIVE'; heroId: string } | { type: 'ADVANCE' }
+  | { type: 'RESOLVE_EVENT'; eventId: string; choiceId: string }
   | { type: 'RETREAT' } | { type: 'TOGGLE_MORALE' } | { type: 'TOGGLE_LLM' }
   | { type: 'REST_TO_NEXT_DAY' } | { type: 'GIVE_GIFT'; heroId: string; giftId: string } | { type: 'RESET' }
   | { type: 'CLOSE_SETTLEMENT' };

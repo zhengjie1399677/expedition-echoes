@@ -480,12 +480,23 @@ export function BattleCanvas(props: BattleCanvasProps) {
   }, []);
 
   useEffect(() => {
-    sceneRef.current?.updateState(props);
-  }, [props]);
+    // 拆分依赖：之前用整个 props，每次父组件 render 都会触发 scene.updateState；
+    // 现在仅依赖真正影响场景渲染的字段，减少 Phaser scene 内部重建。
+    sceneRef.current?.updateState({
+      party: props.party,
+      enemies: props.enemies,
+      targetEnemyId: props.targetEnemyId,
+      nodeIndex: props.nodeIndex,
+      counterTargetId: props.counterTargetId,
+      canHeroAttack: props.canHeroAttack,
+      onAttack: props.onAttack,
+      onSelectEnemy: props.onSelectEnemy,
+    });
+  }, [props.party, props.enemies, props.targetEnemyId, props.nodeIndex, props.counterTargetId, props.canHeroAttack, props.onAttack, props.onSelectEnemy]);
 
   useEffect(() => {
     if (props.attackRequest) sceneRef.current?.requestAttack(props.attackRequest.heroId);
   }, [props.attackRequest]);
 
-  return <div className="phaser-battle-shell" ref={hostRef} aria-label="远征战斗场景" />;
+  return <div className="phaser-battle-shell" ref={hostRef} aria-label="远征战斗场景" role="img" tabIndex={0} />;
 }

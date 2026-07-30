@@ -1,4 +1,6 @@
-# 《远征余响》开发指南
+# 《远征余响》开发指南（历史技术参考）
+
+> 本文保留早期技术细节。项目当前唯一生效的整体规范为 [PROJECT_DEVELOPMENT_GUIDE.md](PROJECT_DEVELOPMENT_GUIDE.md)；如两者冲突，以整体规范为准。
 
 > 面向后续维护、功能扩展和与 Mobile-Tavern / SillyTavern 的集成。
 
@@ -352,4 +354,3 @@ interface LlmCapabilities {
 - 控制台无新错误。
 - UI 不遮挡底栏、对话框或关键角色信息。
 - 外部 LLM 不可用时仍可继续游戏。
-

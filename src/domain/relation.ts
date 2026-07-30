@@ -7,7 +7,8 @@ export function relationReducer(state: GameState, action: GameAction): GameState
     case 'GIVE_GIFT': {
       const hero = state.roster.find((item) => item.id === action.heroId);
       const gift = giftDefinitions.find((item) => item.id === action.giftId);
-      if (!hero || !gift) return state;
+      if (!hero) return addLog(state, '未找到这名队员。');
+      if (!gift) return addLog(state, '未找到该礼物。');
       if ((state.inventory[gift.id] ?? 0) <= 0) return addLog(state, '没有该礼物可赠送。');
       if ((state.giftsGivenToday[hero.id] ?? 0) >= 1) return addLog(state, `今天已经给${hero.name}送过礼物了。`);
       const matched = gift.tags.some((tag) => hero.preferredGiftTags.includes(tag));
