@@ -69,7 +69,7 @@ function Town({ state, dispatch, onGateClick }: { state: GameState; dispatch: Re
         <strong>旅途酒馆</strong>
         <span>招募 · 任务 · 补给</span>
       </button>
-      <button className="map-hotspot hotspot-plaza location-marker" aria-label="打开中央广场集市" onClick={() => setMarketOpen(true)}>
+      <button className="map-hotspot hotspot-plaza" aria-label="打开中央广场集市" onClick={() => setMarketOpen(true)}>
         <span className="beacon-ring" />
         <strong>中央广场</strong>
         <span>集市 · 礼物 · 装备</span>
@@ -311,8 +311,8 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
     })}</div></div>}
 
     {tab === 'equipment' && hero && <div className="equipment-management">
-      <aside className="equipment-heroes">{recruited.map((member) => <button key={member.id} className={member.id === hero.id ? 'active' : ''} onClick={() => setHeroId(member.id)}><span>{member.name.slice(0, 1)}</span><div><strong>{member.name}</strong><small>Lv.{member.level} · {heroClassNames[member.heroClass]}</small></div></button>)}</aside>
-      <div className="equipment-detail"><header><div><small>当前角色</small><h3>{hero.name}</h3></div><div className="equipment-summary"><span>攻击加成 <b>+{bonuses.attack}</b></span><span>伤害减免 <b>+{bonuses.defense}</b></span></div></header>
+      <aside className="equipment-heroes">{recruited.map((member) => <button key={member.id} className={member.id === hero.id ? 'active' : ''} onClick={() => setHeroId(member.id)}><img src={quartersPortraits[member.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt="" /><div><strong>{member.name}</strong><small>Lv.{member.level} · {heroClassNames[member.heroClass]}</small></div></button>)}</aside>
+      <div className="equipment-detail"><header><div className="equipment-character"><img key={hero.id} src={quartersPortraits[hero.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt={`${hero.name}的装备立绘`} /><div><small>当前角色</small><h3>{hero.name}</h3></div></div><div className="equipment-summary"><span>攻击加成 <b>+{bonuses.attack}</b></span><span>伤害减免 <b>+{bonuses.defense}</b></span></div></header>
         <div className="equipment-slots">{(['weapon', 'armor', 'accessory'] as EquipmentSlot[]).map((slot) => {
           const currentId = hero.equipment[slot]; const current = itemDefinitions.find((item) => item.id === currentId);
           return <section key={slot}><header><strong>{equipmentSlotNames[slot]}</strong>{current && <button onClick={() => dispatch({ type: 'UNEQUIP_ITEM', heroId: hero.id, slot })}>卸下</button>}</header><div className="equipped-item">{current ? <><b>{current.name}</b><span>{current.description}</span></> : <span>未装备</span>}</div><div className="equipment-options">{equipmentItems.filter((item) => item.slot === slot && (!item.allowedClasses || item.allowedClasses.includes(hero.heroClass))).map((item) => {

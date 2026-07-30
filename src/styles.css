@@ -955,3 +955,14 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
 
 /* 让城镇保持一张完整插画的同时，具备远景、中景与前景层。 */
 .town-sun-haze{position:absolute;z-index:0;inset:0;pointer-events:none;background:radial-gradient(ellipse at 78% 17%,rgba(255,232,166,.4),transparent 30%),linear-gradient(112deg,transparent 48%,rgba(255,220,151,.13) 62%,transparent 78%);mix-blend-mode:screen;animation:townHaze 9s ease-in-out infinite alternate}.town-distance-mist{position:absolute;z-index:0;left:-8%;right:-8%;bottom:18%;height:19%;pointer-events:none;opacity:.5;background:radial-gradient(ellipse at 15% 100%,rgba(255,244,220,.72),transparent 46%),radial-gradient(ellipse at 70% 100%,rgba(255,239,207,.62),transparent 48%);filter:blur(13px);animation:townMist 15s ease-in-out infinite alternate}.town-foreground{position:absolute;z-index:2;inset:auto 0 0;height:23%;pointer-events:none;overflow:hidden;background:linear-gradient(0deg,rgba(44,23,17,.42),transparent 78%)}.town-foreground i{position:absolute;bottom:-10%;width:18%;height:78%;border-radius:55% 45% 0 0;background:radial-gradient(ellipse at 50% 100%,rgba(52,29,20,.72),rgba(77,43,23,.38) 52%,transparent 70%);filter:blur(.2px)}.town-foreground i:nth-child(1){left:-4%;transform:scale(1.3)}.town-foreground i:nth-child(2){left:22%;height:58%;opacity:.68}.town-foreground i:nth-child(3){right:19%;height:63%;opacity:.6}.town-foreground i:nth-child(4){right:-5%;transform:scale(1.45)}@keyframes townHaze{from{opacity:.55;transform:translateX(-1%)}to{opacity:.95;transform:translateX(1%)}}@keyframes townMist{from{transform:translateX(-1.5%);opacity:.35}to{transform:translateX(1.5%);opacity:.62}}@media(prefers-reduced-motion:reduce){.town-sun-haze,.town-distance-mist{animation:none}}
+
+/* Lightweight scene labels: beacon dot plus text, without a plaque. */
+.map-hotspot strong,.map-hotspot span,.plaza-hotspot strong,.plaza-hotspot span{padding:1px 4px;border:0;border-radius:0;background:none;text-shadow:0 2px 4px #160b07,0 0 8px #160b07}
+.map-hotspot:hover strong,.map-hotspot:hover span,.plaza-hotspot:hover strong,.plaza-hotspot:hover span{background:none}
+
+/* Make equipment character switching visible through portrait changes. */
+.equipment-heroes>button{grid-template-columns:46px 1fr}
+.equipment-heroes>button>img{width:42px;height:52px;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 3px 3px rgba(92,59,39,.24))}
+.equipment-character{display:flex;align-items:end;gap:12px}
+.equipment-character>img{width:78px;height:100px;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 5px 5px rgba(92,59,39,.28));animation:equipmentPortraitIn .2s ease-out}
+@keyframes equipmentPortraitIn{from{opacity:.25;transform:translateX(-6px)}to{opacity:1;transform:none}}
