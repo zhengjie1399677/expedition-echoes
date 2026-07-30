@@ -44,11 +44,11 @@ export const affinityStage = (affinity: number): AffinityStage => {
   return stage;
 };
 export const initialHeroes: Hero[] = [
-  { id: 'lan', name: '岚', heroClass: 'vanguard', maxHp: 32, hp: 32, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '寡言克制的前哨守卫，把每次冒险都当作必须平安带人回来的职责', affinity: 0, preferredGiftTags: ['文化', '贵重'] },
-  { id: 'wu', name: '雾', heroClass: 'ranger', maxHp: 24, hp: 24, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '爱开玩笑的游侠，总能先找到退路；真正紧张时反而说得更多', affinity: 0, preferredGiftTags: ['饮食', '自然'] },
-  { id: 'xingluo', name: '星罗', heroClass: 'mage', maxHp: 19, hp: 19, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '从星辉塔跑出来的年轻术士，把危险遗迹当成难得的研究现场', affinity: 0, preferredGiftTags: ['神秘', '自然'] },
-  { id: 'cheng', name: '澄', heroClass: 'medic', maxHp: 25, hp: 25, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '温和克制，留意每个人的状态', affinity: 0, preferredGiftTags: ['文化', '自然'] },
-  { id: 'yan', name: '砚', heroClass: 'vanguard', maxHp: 35, hp: 35, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '沉默强硬，把承诺看得比报酬重要', affinity: 0, preferredGiftTags: ['饮食', '贵重'] },
+  { id: 'lan', name: '岚', heroClass: 'vanguard', maxHp: 32, hp: 32, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '寡言克制的前哨守卫，把每次冒险都当作必须平安带人回来的职责', affinity: 0, preferredGiftTags: ['文化', '贵重'], story: '嵐出生於北方哨防重鎮，年少時曾在漫天風沙中目睹過無數守衛者一去不返。她繼承了父親遺留的守望長槍，發誓要將每位與她出征的同伴平安帶回。性格沉穩冷靜，不善言辭，但其可靠的身影總是巍然屹立在隊伍的最前線，是最值得信賴的盾牌。' },
+  { id: 'wu', name: '雾', heroClass: 'ranger', maxHp: 24, hp: 24, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '爱开玩笑的游侠，总能先找到退路；真正紧张时反而说得更多', affinity: 0, preferredGiftTags: ['饮食', '自然'], story: '霧曾是一名在邊境林地中自由穿行的遊俠。他擁有極高的射擊天現與敏銳的直覺，卻總是擺出一副散漫、開溜至上的態度。然而真正到了險境，他的榆木獵弓射出的每一支箭都精準而致命。據說他愛開玩笑只是為了掩蓋內心的緊張。' },
+  { id: 'xingluo', name: '星罗', heroClass: 'mage', maxHp: 19, hp: 19, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '从星辉塔跑出来的年轻术士，把危险遗迹当成难得的研究现场', affinity: 0, preferredGiftTags: ['神秘', '自然'], story: '星羅是星輝塔有史以來最年輕的術士，卻因受夠了高塔上教條、沉悶的學術氛圍，偷偷帶走古老星盤逃到了邊境。對她而言，危險的遺迹並非禁地，而是最好的「星光魔法實驗室」。她對未知事物有著近乎狂熱的好奇心。' },
+  { id: 'cheng', name: '澄', heroClass: 'medic', maxHp: 25, hp: 25, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '温和克制，留意每个人的状态', affinity: 0, preferredGiftTags: ['文化', '自然'], story: '澄是遊歷各方的隨隊醫師，曾獨自深入疫病蔓延的村落。她溫和謙遜，對待傷患有著極佳的耐心。澄能精準留意到戰場上每個隊員的精神波動與傷情，她那散發柔和光芒的治療術，是遠征隊在漫漫黑夜中最溫暖的慰藉。' },
+  { id: 'yan', name: '砚', heroClass: 'vanguard', maxHp: 35, hp: 35, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '沉默强硬，把承诺看得比报酬重要', affinity: 0, preferredGiftTags: ['饮食', '贵重'], story: '硯是遊蕩於荒野的僱傭兵，以沉默寡言和超高的任務完成率聞名。他不在乎正義、名譽或公會的教條，只在乎約定好的金幣報酬以及他親口許下的承諾。一旦承諾護送，即便身死，他也絕不退後半步。' },
 ];
 export const itemDefinitions: ItemDefinition[] = [
   { id: 'bandage', name: '绷带', kind: 'consumable', description: '远征时恢复 9 点生命。' },

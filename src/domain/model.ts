@@ -20,6 +20,7 @@ export interface Hero {
   id: string; name: string; heroClass: HeroClass; maxHp: number; hp: number;
   morale: number; gearLevel: number; level: number; experience: number;
   equipment: HeroEquipment; recruited: boolean; personality: string; affinity: number; preferredGiftTags: string[];
+  story?: string;
 }
 export interface Enemy {
   id: string; name: string; maxHp: number; hp: number; distance: number;

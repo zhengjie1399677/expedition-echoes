@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { affinityStage, craftingRecipes, dayLabel, giftDefinitions, heroClassDescriptions, heroClassNames, itemDefinitions, marketPrices, materialName, materialSellPrices, missionOpinions, missions, nodesForMission, rarityColors, rarityNames } from '../content/gameContent';
+import { affinityStage, craftingRecipes, dayLabel, giftDefinitions, heroClassDescriptions, heroClassNames, initialHeroes, itemDefinitions, marketPrices, materialName, materialSellPrices, missionOpinions, missions, nodesForMission, rarityColors, rarityNames } from '../content/gameContent';
 import { availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gameReducer, pressureStage } from '../domain/gameEngine';
 import type { Enemy, EquipmentSlot, GameAction, GameState, Hero, Rarity, SettlementState } from '../domain/model';
 import { narrativeService, playerPlaceholder } from '../infrastructure/llm';
@@ -137,9 +137,14 @@ const postExpeditionGreeting = (heroId: string, log: string) => {
 function Management({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<GameAction> }) {
   const tab = state.managementTab;
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'food' | 'equipment' | 'material'>('all');
+  const [showStory, setShowStory] = useState(false);
   const managementTitle = tab === 'party' ? '队伍编成' : tab === 'equipment' ? '角色装备' : tab === 'craft' ? '装备打造' : '旅行背包';
   const recruited = state.roster.filter((hero) => hero.recruited);
   const [heroId, setHeroId] = useState(state.selectedHeroIds[0] ?? recruited[0]?.id ?? '');
+  const handleHeroChange = (id: string) => {
+    setHeroId(id);
+    setShowStory(false);
+  };
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
   const ownedItems = useMemo(() => itemDefinitions.filter((item) => (state.inventory[item.id] ?? 0) > 0), [state.inventory]);
   const equipmentItems = useMemo(() => itemDefinitions.filter((item) => item.kind === 'equipment'), []);
@@ -210,9 +215,26 @@ function Management({ state, dispatch }: { state: GameState; dispatch: React.Dis
     </div>}
 
     {tab === 'inventory' && <div className="inventory-panel inventory-with-loadout">
-      {hero && <aside className="inventory-loadout">
-        <div className="loadout-hero-switch" aria-label="切换查看角色">{recruited.map((member) => <button key={member.id} className={member.id === hero.id ? 'active' : ''} onClick={() => setHeroId(member.id)}>{member.name}</button>)}</div>
-        <div className="loadout-portrait"><img src={quartersPortraits[hero.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt={`${hero.name}的日常立绘`} /><div><strong>{hero.name}</strong><span>{heroClassNames[hero.heroClass]} · Lv.{hero.level}</span></div></div>
+      {hero && <aside className={`inventory-loadout ${showStory ? 'story-active' : ''}`}>
+        <div className="loadout-hero-switch" aria-label="切换查看角色">{recruited.map((member) => <button key={member.id} className={member.id === hero.id ? 'active' : ''} onClick={() => handleHeroChange(member.id)}>{member.name}</button>)}</div>
+        <div className={`loadout-portrait ${showStory ? 'show-story' : ''}`}>
+          <div className="portrait-front">
+            <img src={quartersPortraits[hero.id] ?? '/assets/actors-v2/scout-idle-v2.png'} alt={`${hero.name}的日常立绘`} />
+            <div className="portrait-nameplate"><strong>{hero.name}</strong><span>{heroClassNames[hero.heroClass]} · Lv.{hero.level}</span></div>
+            <button className="view-story-btn" onClick={() => setShowStory(true)}>📖 故事</button>
+          </div>
+          <div className="portrait-back">
+            <div className="story-header">
+              <strong>{hero.name} · {heroClassNames[hero.heroClass]}</strong>
+              <small>生平传记</small>
+            </div>
+            <div className="story-content">
+              <p className="personality-box"><strong>性格倾向：</strong>{hero.personality}</p>
+              <p className="biography-box">{hero.story ?? initialHeroes.find((h: Hero) => h.id === hero.id)?.story ?? '这个角色在边境留下了许多传说，但详情尚待发掘。'}</p>
+            </div>
+            <button className="view-portrait-btn" onClick={() => setShowStory(false)}>👤 立绘</button>
+          </div>
+        </div>
         <div className="loadout-vitals"><span>生命 <b>{hero.hp}/{hero.maxHp}</b></span><span className={`pressure-state ${pressureStage(hero.morale).tone}`}>压力 <b>{hero.morale}/100 · {pressureStage(hero.morale).name}</b></span></div>
         <div className="loadout-slots">{(['weapon', 'armor', 'accessory'] as EquipmentSlot[]).map((slot) => { const equipped = itemDefinitions.find((item) => item.id === hero.equipment[slot]); return <button key={slot} onClick={() => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'equipment' })}><small>{equipmentSlotNames[slot]}</small><strong>{equipped?.name ?? '未装备'}</strong><span>{equipped ? equipped.description : '点击前往装备管理'}</span></button>; })}</div>
       </aside>}
