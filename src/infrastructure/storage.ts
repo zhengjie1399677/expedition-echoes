@@ -175,6 +175,8 @@ export function loadGame(): GameState | null {
     if (!parsed.inventory && parsed.expedition && supplies) {
       migratedInventory.bandage = Math.max(0, migratedInventory.bandage - num(supplies.bandage, 0));
       migratedInventory.sedative = Math.max(0, migratedInventory.sedative - num(supplies.sedative, 0));
+      migratedInventory['fire-bomb'] = Math.max(0, (migratedInventory['fire-bomb'] ?? 0) - num(supplies.fireBomb, 0));
+      migratedInventory['shield-elixir'] = Math.max(0, (migratedInventory['shield-elixir'] ?? 0) - num(supplies.shieldElixir, 0));
     }
 
     const exp = (parsed.expedition && typeof parsed.expedition === 'object') ? parsed.expedition : null;
@@ -183,13 +185,25 @@ export function loadGame(): GameState | null {
 
     const settingsObj = (parsed.settings && typeof parsed.settings === 'object') ? (parsed.settings as unknown as Record<string, unknown>) : {};
 
+    // 补全在 initialHeroes 中存在但存档中缺失的新英雄（例如新加入的澄和砚）
+    const loadedRoster = Array.isArray(parsed.roster)
+      ? parsed.roster.map(cleanHero).filter(Boolean) as Hero[]
+      : [];
+    initialHeroes.forEach((initial) => {
+      if (!loadedRoster.some((h) => h.id === initial.id)) {
+        loadedRoster.push({
+          ...initial,
+          equipment: { ...initial.equipment },
+          reactions: { ...initial.reactions },
+        });
+      }
+    });
+
     const state: GameState = {
       version: 12,
       page: parsed.page ?? 'town',
       gold: num(parsed.gold, 100),
-      roster: Array.isArray(parsed.roster)
-        ? parsed.roster.map(cleanHero).filter(Boolean) as Hero[]
-        : [],
+      roster: loadedRoster,
       inventory: cleanRecord(parsed.inventory ?? migratedInventory),
       selectedHeroIds: Array.isArray(parsed.selectedHeroIds) ? parsed.selectedHeroIds.filter((id): id is string => typeof id === 'string') : [],
       selectedMissionId: typeof parsed.selectedMissionId === 'string' ? parsed.selectedMissionId : '',
@@ -201,11 +215,15 @@ export function loadGame(): GameState | null {
                   food: num(expSupplies?.food, 0),
                   bandage: num(expSupplies?.bandage, 0),
                   sedative: num(expSupplies?.sedative, 0),
+                  fireBomb: num(expSupplies?.fireBomb, 0),
+                  shieldElixir: num(expSupplies?.shieldElixir, 0),
                 },
                 startSupplies: {
                   food: num(expStartSupplies?.food, expSupplies?.food ?? 0),
                   bandage: num(expStartSupplies?.bandage, expSupplies?.bandage ?? 0),
                   sedative: num(expStartSupplies?.sedative, expSupplies?.sedative ?? 0),
+                  fireBomb: num(expStartSupplies?.fireBomb, expSupplies?.fireBomb ?? 0),
+                  shieldElixir: num(expStartSupplies?.shieldElixir, expSupplies?.shieldElixir ?? 0),
                 },
                 enemies: Array.isArray(exp.enemies)
                   ? exp.enemies.map(cleanEnemy).filter(Boolean) as Enemy[]

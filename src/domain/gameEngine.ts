@@ -30,7 +30,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'RECRUIT':
     case 'UPGRADE_GEAR': return partyReducer(state, action);
     case 'ATTACK':
-    case 'USE_SKILL': return combatReducer(state, action);
+    case 'USE_SKILL':
+    case 'USE_FIRE_BOMB':
+    case 'USE_SHIELD_ELIXIR': return combatReducer(state, action);
     case 'START_EXPEDITION':
     case 'SWAP':
     case 'USE_BANDAGE':

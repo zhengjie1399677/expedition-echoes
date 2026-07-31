@@ -153,7 +153,9 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
       const party = state.expedition.formation
         .map((id) => state.roster.find((h) => h.id === id))
         .filter((h): h is Hero => Boolean(h));
-      const rawDamage = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party);
+      const isCrit = Math.random() < 0.12;
+      const baseDmg = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party);
+      const rawDamage = isCrit ? Math.ceil(baseDmg * 1.5) : baseDmg;
       const armorReduction = enemy.trait === 'rock-armor' ? 2 : 0;
       const damage = Math.max(1, rawDamage - armorReduction);
       const nextEnemy = { ...enemy, hp: Math.max(0, enemy.hp - damage) };
@@ -193,7 +195,7 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
         return addLog(next, `${hero.name}击败了敌人。${experienceLog}战斗结束，队伍获得战利品${dropLine}。`);
       }
       
-      let logMsg = `${hero.name}对${enemy.name}造成 ${damage} 点伤害。${armorReduction ? `岩甲抵消了 ${armorReduction} 点伤害。` : ''}${experienceLog}`;
+      let logMsg = `${isCrit ? '暴击！' : ''}${hero.name}对${enemy.name}造成 ${damage} 点伤害。${armorReduction ? `岩甲抵消了 ${armorReduction} 点伤害。` : ''}${experienceLog}`;
       if (enemy.trait === 'thorns') {
         next = editHero(next, hero.id, (attacker) => ({
           ...attacker,
@@ -222,7 +224,8 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
             const damageRed = (isVanguard && isFrontRow) ? BALANCE.vanguardDamageReduction : 0;
             const packBonus = attacker.trait === 'pack' && survivingAttackers.filter((item) => item.trait === 'pack').length > 1 ? 2 : 0;
             const ancientCoreBonus = attacker.trait === 'ancient-core' && attacker.hp <= attacker.maxHp / 2 ? 3 : 0;
-            const incomingDmg = Math.max(1, attacker.damage + packBonus + ancientCoreBonus - equipmentBonuses(target).defense - damageRed);
+            const shieldElixirBonus = next.expedition!.shieldBuffs[targetId] ? 3 : 0;
+            const incomingDmg = Math.max(1, attacker.damage + packBonus + ancientCoreBonus - equipmentBonuses(target).defense - damageRed - shieldElixirBonus);
             const sporePressure = attacker.trait === 'spores' ? 5 : 0;
             return {
               ...target,
@@ -287,6 +290,86 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
       }
       
       return addLog(next, logMsg);
+    }
+    case 'USE_FIRE_BOMB': {
+      if (!state.expedition || state.expedition.supplies.fireBomb < 1) return addLog(state, '火焰瓶已经用完。');
+      const enemies = state.expedition.enemies;
+      if (!enemies.some((e) => e.hp > 0)) return addLog(state, '当前遭遇已结束。');
+      
+      const enemy = enemies.find((e) => e.id === action.enemyId && e.hp > 0) ?? enemies.find((e) => e.hp > 0);
+      if (!enemy) return state;
+
+      const damage = 8;
+      const nextEnemy = { ...enemy, hp: Math.max(0, enemy.hp - damage) };
+      
+      let next: GameState = {
+        ...state,
+        expedition: {
+          ...state.expedition,
+          supplies: {
+            ...state.expedition.supplies,
+            fireBomb: state.expedition.supplies.fireBomb - 1
+          },
+          enemies: state.expedition.enemies.map((item) => item.id === enemy.id ? nextEnemy : item)
+        }
+      };
+
+      const defeatedEnemy = enemy.hp > 0 && nextEnemy.hp === 0;
+      const experienceReward = defeatedEnemy ? enemyExperienceReward(enemy) : 0;
+      const previousLevels = new Map(next.roster.map((item) => [item.id, item.level]));
+      
+      if (experienceReward > 0) {
+        const formation = new Set(next.expedition!.formation);
+        next = {
+          ...next,
+          roster: next.roster.map((item) => formation.has(item.id) ? gainExperience(item, experienceReward) : item),
+          expedition: {
+            ...next.expedition!,
+            gainedExperience: next.expedition!.gainedExperience + experienceReward
+          }
+        };
+      }
+      
+      const leveledHeroes = next.roster.filter((item) => item.level > (previousLevels.get(item.id) ?? item.level)).map((item) => `${item.name}升至 ${item.level} 级`);
+      const experienceLog = defeatedEnemy ? `全队获得 ${experienceReward} 经验${leveledHeroes.length > 0 ? `，${leveledHeroes.join('、')}` : ''}。` : '';
+      
+      const defeatedAll = next.expedition!.enemies.every((item) => item.hp <= 0);
+      if (defeatedAll) {
+        const drops = rollDrops(state.expedition.enemies);
+        const nextExpedition = {
+          ...next.expedition!,
+          gainedGold: next.expedition!.gainedGold + BALANCE.lootGoldPerEnemy * state.expedition.enemies.length,
+          gainedMaterials: addMaterials(next.expedition!.gainedMaterials, drops)
+        };
+        next = { ...next, expedition: nextExpedition };
+        const dropLine = drops.length ? `，拾获战利品 ${drops.map((d) => describeMaterial(d.typeId, d.rarity)).join('、')}` : '';
+        return addLog(next, `投掷火焰瓶击败了${enemy.name}。${experienceLog}战斗结束，队伍获得战利品${dropLine}。`);
+      }
+      
+      return addLog(next, `投掷火焰瓶对${enemy.name}造成 ${damage} 点无视防御伤害。${experienceLog}`);
+    }
+    case 'USE_SHIELD_ELIXIR': {
+      if (!state.expedition || state.expedition.supplies.shieldElixir < 1) return addLog(state, '铁壁药丸已经用完。');
+      const hero = state.roster.find((item) => item.id === action.heroId);
+      const heroIndex = state.expedition.formation.indexOf(action.heroId);
+      if (!hero || heroIndex < 0 || hero.hp <= 0) return addLog(state, '无法使用药丸：目标队员状态无效。');
+      if (state.expedition.shieldBuffs[action.heroId]) return addLog(state, `${hero.name}已经处于铁壁增益状态中。`);
+
+      const next: GameState = {
+        ...state,
+        expedition: {
+          ...state.expedition,
+          supplies: {
+            ...state.expedition.supplies,
+            shieldElixir: state.expedition.supplies.shieldElixir - 1
+          },
+          shieldBuffs: {
+            ...state.expedition.shieldBuffs,
+            [action.heroId]: true
+          }
+        }
+      };
+      return addLog(next, `${hero.name}服下铁壁药丸，获得伤害减免效果（防御力临时 +3，本场战斗有效）。`);
     }
     default: return state;
   }

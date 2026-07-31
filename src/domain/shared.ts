@@ -20,6 +20,8 @@ export function returnExpeditionSupplies(state: GameState): GameState {
       ...state.inventory,
       bandage: (state.inventory.bandage ?? 0) + state.expedition.supplies.bandage,
       sedative: (state.inventory.sedative ?? 0) + state.expedition.supplies.sedative,
+      'fire-bomb': (state.inventory['fire-bomb'] ?? 0) + state.expedition.supplies.fireBomb,
+      'shield-elixir': (state.inventory['shield-elixir'] ?? 0) + state.expedition.supplies.shieldElixir,
     },
   };
 }

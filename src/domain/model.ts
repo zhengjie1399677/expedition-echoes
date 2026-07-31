@@ -58,7 +58,7 @@ export interface ExpeditionNode {
   enemyIds?: string[];
   event?: ExpeditionEvent;
 }
-export interface Supplies { bandage: number; sedative: number; food: number }
+export interface Supplies { bandage: number; sedative: number; food: number; fireBomb: number; shieldElixir: number }
 export interface Expedition {
   missionId: string;
   nodeIndex: number;
@@ -71,11 +71,12 @@ export interface Expedition {
   gainedExperience: number;
   eventResolved: boolean;
   skillUses: Record<string, boolean>;
+  shieldBuffs: Record<string, boolean>;
 }
 export interface GameSettings { moraleEnabled: boolean; llmEnabled: boolean }
 export interface SettlementState {
   outcome: 'victory' | 'retreat' | 'defeated';
-  consumedSupplies: { food: number; bandage: number; sedative: number };
+  consumedSupplies: { food: number; bandage: number; sedative: number; fireBomb: number; shieldElixir: number };
   lootGold: number;
   lootMaterials: MaterialInventory;
   gainedExperience: number;
@@ -103,7 +104,7 @@ export type GameAction =
   | { type: 'NAVIGATE'; page: Page } | { type: 'RECRUIT'; heroId: string }
   | { type: 'OPEN_MANAGEMENT'; tab: ManagementTab }
   | { type: 'TOGGLE_PARTY'; heroId: string } | { type: 'UPGRADE_GEAR'; heroId: string }
-  | { type: 'START_EXPEDITION'; supplies?: { food: number; bandage: number; sedative: number } } | { type: 'ATTACK'; heroId: string; enemyId?: string }
+  | { type: 'START_EXPEDITION'; supplies?: { food: number; bandage: number; sedative: number; fireBomb?: number; shieldElixir?: number } } | { type: 'ATTACK'; heroId: string; enemyId?: string }
   | { type: 'USE_SKILL'; heroId: string; enemyId?: string }
   | { type: 'ACCEPT_MISSION'; missionId: string }
   | { type: 'MOVE_PARTY'; index: number; direction: -1 | 1 }
@@ -117,7 +118,9 @@ export type GameAction =
   | { type: 'RESOLVE_EVENT'; eventId: string; choiceId: string }
   | { type: 'RETREAT' } | { type: 'TOGGLE_MORALE' } | { type: 'TOGGLE_LLM' }
   | { type: 'REST_TO_NEXT_DAY' } | { type: 'GIVE_GIFT'; heroId: string; giftId: string } | { type: 'RESET' }
-  | { type: 'CLOSE_SETTLEMENT' } | { type: 'CLOSE_DAY_REPORT' };
+  | { type: 'CLOSE_SETTLEMENT' } | { type: 'CLOSE_DAY_REPORT' }
+  | { type: 'USE_FIRE_BOMB'; heroId: string; enemyId?: string }
+  | { type: 'USE_SHIELD_ELIXIR'; heroId: string };
 
 export interface SkillDefinition {
   id: string;

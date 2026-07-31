@@ -1,6 +1,8 @@
 [
   { "id": "bandage", "name": "绷带", "kind": "consumable", "description": "远征时恢复 9 点生命。" },
   { "id": "sedative", "name": "镇定剂", "kind": "consumable", "description": "远征时降低 25 点士气压力。" },
+  { "id": "fire-bomb", "name": "火焰瓶", "kind": "consumable", "description": "远征中投掷，造成 8 点无视防御的固定伤害。" },
+  { "id": "shield-elixir", "name": "铁壁药丸", "kind": "consumable", "description": "远征中使用，令目标本场战斗伤害减免 +3。" },
   { "id": "vanguard-spear", "name": "守望长枪", "kind": "equipment", "slot": "weapon", "description": "先锋制式长枪。", "attack": 2, "allowedClasses": ["vanguard"] },
   { "id": "ranger-bow", "name": "白榆猎弓", "kind": "equipment", "slot": "weapon", "description": "轻巧而稳定的远射武器。", "attack": 2, "allowedClasses": ["ranger"] },
   { "id": "star-staff", "name": "星辉法杖", "kind": "equipment", "slot": "weapon", "description": "引导星术的晶石法杖。", "attack": 2, "allowedClasses": ["mage"] },

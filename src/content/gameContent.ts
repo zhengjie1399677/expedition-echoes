@@ -93,9 +93,11 @@ export const marketPrices: Record<string, number> = {
   'vanguard-spear': 36, 'ranger-bow': 36, 'star-staff': 40,
   'field-mail': 42, 'warded-coat': 38, 'echo-charm': 32,
   wildflower: 5, ale: 8, 'old-book': 15, charm: 40,
+  'fire-bomb': 15, 'shield-elixir': 18,
 };
 export const initialInventory: Record<string, number> = {
-  bandage: 5, sedative: 2, 'vanguard-spear': 1, 'ranger-bow': 1, 'star-staff': 1,
+  bandage: 5, sedative: 2, 'fire-bomb': 2, 'shield-elixir': 2,
+  'vanguard-spear': 1, 'ranger-bow': 1, 'star-staff': 1,
   'field-mail': 1, 'warded-coat': 1, 'echo-charm': 1,
   wildflower: 2, ale: 1, 'old-book': 1,
 };

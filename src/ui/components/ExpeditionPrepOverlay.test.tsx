@@ -90,12 +90,12 @@ describe('ExpeditionPrepOverlay 组件', () => {
     expect(dispatch).toHaveBeenCalledOnce();
     expect(dispatch).toHaveBeenCalledWith({
       type: 'START_EXPEDITION',
-      supplies: { food: 2, bandage: 1, sedative: 0 },
+      supplies: { food: 2, bandage: 1, sedative: 0, fireBomb: 0, shieldElixir: 0 },
     });
 
     // 验证 localStorage 是否缓存了配置
     const cached = JSON.parse(localStorage.getItem('last_expedition_supplies') || '{}');
-    expect(cached).toEqual({ food: 2, bandage: 1, sedative: 0 });
+    expect(cached).toEqual({ food: 2, bandage: 1, sedative: 0, fireBomb: 0, shieldElixir: 0 });
 
     // 验证 onClose 是否调用
     expect(onClose).toHaveBeenCalledOnce();

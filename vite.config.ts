@@ -6,14 +6,16 @@ const pagesBase = '/expedition-echoes/';
 function prefixRuntimePublicAssets(): Plugin {
   return {
     name: 'prefix-runtime-public-assets',
-    apply: 'build',
-    renderChunk(code) {
+    transform(code, id) {
+      // 只处理 React/TS/CSS 源码，跳过 node_modules 与虚拟模块
+      if (id.includes('node_modules') || id.startsWith('\0')) return null;
       if (!code.includes('/assets/')) return null;
 
-      return {
-        code: code.replaceAll('/assets/', `${pagesBase}assets/`),
-        map: null,
-      };
+      const replaced = code.replaceAll(
+        '/assets/',
+        `${pagesBase}assets/`,
+      );
+      return { code: replaced, map: null };
     },
   };
 }

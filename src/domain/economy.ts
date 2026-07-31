@@ -22,6 +22,8 @@ export function parseRarityKey(key: string): { typeId: string; rarity: Rarity; c
   return { typeId, rarity: rarity as Rarity, count: 0 };
 }
 
+
+
 // 把 expedition.gainedMaterials 的 key 形式转成结构化列表，便于 addMaterials 复用。
 export function materialsFromInventory(inventory: MaterialInventory): { typeId: string; rarity: Rarity; count: number }[] {
   const out: { typeId: string; rarity: Rarity; count: number }[] = [];
@@ -57,6 +59,8 @@ export function settleExpedition(
     food: state.expedition.startSupplies.food - state.expedition.supplies.food,
     bandage: state.expedition.startSupplies.bandage - state.expedition.supplies.bandage,
     sedative: state.expedition.startSupplies.sedative - state.expedition.supplies.sedative,
+    fireBomb: state.expedition.startSupplies.fireBomb - state.expedition.supplies.fireBomb,
+    shieldElixir: state.expedition.startSupplies.shieldElixir - state.expedition.supplies.shieldElixir,
   };
   const settlement: SettlementState = { outcome, consumedSupplies: consumed, lootGold, lootMaterials, gainedExperience };
   const missionTitle = missions.find((mission) => mission.id === state.expedition!.missionId)?.title;

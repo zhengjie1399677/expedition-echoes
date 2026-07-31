@@ -16,6 +16,8 @@ const skillDetails: Record<string, { name: string; hint: string }> = {
   lan: { name: '守望号令', hint: '全队压力 -8' },
   wu: { name: '贯风箭', hint: '无视距离，伤害 +3' },
   xingluo: { name: '星辉爆裂', hint: '全体敌人各受 6 伤害' },
+  cheng: { name: '治愈之光', hint: '恢复虚弱队友 12 点生命' },
+  yan: { name: '钢铁意志', hint: '自身压力 -6' },
 };
 
 const enemyTraitDetails: Record<NonNullable<Enemy['trait']>, { name: string; hint: string }> = {
@@ -120,6 +122,8 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
           <span className="expedition-tools-label">远征补给</span>
           <span className="expedition-tool"><b>绷带</b><em>× {run.supplies.bandage}</em></span>
           <span className="expedition-tool"><b>镇定剂</b><em>× {run.supplies.sedative}</em></span>
+          <span className="expedition-tool"><b>火焰瓶</b><em>× {run.supplies.fireBomb}</em></span>
+          <span className="expedition-tool"><b>铁壁药丸</b><em>× {run.supplies.shieldElixir}</em></span>
         </div>
         <section className="tactical-consult" aria-label="队员战术咨询">
           <div>
@@ -195,6 +199,18 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
                   )}
                   <button onClick={() => dispatch({ type: 'USE_BANDAGE', heroId: hero.id })}>绷带</button>
                   <button onClick={() => dispatch({ type: 'USE_SEDATIVE', heroId: hero.id })}>镇定</button>
+                  <button
+                    disabled={run.supplies.fireBomb < 1 || hero.hp <= 0 || !selectedEnemy}
+                    onClick={() => dispatch({ type: 'USE_FIRE_BOMB', heroId: hero.id, enemyId: selectedEnemy?.id })}
+                  >
+                    火焰瓶
+                  </button>
+                  <button
+                    disabled={run.supplies.shieldElixir < 1 || hero.hp <= 0 || !!run.shieldBuffs[hero.id]}
+                    onClick={() => dispatch({ type: 'USE_SHIELD_ELIXIR', heroId: hero.id })}
+                  >
+                    {run.shieldBuffs[hero.id] ? '已铁壁' : '铁壁药'}
+                  </button>
                   {index < party.length - 1 && <button onClick={() => dispatch({ type: 'SWAP', index })}>换位</button>}
                 </div>
               </article>

@@ -19,6 +19,7 @@ const ACTORS: Record<string, string> = {
   lan: '/assets/pixel/lan-vanguard-idle-v2.png',
   wu: '/assets/pixel/wu-archer-idle-v3.png',
   xingluo: '/assets/pixel/xingluo-mage-idle-v3.png',
+  cheng: '/assets/pixel/cheng-medic-idle-v1.png',
   scout: '/assets/actors-v2/scout-idle-v2.png',
   'ash-wolf': '/assets/enemies/forest-v1/ash-wolf-v1.png',
   'thorn-stag': '/assets/enemies/forest-v1/thorn-stag-v1.png',
@@ -31,6 +32,7 @@ const ACTION_ACTORS: Record<string, string> = {
   lan: '/assets/pixel/lan-vanguard-attack-v1.png',
   wu: '/assets/pixel/wu-archer-attack-v1.png',
   xingluo: '/assets/pixel/xingluo-mage-cast-v1.png',
+  cheng: '/assets/pixel/cheng-medic-cast-v1.png',
 };
 
 const LAN_RIG_PARTS: Record<string, string> = {
@@ -38,14 +40,14 @@ const LAN_RIG_PARTS: Record<string, string> = {
 };
 
 const CHARACTER_HEIGHTS: Record<string, number> = {
-  lan: 0.3, wu: 0.31, xingluo: 0.31, scout: 0.32,
+  lan: 0.3, wu: 0.31, xingluo: 0.31, cheng: 0.31, scout: 0.32,
   'ash-wolf': 0.2, 'thorn-stag': 0.31, 'spore-beast': 0.28, 'rock-lizard': 0.22, 'grove-guardian': 0.48,
 };
 const IDLE_FOOT_ORIGIN_Y: Record<string, number> = {
-  lan: 1, wu: 0.933, xingluo: 0.969, scout: 0.974,
+  lan: 1, wu: 0.933, xingluo: 0.969, cheng: 0.95, scout: 0.974,
   'ash-wolf': 0.96, 'thorn-stag': 0.96, 'spore-beast': 0.96, 'rock-lizard': 0.96, 'grove-guardian': 0.96,
 };
-const ACTION_FOOT_ORIGIN_Y: Record<string, number> = { lan: 0.918, wu: 0.929, xingluo: 0.944 };
+const ACTION_FOOT_ORIGIN_Y: Record<string, number> = { lan: 0.918, wu: 0.929, xingluo: 0.944, cheng: 0.93 };
 type CombatVisual = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 const actorIdForEnemy = (enemy: Enemy) => enemy.id.replace(/-\d+$/, '');
 const visualWidth = (visual: CombatVisual) => visual instanceof Phaser.GameObjects.Container ? visual.getBounds().width : visual.displayWidth;
@@ -270,7 +272,11 @@ class ExpeditionBattleScene extends Phaser.Scene {
     const targetX = this.enemySprite.x - this.enemySprite.displayWidth * 0.28;
     const baseScaleX = sprite.getData('baseScaleX') as number;
     const baseScaleY = sprite.getData('baseScaleY') as number;
-    if (sprite instanceof Phaser.GameObjects.Image) sprite.setTexture('actor-action-lan').setOrigin(.5, ACTION_FOOT_ORIGIN_Y.lan);
+    if (sprite instanceof Phaser.GameObjects.Image) {
+      const actionKey = ACTION_ACTORS[hero.id] ? `actor-action-${hero.id}` : 'actor-action-lan';
+      const originY = ACTION_FOOT_ORIGIN_Y[hero.id] ?? ACTION_FOOT_ORIGIN_Y.lan;
+      sprite.setTexture(actionKey).setOrigin(0.5, originY);
+    }
     const attackParts = sprite instanceof Phaser.GameObjects.Container ? sprite.getData('attackParts') as Phaser.GameObjects.Image[] : [];
     this.tweens.add({ targets: attackParts, angle: -12, duration: 130, ease: 'Quad.Out' });
     this.tweens.add({
@@ -280,7 +286,11 @@ class ExpeditionBattleScene extends Phaser.Scene {
         this.tweens.add({
           targets: sprite, x: originX, scaleX: baseScaleX, scaleY: baseScaleY, duration: 430, ease: 'Cubic.Out',
           onComplete: () => {
-            if (sprite instanceof Phaser.GameObjects.Image) sprite.setTexture('actor-lan').setOrigin(.5, IDLE_FOOT_ORIGIN_Y.lan);
+            if (sprite instanceof Phaser.GameObjects.Image) {
+              const actorKey = ACTORS[hero.id] ? `actor-${hero.id}` : 'actor-lan';
+              const originY = IDLE_FOOT_ORIGIN_Y[hero.id] ?? 1;
+              sprite.setTexture(actorKey).setOrigin(0.5, originY);
+            }
             this.tweens.add({ targets: attackParts, angle: 0, duration: 150 });
             this.playIdle(sprite, index);
             this.busy = false;

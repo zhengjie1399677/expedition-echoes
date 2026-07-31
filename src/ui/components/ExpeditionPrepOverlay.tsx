@@ -40,8 +40,28 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
     } catch (e) {}
     return 0;
   });
+  const [carryFireBomb, setCarryFireBomb] = useState(() => {
+    try {
+      const saved = localStorage.getItem('last_expedition_supplies');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Math.min(parsed.fireBomb ?? 0, state.inventory['fire-bomb'] ?? 0);
+      }
+    } catch (e) {}
+    return 0;
+  });
+  const [carryShieldElixir, setCarryShieldElixir] = useState(() => {
+    try {
+      const saved = localStorage.getItem('last_expedition_supplies');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Math.min(parsed.shieldElixir ?? 0, state.inventory['shield-elixir'] ?? 0);
+      }
+    } catch (e) {}
+    return 0;
+  });
 
-  const totalSlots = carryFood + carryBandage + carrySedative;
+  const totalSlots = carryFood + carryBandage + carrySedative + carryFireBomb + carryShieldElixir;
   const isTeamValid = state.selectedHeroIds.length >= 2;
 
   const handleStart = () => {
@@ -50,10 +70,21 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
       localStorage.setItem('last_expedition_supplies', JSON.stringify({
         food: carryFood,
         bandage: carryBandage,
-        sedative: carrySedative
+        sedative: carrySedative,
+        fireBomb: carryFireBomb,
+        shieldElixir: carryShieldElixir
       }));
     } catch (e) {}
-    dispatch({ type: 'START_EXPEDITION', supplies: { food: carryFood, bandage: carryBandage, sedative: carrySedative } });
+    dispatch({
+      type: 'START_EXPEDITION',
+      supplies: {
+        food: carryFood,
+        bandage: carryBandage,
+        sedative: carrySedative,
+        fireBomb: carryFireBomb,
+        shieldElixir: carryShieldElixir
+      }
+    });
     onClose();
   };
 
@@ -130,6 +161,30 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
                 <button aria-label="减少镇定剂" disabled={carrySedative <= 0} onClick={() => setCarrySedative(s => s - 1)}>-</button>
                 <span className="carry-val">{carrySedative}</span>
                 <button aria-label="增加镇定剂" disabled={carrySedative >= (state.inventory.sedative ?? 0) || totalSlots >= 10} onClick={() => setCarrySedative(s => s + 1)}>+</button>
+              </div>
+            </div>
+
+            <div className="supply-control-row">
+              <div className="supply-label-col">
+                <strong>火焰瓶</strong>
+                <small>城镇库存: {state.inventory['fire-bomb'] ?? 0}</small>
+              </div>
+              <div className="supply-btn-group">
+                <button aria-label="减少火焰瓶" disabled={carryFireBomb <= 0} onClick={() => setCarryFireBomb(s => s - 1)}>-</button>
+                <span className="carry-val">{carryFireBomb}</span>
+                <button aria-label="增加火焰瓶" disabled={carryFireBomb >= (state.inventory['fire-bomb'] ?? 0) || totalSlots >= 10} onClick={() => setCarryFireBomb(s => s + 1)}>+</button>
+              </div>
+            </div>
+
+            <div className="supply-control-row">
+              <div className="supply-label-col">
+                <strong>铁壁药丸</strong>
+                <small>城镇库存: {state.inventory['shield-elixir'] ?? 0}</small>
+              </div>
+              <div className="supply-btn-group">
+                <button aria-label="减少铁壁药丸" disabled={carryShieldElixir <= 0} onClick={() => setCarryShieldElixir(s => s - 1)}>-</button>
+                <span className="carry-val">{carryShieldElixir}</span>
+                <button aria-label="增加铁壁药丸" disabled={carryShieldElixir >= (state.inventory['shield-elixir'] ?? 0) || totalSlots >= 10} onClick={() => setCarryShieldElixir(s => s + 1)}>+</button>
               </div>
             </div>
           </section>

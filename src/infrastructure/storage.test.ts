@@ -164,7 +164,7 @@ describe('存档加载与迁移', () => {
       materials: { 'ruin-shard:2': 1 },
       settlement: {
         outcome: 'victory',
-        consumedSupplies: { food: 1, bandage: 0, sedative: 0 },
+        consumedSupplies: { food: 1, bandage: 0, sedative: 0, fireBomb: 0, shieldElixir: 0 },
         lootGold: 50,
         lootMaterials: { 'ruin-shard:0': 2 },
         gainedExperience: 30,
@@ -175,6 +175,19 @@ describe('存档加载与迁移', () => {
     expect(loaded?.materials['ruin-shard:2']).toBe(1);
     expect(loaded?.settlement?.outcome).toBe('victory');
     expect(loaded?.settlement?.lootMaterials['ruin-shard:0']).toBe(2);
+  });
+
+  it('当存档中缺失 initialHeroes 的某个英雄时，加载时能自动补充', () => {
+    const state = createInitialGame();
+    // 过滤掉 'cheng' 和 'yan'
+    state.roster = state.roster.filter((hero) => hero.id !== 'cheng' && hero.id !== 'yan');
+    saveGame(state);
+    
+    const loaded = loadGame();
+    expect(loaded).not.toBeNull();
+    // 应该被自动补全
+    expect(loaded?.roster.some((hero) => hero.id === 'cheng')).toBe(true);
+    expect(loaded?.roster.some((hero) => hero.id === 'yan')).toBe(true);
   });
 
   describe('存档防抖 (Debounce)', () => {

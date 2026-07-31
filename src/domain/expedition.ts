@@ -1,5 +1,5 @@
 import { missions, nodesForMission } from '../content/gameContent';
-import type { Enemy, GameAction, GameState } from './model';
+import type { Enemy, GameAction, GameState, Hero } from './model';
 import { addLog, enemyById } from './shared';
 import { addMaterials, describeMaterial, materialKey, settleExpedition } from './economy';
 import { BALANCE } from './config';
@@ -21,6 +21,7 @@ function enterNode(state: GameState, nodeIndex: number): GameState {
       nodeIndex,
       eventResolved: !isEvent,
       skillUses: {},
+      shieldBuffs: {},
       supplies: nextSupplies,
       enemies: [] as Enemy[]
     }
@@ -49,16 +50,24 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
       const food = action.supplies?.food ?? Math.min(2, state.food);
       const bandage = action.supplies?.bandage ?? Math.min(3, state.inventory.bandage ?? 0);
       const sedative = action.supplies?.sedative ?? Math.min(1, state.inventory.sedative ?? 0);
+      const fireBomb = action.supplies?.fireBomb ?? 0;
+      const shieldElixir = action.supplies?.shieldElixir ?? 0;
 
-      const totalSupplies = food + bandage + sedative;
+      const totalSupplies = food + bandage + sedative + fireBomb + shieldElixir;
       if (totalSupplies > BALANCE.suppliesCap) {
         return addLog(state, `出征行囊空间不足（最多携带 ${BALANCE.suppliesCap} 件补给品）。`);
       }
-      if (food > state.food || bandage > (state.inventory.bandage ?? 0) || sedative > (state.inventory.sedative ?? 0)) {
+      if (
+        food > state.food ||
+        bandage > (state.inventory.bandage ?? 0) ||
+        sedative > (state.inventory.sedative ?? 0) ||
+        fireBomb > (state.inventory['fire-bomb'] ?? 0) ||
+        shieldElixir > (state.inventory['shield-elixir'] ?? 0)
+      ) {
         return addLog(state, '携带的补给品数量超过了城镇库存。');
       }
       
-      const supplies = { food, bandage, sedative };
+      const supplies = { food, bandage, sedative, fireBomb, shieldElixir };
       const prepared: GameState = {
         ...state,
         page: 'expedition',
@@ -66,7 +75,9 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
         inventory: {
           ...state.inventory,
           bandage: (state.inventory.bandage ?? 0) - bandage,
-          sedative: (state.inventory.sedative ?? 0) - sedative
+          sedative: (state.inventory.sedative ?? 0) - sedative,
+          'fire-bomb': (state.inventory['fire-bomb'] ?? 0) - fireBomb,
+          'shield-elixir': (state.inventory['shield-elixir'] ?? 0) - shieldElixir,
         },
         roster: state.roster.map((hero) => state.selectedHeroIds.includes(hero.id) ? { ...hero, hp: hero.maxHp, morale: 0 } : hero),
         expedition: {
@@ -78,9 +89,10 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
           startSupplies: { ...supplies },
           gainedGold: 0,
           gainedMaterials: {},
-          gainedExperience: 0
-          ,eventResolved: false
-          ,skillUses: {}
+          gainedExperience: 0,
+          eventResolved: false,
+          skillUses: {},
+          shieldBuffs: {},
         },
       };
       return enterNode(prepared, 0);

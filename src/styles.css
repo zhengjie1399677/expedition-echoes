@@ -1005,8 +1005,12 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
 }
 
 /* 3. 各种对话框/结算单/整备弹窗弹性微放大 */
-.confirm-dialog, .day-report-sheet, .prep-dialog, .quest-dialog, .quest-parchment {
+.confirm-dialog, .day-report-sheet, .prep-dialog, .quest-dialog {
   animation: dialogZoomIn 0.32s cubic-bezier(0.34, 1.45, 0.64, 1) both;
+  will-change: transform, opacity;
+}
+.quest-parchment {
+  animation: parchmentZoomIn 0.32s cubic-bezier(0.34, 1.45, 0.64, 1) both;
   will-change: transform, opacity;
 }
 
@@ -1018,6 +1022,17 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes parchmentZoomIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.93) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) translateY(0);
   }
 }
 
@@ -1062,8 +1077,14 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
   .confirm-dialog, .day-report-sheet, .prep-dialog, .quest-dialog, .quest-parchment,
   .tavern-roster-drawer, .market-stall-panel {
     animation: simpleFadeIn 0.2s ease-out both !important;
-    transform: none !important;
     will-change: auto !important;
+  }
+  .confirm-dialog, .day-report-sheet, .prep-dialog, .quest-dialog,
+  .tavern-roster-drawer, .market-stall-panel {
+    transform: none !important;
+  }
+  .quest-parchment {
+    transform: translate(-50%, -50%) !important;
   }
 }
 
@@ -1303,8 +1324,14 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
   .confirm-dialog, .day-report-sheet, .prep-dialog, .quest-dialog, .quest-parchment,
   .tavern-roster-drawer, .market-stall-panel {
     animation: simpleFadeIn 0.2s ease-out both !important;
-    transform: none !important;
     will-change: auto !important;
+  }
+  .confirm-dialog, .day-report-sheet, .prep-dialog, .quest-dialog,
+  .tavern-roster-drawer, .market-stall-panel {
+    transform: none !important;
+  }
+  .quest-parchment {
+    transform: translate(-50%, -50%) !important;
   }
   .loadout-portrait {
     transform: none !important;

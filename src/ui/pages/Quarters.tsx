@@ -14,6 +14,7 @@ const quartersPortraits: Record<string, string> = {
   lan: '/assets/portraits-dorm/lan-dorm-v2.png',
   wu: '/assets/portraits-dorm/wu-dorm-v2.png',
   xingluo: '/assets/portraits-dorm/xingluo-dorm-v2.png',
+  cheng: '/assets/portraits-dorm/cheng-dorm-v2.png',
   scout: '/assets/actors/scout-v1.png',
 };
 
@@ -21,12 +22,13 @@ const quartersGreetings: Record<string, string> = {
   lan: '还没休息吗？进来吧，我正好在整理明天要带的东西。',
   wu: '门没锁。要聊聊今天在路上看到的事吗？',
   xingluo: '来得正好，我刚把星盘收起来。今晚的天象很安静。',
+  cheng: '请进吧，需要热茶或者包扎伤口吗？我刚整理好药箱。',
 };
 
 const postExpeditionGreeting = (heroId: string, log: string) => {
-  if (log.includes('远征完成')) return { lan: '回来就好。先把伤口和补给清点完，别急着庆祝。', wu: '这次路没白走。队长，下次我们要不要试试另一条岔路？', xingluo: '封印的回声还在耳边……但我们确实带回了新的线索。' }[heroId];
-  if (log.includes('提前撤回')) return { lan: '及时撤回是正确判断。活着回来，才有下一次远征。', wu: '我就知道队长不会把撤退当成丢脸的事。下次换个走法。', xingluo: '虽然没能看完，但那些痕迹不会消失。我们准备好再去。' }[heroId];
-  if (log.includes('体力竭')) return { lan: '别勉强说话，先休息。责任不该只落在一个人身上。', wu: '我把门关好了。今晚不谈遗迹，只谈怎么把大家养回来。', xingluo: '是我太急了……不过，能回来就还有重新计算的机会。' }[heroId];
+  if (log.includes('远征完成')) return { lan: '回来就好。先把伤口和补给清点完，别急着庆祝。', wu: '这次路没白走。队长，下次我们要不要试试另一条岔路？', xingluo: '封印的回声还在耳边……但我们确实带回了新的线索。', cheng: '大家都平安回来了，这就是最好的消息。伤口片刻就能治好。' }[heroId];
+  if (log.includes('提前撤回')) return { lan: '及时撤回是正确判断。活着回来，才有下一次远征。', wu: '我就知道队长不会把撤退当成丢脸的事。下次换个走法。', xingluo: '虽然没能看完，但那些痕迹不会消失。我们准备好再去。', cheng: '队长做出了明智的选择。队员们的健康和安全永远是第一位的。' }[heroId];
+  if (log.includes('体力竭')) return { lan: '别勉强说话，先休息。责任不该只落在一个人身上。', wu: '我把门关好了。今晚不谈遗迹，只谈怎么把大家养回来。', xingluo: '是我太急了……不过，能回来就还有重新计算的机会。', cheng: '伤得这么重……别担心，有我在，快躺下休息，我会用药草帮大家疗伤。' }[heroId];
   return undefined;
 };
 
