@@ -1,0 +1,38 @@
+[
+  {
+    "id": "border-echoes",
+    "title": "边境回声",
+    "summary": "调查遗迹道路上的异常脚步，并确认封印门厅是否安全。",
+    "difficulty": 1,
+    "reward": 45,
+    "enemyWaves": { "0": ["scout", "warden"], "2": ["warden", "scout"], "4": ["gatekeeper", "warden", "scout"] },
+    "materialRewards": [{ "typeId": "ruin-shard", "rarity": 0, "count": 2 }]
+  },
+  {
+    "id": "rusted-patrol",
+    "title": "锈甲巡逻队",
+    "summary": "一支失控的守卫队正在截断商路，需要正面突破。",
+    "difficulty": 2,
+    "reward": 62,
+    "enemyWaves": { "0": ["warden", "scout"], "2": ["scout", "warden"], "4": ["gatekeeper", "warden"] },
+    "materialRewards": [{ "typeId": "rust-iron", "rarity": 1, "count": 1 }, { "typeId": "ruin-shard", "rarity": 1, "count": 1 }]
+  },
+  {
+    "id": "sealed-gate",
+    "title": "封门异响",
+    "summary": "封印深处传来连续回声，公会要求带回完整调查记录。",
+    "difficulty": 3,
+    "reward": 84,
+    "enemyWaves": { "0": ["scout", "warden"], "2": ["gatekeeper", "scout", "warden"], "4": ["gatekeeper", "warden", "scout"] },
+    "materialRewards": [{ "typeId": "ruin-shard", "rarity": 2, "count": 1 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }]
+  },
+  {
+    "id": "forest-disturbance",
+    "title": "林地异变",
+    "summary": "城镇外的古道被异化生物占据，追踪孢子源头并平息古树圣所。",
+    "difficulty": 2,
+    "reward": 76,
+    "enemyWaves": { "0": ["ash-wolf", "ash-wolf"], "2": ["spore-beast", "rock-lizard", "thorn-stag"], "4": ["grove-guardian"] },
+    "materialRewards": [{ "typeId": "ruin-shard", "rarity": 1, "count": 2 }]
+  }
+]

@@ -100,4 +100,41 @@ describe('narrative provider adapters', () => {
     expect(result.errorKind).toBe('timeout');
     expect(result.text).toContain('响应超时');
   });
+
+  it('uses direct API fetch when provider is direct', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '“今晚星空格外明朗。”' } }]
+      })
+    });
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
+
+    narrativeService.provider = 'direct';
+    const state = createInitialGame();
+    const result = await narrativeService.chat(state.roster[0], state, [], '在看星星吗？');
+
+    expect(result).toBe('今晚星空格外明朗。');
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const fetchArgs = fetchMock.mock.calls[0];
+    expect(fetchArgs[0]).toBe('http://localhost:11434/v1/chat/completions');
+    expect(JSON.parse(fetchArgs[1].body).messages.at(-1)).toEqual({ role: 'user', content: '在看星星吗？' });
+
+    Reflect.deleteProperty(globalThis, 'fetch');
+  });
+
+  it('direct API network failure triggers fallback and classifies as network error', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
+
+    narrativeService.provider = 'direct';
+    const state = createInitialGame();
+    const result = await narrativeService.chatWithStatus(state.roster[0], state, [], '你好');
+
+    expect(result.ok).toBe(false);
+    expect(result.errorKind).toBe('network');
+    expect(result.text).toContain('网络异常');
+
+    Reflect.deleteProperty(globalThis, 'fetch');
+  });
 });

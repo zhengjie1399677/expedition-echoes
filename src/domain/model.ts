@@ -21,6 +21,8 @@ export interface Hero {
   morale: number; gearLevel: number; level: number; experience: number;
   equipment: HeroEquipment; recruited: boolean; personality: string; affinity: number; preferredGiftTags: string[];
   story?: string;
+  skillId: string;
+  reactions: Record<'victory' | 'retreat' | 'defeated' | 'idle', string>;
 }
 export interface Enemy {
   id: string; name: string; maxHp: number; hp: number; distance: number;
@@ -116,3 +118,13 @@ export type GameAction =
   | { type: 'RETREAT' } | { type: 'TOGGLE_MORALE' } | { type: 'TOGGLE_LLM' }
   | { type: 'REST_TO_NEXT_DAY' } | { type: 'GIVE_GIFT'; heroId: string; giftId: string } | { type: 'RESET' }
   | { type: 'CLOSE_SETTLEMENT' } | { type: 'CLOSE_DAY_REPORT' };
+
+export interface SkillDefinition {
+  id: string;
+  name: string;
+  description: string;
+  effect: {
+    type: 'morale_recovery' | 'single_damage' | 'all_damage' | 'heal_single';
+    value: number;
+  };
+}

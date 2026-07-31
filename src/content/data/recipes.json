@@ -1,0 +1,8 @@
+[
+  { "id": "craft-spear", "resultItemId": "vanguard-spear", "goldCost": 20, "materials": [{ "typeId": "ruin-shard", "rarity": 0, "count": 3 }, { "typeId": "rust-iron", "rarity": 0, "count": 2 }] },
+  { "id": "craft-bow", "resultItemId": "ranger-bow", "goldCost": 20, "materials": [{ "typeId": "ruin-shard", "rarity": 0, "count": 3 }, { "typeId": "rust-iron", "rarity": 1, "count": 1 }] },
+  { "id": "craft-staff", "resultItemId": "star-staff", "goldCost": 25, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 2 }, { "typeId": "rust-iron", "rarity": 0, "count": 3 }] },
+  { "id": "craft-mail", "resultItemId": "field-mail", "goldCost": 30, "materials": [{ "typeId": "rust-iron", "rarity": 1, "count": 3 }, { "typeId": "ruin-shard", "rarity": 0, "count": 2 }] },
+  { "id": "craft-coat", "resultItemId": "warded-coat", "goldCost": 25, "materials": [{ "typeId": "rust-iron", "rarity": 0, "count": 4 }, { "typeId": "ruin-shard", "rarity": 1, "count": 1 }] },
+  { "id": "craft-charm", "resultItemId": "echo-charm", "goldCost": 35, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 3 }, { "typeId": "rust-iron", "rarity": 1, "count": 1 }] }
+]

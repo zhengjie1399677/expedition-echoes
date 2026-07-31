@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameState } from '../domain/model';
 import { createInitialGame } from '../domain/gameEngine';
-import { clearGame, loadGame, saveGame } from './storage';
+import { clearGame, loadGame, saveGame, saveGameDebounced, flushSaveGame } from './storage';
 
 const KEY = 'expedition-echoes.save.v12';
 const V5_KEY = 'expedition-echoes.save.v5';
@@ -175,5 +175,60 @@ describe('存档加载与迁移', () => {
     expect(loaded?.materials['ruin-shard:2']).toBe(1);
     expect(loaded?.settlement?.outcome).toBe('victory');
     expect(loaded?.settlement?.lootMaterials['ruin-shard:0']).toBe(2);
+  });
+
+  describe('存档防抖 (Debounce)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('调用 saveGameDebounced 时不会立即写入 localStorage，时间推进后才写入，且多次调用只写最后一次', () => {
+      const state1 = { ...createInitialGame(), gold: 500 };
+      const state2 = { ...createInitialGame(), gold: 999 };
+
+      saveGameDebounced(state1, 400);
+      expect(storage.getItem(KEY)).toBeNull(); // 尚未写入
+
+      // 200ms 后依然未写入
+      vi.advanceTimersByTime(200);
+      expect(storage.getItem(KEY)).toBeNull();
+
+      // 在 400ms 内再次调用，重置计时器并更新写入内容
+      saveGameDebounced(state2, 400);
+
+      // 再过 300ms (累计 500ms)，因为重置了 400ms 计时器，所以应该仍然没有写入
+      vi.advanceTimersByTime(300);
+      expect(storage.getItem(KEY)).toBeNull();
+
+      // 再过 100ms (累计 600ms，距第二次调用满 400ms)，触发写入，且内容是第二次的 state2
+      vi.advanceTimersByTime(100);
+      const loaded = loadGame();
+      expect(loaded).not.toBeNull();
+      expect(loaded?.gold).toBe(999);
+    });
+
+    it('调用 flushSaveGame 时应立刻写入最新的挂起状态，且清除后续定时器', () => {
+      const state = { ...createInitialGame(), gold: 777 };
+
+      saveGameDebounced(state, 400);
+      expect(storage.getItem(KEY)).toBeNull();
+
+      // 立即刷入
+      flushSaveGame();
+      const loaded = loadGame();
+      expect(loaded).not.toBeNull();
+      expect(loaded?.gold).toBe(777);
+
+      // 清理存储以检查定时器是否被撤销
+      storage.clear();
+
+      // 推进 500ms，不应再次触发写入
+      vi.advanceTimersByTime(500);
+      expect(storage.getItem(KEY)).toBeNull();
+    });
   });
 });

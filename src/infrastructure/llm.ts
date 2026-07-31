@@ -1,7 +1,9 @@
 import type { GameState, Hero } from '../domain/model';
 import { affinityStage } from '../content/gameContent';
+import { InfrastructureLlmProviderError } from '../domain/errors';
+import { callDirectLlmApi } from './api';
 
-export type NarrativeProvider = 'auto' | 'mobile-tavern' | 'sillytavern';
+export type NarrativeProvider = 'auto' | 'mobile-tavern' | 'sillytavern' | 'direct';
 export type NarrativeErrorKind = 'network' | 'timeout' | 'provider-unavailable' | 'invalid-input' | 'unknown';
 export interface NarrativeChatResult { text: string; errorKind?: NarrativeErrorKind; ok: boolean }
 export interface NarrativeMessage { role: 'user' | 'assistant'; content: string }
@@ -26,7 +28,7 @@ export const playerPlaceholder = '{{user}}';
 export const PLAYER_TEXT_MAX = 240;
 export const PLAYER_TEXT_MIN = 1;
 const fallback = ['今晚先休息吧。明天的路不会因为焦虑就缩短。', '装备已经检查过两遍，剩下的事交给明天。', '至少在这里，每个人都知道彼此的名字。'];
-const providerNames = { auto: '自动选择', 'mobile-tavern': 'Mobile-Tavern', sillytavern: 'SillyTavern', offline: '离线对白' } as const;
+const providerNames = { auto: '自动选择', 'mobile-tavern': 'Mobile-Tavern', sillytavern: 'SillyTavern', direct: '独立API(如Ollama)', offline: '离线对白' } as const;
 const cleanReply = (text: string): string => text.trim().replace(/^["“]+|["”]+$/g, '').trim();
 const sceneContext = (state: GameState, hero: Hero): string => {
   const party = state.expedition?.formation ?? state.selectedHeroIds;
@@ -37,6 +39,11 @@ const sceneContext = (state: GameState, hero: Hero): string => {
 };
 // 把异常归类成有限的错误类型，便于 UI 给出有针对性的提示。
 const classifyError = (error: unknown): NarrativeErrorKind => {
+  if (error instanceof InfrastructureLlmProviderError) {
+    const msg = error.message;
+    if (msg.includes('超时') || msg.includes('timeout')) return 'timeout';
+    if (msg.includes('连接') || msg.includes('网络') || msg.includes('network') || msg.includes('fetch')) return 'network';
+  }
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
     if (error.name === 'TimeoutError' || msg.includes('timeout')) return 'timeout';
@@ -71,6 +78,7 @@ const systemPrompt = (hero: Hero, state: GameState) => {
 const mobileTavernAvailable = () => typeof window !== 'undefined' && Boolean(window.MobileTavernPlugin?.llm);
 const sillyTavernAvailable = () => typeof window !== 'undefined' && Boolean(window.SillyTavern?.getContext);
 const resolveProvider = (requested: NarrativeProvider): Exclude<NarrativeProvider, 'auto'> | 'offline' => {
+  if (requested === 'direct') return 'direct';
   if (requested === 'mobile-tavern') return mobileTavernAvailable() ? 'mobile-tavern' : 'offline';
   if (requested === 'sillytavern') return sillyTavernAvailable() ? 'sillytavern' : 'offline';
   if (mobileTavernAvailable()) return 'mobile-tavern';
@@ -83,7 +91,7 @@ export const narrativeService = {
     if (typeof localStorage === 'undefined') return 'auto';
     const saved = localStorage.getItem(providerKey);
     if (saved === 'host') return 'mobile-tavern';
-    return saved === 'mobile-tavern' || saved === 'sillytavern' ? saved : 'auto';
+    return saved === 'mobile-tavern' || saved === 'sillytavern' || saved === 'direct' ? saved : 'auto';
   },
   set provider(value: NarrativeProvider) {
     if (typeof localStorage !== 'undefined') localStorage.setItem(providerKey, value);
@@ -118,6 +126,11 @@ export const narrativeService = {
       { role: 'user', content: playerText },
     ];
     try {
+      if (active === 'direct') {
+        const result = await callDirectLlmApi(systemPrompt(hero, state), history, playerText);
+        this.lastErrorKind = null;
+        return { text: cleanReply(result) || fallback[0], ok: true };
+      }
       if (active === 'mobile-tavern') {
         const result = await window.MobileTavernPlugin!.llm!.chat({ messages, sampling: { temperature: 0.8, max_tokens: 220 } });
         this.lastErrorKind = null;

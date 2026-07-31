@@ -1317,3 +1317,55 @@ body{display:grid;place-items:center;background:#101516}.app-shell{width:min(100
   }
 }
 
+/* 独立 API 配置表单样式 */
+.api-config-card {
+  display: block !important;
+}
+.api-config-form h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #2b3b38;
+  font-family: "STKaiti", "KaiTi", serif;
+}
+.api-config-desc {
+  margin: 0 0 16px !important;
+  font-size: 12px;
+  color: #6e7f77 !important;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 560px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-group label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #556c64;
+}
+.form-group input {
+  padding: 8px 12px;
+  border: 1px solid #c7b48c;
+  border-radius: 4px;
+  background: #fdfaf2;
+  color: #2b3b38;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.form-group input:focus {
+  border-color: #aa8a50;
+  box-shadow: 0 0 0 2px rgba(170, 138, 80, 0.15);
+}
+
+

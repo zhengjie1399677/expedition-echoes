@@ -1,4 +1,4 @@
-import type { GameState, Hero, Rarity } from '../domain/model';
+import type { GameState, Hero, Rarity, HeroClass, Enemy, DropEntry } from '../domain/model';
 import { initialHeroes, initialInventory } from '../content/gameContent';
 
 const KEY = 'expedition-echoes.save.v12';
@@ -66,6 +66,67 @@ const cleanBooleanRecord = (raw: unknown): Record<string, boolean> => {
   return out;
 };
 
+function cleanDrop(raw: unknown): DropEntry | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const d = raw as Record<string, unknown>;
+  if (typeof d.typeId !== 'string') return null;
+  const rarity = num(d.rarity, 0);
+  if (rarity < 0 || rarity > 4) return null;
+  return {
+    typeId: d.typeId,
+    rarity: rarity as Rarity,
+    chance: num(d.chance, 0.5),
+  };
+}
+
+function cleanEnemy(raw: unknown): Enemy | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const e = raw as Record<string, unknown>;
+  if (typeof e.id !== 'string' || typeof e.name !== 'string') return null;
+  return {
+    id: e.id,
+    name: e.name,
+    maxHp: num(e.maxHp, 10),
+    hp: num(e.hp, 10),
+    distance: num(e.distance, 1),
+    attackMinRange: num(e.attackMinRange, 1),
+    attackMaxRange: num(e.attackMaxRange, 1),
+    damage: num(e.damage, 1),
+    drops: Array.isArray(e.drops) ? e.drops.map(cleanDrop).filter(Boolean) as DropEntry[] : undefined,
+    trait: (e.trait === 'pack' || e.trait === 'thorns' || e.trait === 'spores' || e.trait === 'rock-armor' || e.trait === 'ancient-core') ? e.trait : undefined,
+  };
+}
+
+function cleanHero(raw: unknown): Hero | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const h = raw as Record<string, unknown>;
+  if (typeof h.id !== 'string' || typeof h.name !== 'string' || typeof h.heroClass !== 'string') return null;
+  const heroClass = h.heroClass as HeroClass;
+  if (heroClass !== 'vanguard' && heroClass !== 'ranger' && heroClass !== 'mage' && heroClass !== 'medic') return null;
+  
+  const base = initialHeroes.find((initial) => initial.id === h.id);
+  
+  return {
+    id: h.id,
+    name: h.name,
+    heroClass,
+    maxHp: num(h.maxHp, base?.maxHp ?? 20),
+    hp: num(h.hp, base?.hp ?? 20),
+    morale: num(h.morale, 0),
+    gearLevel: num(h.gearLevel, 0),
+    level: num(h.level, 1),
+    experience: num(h.experience, 0),
+    equipment: (h.equipment && typeof h.equipment === 'object') ? (h.equipment as any) : {},
+    recruited: typeof h.recruited === 'boolean' ? h.recruited : false,
+    personality: base?.personality ?? String(h.personality ?? ''),
+    affinity: num(h.affinity, 0),
+    preferredGiftTags: Array.isArray(h.preferredGiftTags) ? h.preferredGiftTags.filter((t): t is string => typeof t === 'string') : [],
+    story: base?.story ?? String(h.story ?? ''),
+    skillId: typeof h.skillId === 'string' ? h.skillId : base?.skillId ?? '',
+    reactions: (h.reactions && typeof h.reactions === 'object') ? (h.reactions as Hero['reactions']) : (base?.reactions ?? { victory: '', retreat: '', defeated: '', idle: '' }),
+  };
+}
+
 export function loadGame(): GameState | null {
   // 优先清理已废弃的旧版存档 key。
   try {
@@ -98,63 +159,67 @@ export function loadGame(): GameState | null {
     return null;
   }
 
-  if (parsed.version < SUPPORTED_VERSION_MIN || parsed.version > SUPPORTED_VERSION_MAX) {
+  if (!parsed || typeof parsed !== 'object') {
+    console.warn('[storage] 存档数据格式非法，已回退至新档。');
+    return null;
+  }
+
+  if (typeof parsed.version !== 'number' || !Number.isInteger(parsed.version) || parsed.version < SUPPORTED_VERSION_MIN || parsed.version > SUPPORTED_VERSION_MAX) {
     console.warn(`[storage] 存档版本 ${parsed.version} 不受支持（支持 ${SUPPORTED_VERSION_MIN}-${SUPPORTED_VERSION_MAX}）。`);
     return null;
   }
 
   try {
     const migratedInventory = { ...initialInventory };
-    const supplies = parsed.expedition?.supplies;
+    const supplies = (parsed.expedition && typeof parsed.expedition === 'object') ? parsed.expedition.supplies : null;
     if (!parsed.inventory && parsed.expedition && supplies) {
       migratedInventory.bandage = Math.max(0, migratedInventory.bandage - num(supplies.bandage, 0));
       migratedInventory.sedative = Math.max(0, migratedInventory.sedative - num(supplies.sedative, 0));
     }
+
+    const exp = (parsed.expedition && typeof parsed.expedition === 'object') ? parsed.expedition : null;
+    const expSupplies = (exp && exp.supplies && typeof exp.supplies === 'object') ? exp.supplies : null;
+    const expStartSupplies = (exp && exp.startSupplies && typeof exp.startSupplies === 'object') ? exp.startSupplies : null;
+
+    const settingsObj = (parsed.settings && typeof parsed.settings === 'object') ? (parsed.settings as unknown as Record<string, unknown>) : {};
 
     const state: GameState = {
       version: 12,
       page: parsed.page ?? 'town',
       gold: num(parsed.gold, 100),
       roster: Array.isArray(parsed.roster)
-        ? parsed.roster.map((hero) => ({
-            ...hero,
-            // 人物性格由内容表维护；旧存档保留成长数据，但更新到当前的人设版本。
-            personality: initialHeroes.find((initial) => initial.id === hero.id)?.personality ?? hero.personality,
-            level: num(hero.level, 1),
-            experience: num(hero.experience, 0),
-            equipment: hero.equipment ?? {},
-            affinity: num(hero.affinity, 0),
-            preferredGiftTags: Array.isArray(hero.preferredGiftTags) ? hero.preferredGiftTags : [],
-          }))
+        ? parsed.roster.map(cleanHero).filter(Boolean) as Hero[]
         : [],
       inventory: cleanRecord(parsed.inventory ?? migratedInventory),
       selectedHeroIds: Array.isArray(parsed.selectedHeroIds) ? parsed.selectedHeroIds.filter((id): id is string => typeof id === 'string') : [],
       selectedMissionId: typeof parsed.selectedMissionId === 'string' ? parsed.selectedMissionId : '',
       managementTab: parsed.managementTab ?? 'party',
-      expedition: parsed.expedition
+      expedition: exp
             ? {
-                ...parsed.expedition,
+                ...exp,
                 supplies: {
-                  food: num(parsed.expedition.supplies?.food, 0),
-                  bandage: num(parsed.expedition.supplies?.bandage, 0),
-                  sedative: num(parsed.expedition.supplies?.sedative, 0),
+                  food: num(expSupplies?.food, 0),
+                  bandage: num(expSupplies?.bandage, 0),
+                  sedative: num(expSupplies?.sedative, 0),
                 },
                 startSupplies: {
-                  food: num(parsed.expedition.startSupplies?.food, parsed.expedition.supplies?.food ?? 0),
-                  bandage: num(parsed.expedition.startSupplies?.bandage, parsed.expedition.supplies?.bandage ?? 0),
-                  sedative: num(parsed.expedition.startSupplies?.sedative, parsed.expedition.supplies?.sedative ?? 0),
+                  food: num(expStartSupplies?.food, expSupplies?.food ?? 0),
+                  bandage: num(expStartSupplies?.bandage, expSupplies?.bandage ?? 0),
+                  sedative: num(expStartSupplies?.sedative, expSupplies?.sedative ?? 0),
                 },
-                enemies: Array.isArray(parsed.expedition.enemies) ? parsed.expedition.enemies : [],
-                gainedGold: num(parsed.expedition.gainedGold, 0),
-                gainedMaterials: cleanMaterials(parsed.expedition.gainedMaterials),
-                gainedExperience: num(parsed.expedition.gainedExperience, 0),
-                eventResolved: parsed.expedition.eventResolved ?? false,
-                skillUses: cleanBooleanRecord(parsed.expedition.skillUses),
+                enemies: Array.isArray(exp.enemies)
+                  ? exp.enemies.map(cleanEnemy).filter(Boolean) as Enemy[]
+                  : [],
+                gainedGold: num(exp.gainedGold, 0),
+                gainedMaterials: cleanMaterials(exp.gainedMaterials),
+                gainedExperience: num(exp.gainedExperience, 0),
+                eventResolved: exp.eventResolved ?? false,
+                skillUses: cleanBooleanRecord(exp.skillUses),
               }
             : null,
       settings: {
-        moraleEnabled: parsed.settings?.moraleEnabled ?? true,
-        llmEnabled: parsed.settings?.llmEnabled ?? true,
+        moraleEnabled: typeof settingsObj.moraleEnabled === 'boolean' ? settingsObj.moraleEnabled : true,
+        llmEnabled: typeof settingsObj.llmEnabled === 'boolean' ? settingsObj.llmEnabled : true,
       },
       log: Array.isArray(parsed.log) ? parsed.log.filter((line): line is string => typeof line === 'string').slice(0, 8) : [],
       materials: cleanMaterials(parsed.materials),
@@ -164,8 +229,8 @@ export function loadGame(): GameState | null {
       food: num(parsed.food, 5),
       hunger: num(parsed.hunger, 0),
       giftsGivenToday: cleanRecord(parsed.giftsGivenToday),
-      settlement: parsed.settlement ?? null,
-      dayReport: parsed.dayReport ?? null,
+      settlement: (parsed.settlement && typeof parsed.settlement === 'object') ? parsed.settlement : null,
+      dayReport: (parsed.dayReport && typeof parsed.dayReport === 'object') ? parsed.dayReport : null,
     };
 
     // 升级后清理旧版 key，避免下次再走迁移分支。
@@ -181,6 +246,9 @@ export function loadGame(): GameState | null {
   }
 }
 
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+let latestStateToSave: GameState | null = null;
+
 export function saveGame(state: GameState): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
@@ -190,7 +258,35 @@ export function saveGame(state: GameState): void {
   }
 }
 
+export function saveGameDebounced(state: GameState, delayMs = 400): void {
+  latestStateToSave = state;
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+  }
+  saveTimeout = setTimeout(() => {
+    if (latestStateToSave) {
+      saveGame(latestStateToSave);
+      saveTimeout = null;
+      latestStateToSave = null;
+    }
+  }, delayMs);
+}
+
+export function flushSaveGame(): void {
+  if (saveTimeout && latestStateToSave) {
+    clearTimeout(saveTimeout);
+    saveGame(latestStateToSave);
+    saveTimeout = null;
+    latestStateToSave = null;
+  }
+}
+
 export function clearGame(): void {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+    latestStateToSave = null;
+  }
   try {
     [KEY, V11_KEY, V10_KEY, V9_KEY, V8_KEY, V7_KEY, V6_KEY, V5_KEY, ...LEGACY_KEYS].forEach((key) => localStorage.removeItem(key));
   } catch (error) {

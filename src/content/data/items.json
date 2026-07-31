@@ -1,0 +1,10 @@
+[
+  { "id": "bandage", "name": "绷带", "kind": "consumable", "description": "远征时恢复 9 点生命。" },
+  { "id": "sedative", "name": "镇定剂", "kind": "consumable", "description": "远征时降低 25 点士气压力。" },
+  { "id": "vanguard-spear", "name": "守望长枪", "kind": "equipment", "slot": "weapon", "description": "先锋制式长枪。", "attack": 2, "allowedClasses": ["vanguard"] },
+  { "id": "ranger-bow", "name": "白榆猎弓", "kind": "equipment", "slot": "weapon", "description": "轻巧而稳定的远射武器。", "attack": 2, "allowedClasses": ["ranger"] },
+  { "id": "star-staff", "name": "星辉法杖", "kind": "equipment", "slot": "weapon", "description": "引导星术的晶石法杖。", "attack": 2, "allowedClasses": ["mage"] },
+  { "id": "field-mail", "name": "远征锁甲", "kind": "equipment", "slot": "armor", "description": "抵消 1 点受到的伤害。", "defense": 1 },
+  { "id": "warded-coat", "name": "刻印旅行衣", "kind": "equipment", "slot": "armor", "description": "轻便且带有防护刻印。", "defense": 1 },
+  { "id": "echo-charm", "name": "回声护符", "kind": "equipment", "slot": "accessory", "description": "微弱增幅持有者的攻击。", "attack": 1 }
+]

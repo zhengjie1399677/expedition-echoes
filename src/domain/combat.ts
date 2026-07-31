@@ -1,4 +1,4 @@
-import { baseAttack, itemById } from '../content/gameContent';
+import { baseAttack, itemById, skillDefinitions } from '../content/gameContent';
 import type { Enemy, GameAction, GameState, Hero } from './model';
 import { addLog, editHero } from './shared';
 import { addMaterials, describeMaterial, rollDrops, settleExpedition } from './economy';
@@ -90,27 +90,52 @@ export function combatReducer(state: GameState, action: GameAction): GameState {
       const heroIndex = state.expedition.formation.indexOf(action.heroId);
       if (!hero || heroIndex < 0 || hero.hp <= 0) return addLog(state, '无法发动技能：队员状态无效。');
       if (state.expedition.skillUses[hero.id]) return addLog(state, `${hero.name}在这场遭遇中已经使用过技能。`);
-      const markUsed = (next: GameState) => ({ ...next, expedition: { ...next.expedition!, skillUses: { ...next.expedition!.skillUses, [hero.id]: true } } });
+
+      const skill = skillDefinitions[hero.skillId];
+      if (!skill) return addLog(state, `${hero.name}尚未掌握可用的远征技能。`);
+
+      const markUsed = (next: GameState) => ({
+        ...next,
+        expedition: {
+          ...next.expedition!,
+          skillUses: { ...next.expedition!.skillUses, [hero.id]: true }
+        }
+      });
       const partyIds = new Set(state.expedition.formation);
-      if (hero.id === 'lan') {
-        const roster = state.roster.map((item) => partyIds.has(item.id) ? { ...item, morale: Math.max(0, item.morale - 8) } : item);
-        return addLog(markUsed({ ...state, roster }), `${hero.name}发动「守望号令」，队伍的压力稍稍平复。`);
+
+      if (skill.effect.type === 'morale_recovery') {
+        const roster = state.roster.map((item) => partyIds.has(item.id) ? { ...item, morale: Math.max(0, item.morale - skill.effect.value) } : item);
+        return addLog(markUsed({ ...state, roster }), `${hero.name}发动「${skill.name}」，队伍的压力稍稍平复。`);
       }
-      if (hero.id === 'wu') {
+      
+      if (skill.effect.type === 'single_damage') {
         const enemy = state.expedition.enemies.find((item) => item.id === action.enemyId && item.hp > 0) ?? state.expedition.enemies.find((item) => item.hp > 0);
         if (!enemy) return state;
         const party = state.expedition.formation.map((id) => state.roster.find((item) => item.id === id)).filter((item): item is Hero => Boolean(item));
-        const rawDamage = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party) + 3;
+        const rawDamage = attackDamage(hero, state.settings.moraleEnabled, state.hunger, heroIndex, party) + skill.effect.value;
         const damage = Math.max(1, rawDamage - (enemy.trait === 'rock-armor' ? 2 : 0));
         // 技能不单独结算击杀奖励；保留至少 1 点生命，避免绕开普通攻击的结算与掉落流程。
         const enemies = state.expedition.enemies.map((item) => item.id === enemy.id ? { ...item, hp: Math.max(1, item.hp - damage) } : item);
-        return addLog(markUsed({ ...state, expedition: { ...state.expedition, enemies } }), `${hero.name}发动「贯风箭」，无视距离对${enemy.name}造成 ${damage} 点伤害。`);
+        return addLog(markUsed({ ...state, expedition: { ...state.expedition, enemies } }), `${hero.name}发动「${skill.name}」，无视距离对${enemy.name}造成 ${damage} 点伤害。`);
       }
-      if (hero.id === 'xingluo') {
-        // 同上，范围技能用于压低全体血线，不跳过战斗结算。
-        const enemies = state.expedition.enemies.map((item) => item.hp > 0 ? { ...item, hp: Math.max(1, item.hp - Math.max(1, 6 - (item.trait === 'rock-armor' ? 2 : 0))) } : item);
-        return addLog(markUsed({ ...state, expedition: { ...state.expedition, enemies } }), `${hero.name}发动「星辉爆裂」，对所有存活敌人造成 6 点伤害。`);
+
+      if (skill.effect.type === 'all_damage') {
+        // 范围技能用于压低全体血线，不跳过战斗结算。
+        const enemies = state.expedition.enemies.map((item) => item.hp > 0 ? { ...item, hp: Math.max(1, item.hp - Math.max(1, skill.effect.value - (item.trait === 'rock-armor' ? 2 : 0))) } : item);
+        return addLog(markUsed({ ...state, expedition: { ...state.expedition, enemies } }), `${hero.name}发动「${skill.name}」，对所有存活敌人造成 ${skill.effect.value} 点伤害。`);
       }
+
+      if (skill.effect.type === 'heal_single') {
+        const party = state.expedition.formation
+          .map((id) => state.roster.find((h) => h.id === id))
+          .filter((h): h is Hero => h !== undefined && h.hp > 0);
+        if (party.length === 0) return state;
+        const targetHero = party.reduce((min, cur) => cur.hp / cur.maxHp < min.hp / min.maxHp ? cur : min, party[0]);
+        const actualHeal = Math.min(targetHero.maxHp - targetHero.hp, skill.effect.value);
+        const roster = state.roster.map((item) => item.id === targetHero.id ? { ...item, hp: item.hp + actualHeal } : item);
+        return addLog(markUsed({ ...state, roster }), `${hero.name}对${targetHero.name}发动「${skill.name}」，恢复了 ${actualHeal} 点生命。`);
+      }
+
       return addLog(state, `${hero.name}尚未掌握可用的远征技能。`);
     }
     case 'ATTACK': {

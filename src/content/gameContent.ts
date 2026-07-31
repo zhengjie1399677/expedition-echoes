@@ -1,4 +1,11 @@
-import type { CraftingRecipe, Enemy, ExpeditionNode, Hero, HeroClass, ItemDefinition, MaterialType, Mission, Rarity } from '../domain/model';
+import type { CraftingRecipe, Enemy, ExpeditionNode, Hero, HeroClass, ItemDefinition, MaterialType, Mission, Rarity, SkillDefinition } from '../domain/model';
+
+// 导入 JSON 平衡数据
+import rawHeroes from './data/heroes.json';
+import rawItems from './data/items.json';
+import rawEnemies from './data/enemies.json';
+import rawMissions from './data/missions.json';
+import rawRecipes from './data/recipes.json';
 
 export const heroClassNames: Record<HeroClass, string> = { vanguard: '先锋', ranger: '游侠', mage: '术士', medic: '医师' };
 export const heroClassDescriptions: Record<HeroClass, string> = {
@@ -43,23 +50,41 @@ export const affinityStage = (affinity: number): AffinityStage => {
   for (const item of affinityStages) if (affinity >= item.threshold) stage = item;
   return stage;
 };
-export const initialHeroes: Hero[] = [
-  { id: 'lan', name: '岚', heroClass: 'vanguard', maxHp: 32, hp: 32, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '寡言克制的前哨守卫，把每次冒险都当作必须平安带人回来的职责', affinity: 0, preferredGiftTags: ['文化', '贵重'], story: '嵐出生於北方哨防重鎮，年少時曾在漫天風沙中目睹過無數守衛者一去不返。她繼承了父親遺留的守望長槍，發誓要將每位與她出征的同伴平安帶回。性格沉穩冷靜，不善言辭，但其可靠的身影總是巍然屹立在隊伍的最前線，是最值得信賴的盾牌。' },
-  { id: 'wu', name: '雾', heroClass: 'ranger', maxHp: 24, hp: 24, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '爱开玩笑的游侠，总能先找到退路；真正紧张时反而说得更多', affinity: 0, preferredGiftTags: ['饮食', '自然'], story: '霧曾是一名在邊境林地中自由穿行的遊俠。他擁有極高的射擊天現與敏銳的直覺，卻總是擺出一副散漫、開溜至上的態度。然而真正到了險境，他的榆木獵弓射出的每一支箭都精準而致命。據說他愛開玩笑只是為了掩蓋內心的緊張。' },
-  { id: 'xingluo', name: '星罗', heroClass: 'mage', maxHp: 19, hp: 19, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: true, personality: '从星辉塔跑出来的年轻术士，把危险遗迹当成难得的研究现场', affinity: 0, preferredGiftTags: ['神秘', '自然'], story: '星羅是星輝塔有史以來最年輕的術士，卻因受夠了高塔上教條、沉悶的學術氛圍，偷偷帶走古老星盤逃到了邊境。對她而言，危險的遺迹並非禁地，而是最好的「星光魔法實驗室」。她對未知事物有著近乎狂熱的好奇心。' },
-  { id: 'cheng', name: '澄', heroClass: 'medic', maxHp: 25, hp: 25, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '温和克制，留意每个人的状态', affinity: 0, preferredGiftTags: ['文化', '自然'], story: '澄是遊歷各方的隨隊醫師，曾獨自深入疫病蔓延的村落。她溫和謙遜，對待傷患有著極佳的耐心。澄能精準留意到戰場上每個隊員的精神波動與傷情，她那散發柔和光芒的治療術，是遠征隊在漫漫黑夜中最溫暖的慰藉。' },
-  { id: 'yan', name: '砚', heroClass: 'vanguard', maxHp: 35, hp: 35, morale: 0, gearLevel: 0, level: 1, experience: 0, equipment: {}, recruited: false, personality: '沉默强硬，把承诺看得比报酬重要', affinity: 0, preferredGiftTags: ['饮食', '贵重'], story: '硯是遊蕩於荒野的僱傭兵，以沉默寡言和超高的任務完成率聞名。他不在乎正義、名譽或公會的教條，只在乎約定好的金幣報酬以及他親口許下的承諾。一旦承諾護送，即便身死，他也絕不退後半步。' },
-];
-export const itemDefinitions: ItemDefinition[] = [
-  { id: 'bandage', name: '绷带', kind: 'consumable', description: '远征时恢复 9 点生命。' },
-  { id: 'sedative', name: '镇定剂', kind: 'consumable', description: '远征时降低 25 点士气压力。' },
-  { id: 'vanguard-spear', name: '守望长枪', kind: 'equipment', slot: 'weapon', description: '先锋制式长枪。', attack: 2, allowedClasses: ['vanguard'] },
-  { id: 'ranger-bow', name: '白榆猎弓', kind: 'equipment', slot: 'weapon', description: '轻巧而稳定的远射武器。', attack: 2, allowedClasses: ['ranger'] },
-  { id: 'star-staff', name: '星辉法杖', kind: 'equipment', slot: 'weapon', description: '引导星术的晶石法杖。', attack: 2, allowedClasses: ['mage'] },
-  { id: 'field-mail', name: '远征锁甲', kind: 'equipment', slot: 'armor', description: '抵消 1 点受到的伤害。', defense: 1 },
-  { id: 'warded-coat', name: '刻印旅行衣', kind: 'equipment', slot: 'armor', description: '轻便且带有防护刻印。', defense: 1 },
-  { id: 'echo-charm', name: '回声护符', kind: 'equipment', slot: 'accessory', description: '微弱增幅持有者的攻击。', attack: 1 },
-];
+export const skillDefinitions: Record<string, SkillDefinition> = {
+  'guardians-order': {
+    id: 'guardians-order',
+    name: '守望号令',
+    description: '降低队伍压力 8 点。',
+    effect: { type: 'morale_recovery', value: 8 }
+  },
+  'wind-arrow': {
+    id: 'wind-arrow',
+    name: '贯风箭',
+    description: '无视距离对目标造成额外 3 点伤害。',
+    effect: { type: 'single_damage', value: 3 }
+  },
+  'star-burst': {
+    id: 'star-burst',
+    name: '星辉爆裂',
+    description: '对所有存活敌人造成 6 点伤害。',
+    effect: { type: 'all_damage', value: 6 }
+  },
+  'healing-light': {
+    id: 'healing-light',
+    name: '治愈之光',
+    description: '为一名虚弱的在编队友恢复 12 点生命。',
+    effect: { type: 'heal_single', value: 12 }
+  },
+  'iron-will': {
+    id: 'iron-will',
+    name: '钢铁意志',
+    description: '重整阵脚，平复自身 6 点压力。',
+    effect: { type: 'morale_recovery', value: 6 }
+  }
+};
+
+export const initialHeroes: Hero[] = rawHeroes as Hero[];
+export const itemDefinitions: ItemDefinition[] = rawItems as ItemDefinition[];
 
 // 装备查询的 O(1) 索引：避免 combat/economy 等处反复 itemDefinitions.find。
 export const itemById: ReadonlyMap<string, ItemDefinition> = new Map(itemDefinitions.map((item) => [item.id, item]));
@@ -74,43 +99,10 @@ export const initialInventory: Record<string, number> = {
   'field-mail': 1, 'warded-coat': 1, 'echo-charm': 1,
   wildflower: 2, ale: 1, 'old-book': 1,
 };
-export const enemies: Enemy[] = [
-  { id: 'scout', name: '遗迹斥候', maxHp: 26, hp: 26, distance: 1, attackMinRange: 2, attackMaxRange: 3, damage: 4,
-    drops: [
-      { typeId: 'ruin-shard', rarity: 0, chance: 0.6 },
-      { typeId: 'ruin-shard', rarity: 1, chance: 0.15 },
-    ] },
-  { id: 'warden', name: '锈甲守卫', maxHp: 34, hp: 34, distance: 1, attackMinRange: 1, attackMaxRange: 1, damage: 5,
-    drops: [
-      { typeId: 'rust-iron', rarity: 0, chance: 0.65 },
-      { typeId: 'rust-iron', rarity: 1, chance: 0.18 },
-    ] },
-  { id: 'gatekeeper', name: '遗迹门卫', maxHp: 46, hp: 46, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 7,
-    drops: [
-      { typeId: 'rust-iron', rarity: 1, chance: 0.5 },
-      { typeId: 'ruin-shard', rarity: 1, chance: 0.35 },
-    ] },
-  { id: 'ash-wolf', name: '灰烬林狼', maxHp: 20, hp: 20, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 4, trait: 'pack',
-    drops: [{ typeId: 'ruin-shard', rarity: 0, chance: 0.35 }] },
-  { id: 'thorn-stag', name: '荆角巨鹿', maxHp: 38, hp: 38, distance: 1, attackMinRange: 1, attackMaxRange: 2, damage: 6, trait: 'thorns',
-    drops: [{ typeId: 'ruin-shard', rarity: 1, chance: 0.45 }] },
-  { id: 'spore-beast', name: '毒蕈孢子兽', maxHp: 30, hp: 30, distance: 2, attackMinRange: 2, attackMaxRange: 3, damage: 3, trait: 'spores',
-    drops: [{ typeId: 'ruin-shard', rarity: 0, chance: 0.55 }] },
-  { id: 'rock-lizard', name: '岩甲蜥', maxHp: 42, hp: 42, distance: 1, attackMinRange: 1, attackMaxRange: 1, damage: 5, trait: 'rock-armor',
-    drops: [{ typeId: 'rust-iron', rarity: 1, chance: 0.5 }] },
-  { id: 'grove-guardian', name: '古树守卫', maxHp: 88, hp: 88, distance: 1, attackMinRange: 1, attackMaxRange: 3, damage: 8, trait: 'ancient-core',
-    drops: [{ typeId: 'ruin-shard', rarity: 2, chance: 1 }, { typeId: 'rust-iron', rarity: 2, chance: 0.5 }] },
-];
-export const missions: Mission[] = [
-  { id: 'border-echoes', title: '边境回声', summary: '调查遗迹道路上的异常脚步，并确认封印门厅是否安全。', difficulty: 1, reward: 45, enemyWaves: { 0: ['scout', 'warden'], 2: ['warden', 'scout'], 4: ['gatekeeper', 'warden', 'scout'] },
-    materialRewards: [{ typeId: 'ruin-shard', rarity: 0, count: 2 }] },
-  { id: 'rusted-patrol', title: '锈甲巡逻队', summary: '一支失控的守卫队正在截断商路，需要正面突破。', difficulty: 2, reward: 62, enemyWaves: { 0: ['warden', 'scout'], 2: ['scout', 'warden'], 4: ['gatekeeper', 'warden'] },
-    materialRewards: [{ typeId: 'rust-iron', rarity: 1, count: 1 }, { typeId: 'ruin-shard', rarity: 1, count: 1 }] },
-  { id: 'sealed-gate', title: '封门异响', summary: '封印深处传来连续回声，公会要求带回完整调查记录。', difficulty: 3, reward: 84, enemyWaves: { 0: ['scout', 'warden'], 2: ['gatekeeper', 'scout', 'warden'], 4: ['gatekeeper', 'warden', 'scout'] },
-    materialRewards: [{ typeId: 'ruin-shard', rarity: 2, count: 1 }, { typeId: 'rust-iron', rarity: 1, count: 2 }] },
-  { id: 'forest-disturbance', title: '林地异变', summary: '城镇外的古道被异化生物占据，追踪孢子源头并平息古树圣所。', difficulty: 2, reward: 76, enemyWaves: { 0: ['ash-wolf', 'ash-wolf'], 2: ['spore-beast', 'rock-lizard', 'thorn-stag'], 4: ['grove-guardian'] },
-    materialRewards: [{ typeId: 'ruin-shard', rarity: 1, count: 2 }] },
-];
+
+export const enemies: Enemy[] = rawEnemies as Enemy[];
+export const missions: Mission[] = rawMissions as Mission[];
+
 // 任务板默认意见：必须即时显示、离线可用，不触发 LLM 请求。
 export const missionOpinions: Record<string, Record<string, string>> = {
   'border-echoes': {
@@ -163,11 +155,4 @@ export const forestExpeditionNodes: ExpeditionNode[] = [
 export const nodesForMission = (missionId: string): readonly ExpeditionNode[] => missionId === 'forest-disturbance' ? forestExpeditionNodes : expeditionNodes;
 // 装备打造配方。产物均沿用 itemDefinitions 中的装备，材料+金币消耗后装备入背包。
 // 配方表后续可继续追加，逻辑不写死数量。
-export const craftingRecipes: CraftingRecipe[] = [
-  { id: 'craft-spear', resultItemId: 'vanguard-spear', goldCost: 20, materials: [{ typeId: 'ruin-shard', rarity: 0, count: 3 }, { typeId: 'rust-iron', rarity: 0, count: 2 }] },
-  { id: 'craft-bow', resultItemId: 'ranger-bow', goldCost: 20, materials: [{ typeId: 'ruin-shard', rarity: 0, count: 3 }, { typeId: 'rust-iron', rarity: 1, count: 1 }] },
-  { id: 'craft-staff', resultItemId: 'star-staff', goldCost: 25, materials: [{ typeId: 'ruin-shard', rarity: 1, count: 2 }, { typeId: 'rust-iron', rarity: 0, count: 3 }] },
-  { id: 'craft-mail', resultItemId: 'field-mail', goldCost: 30, materials: [{ typeId: 'rust-iron', rarity: 1, count: 3 }, { typeId: 'ruin-shard', rarity: 0, count: 2 }] },
-  { id: 'craft-coat', resultItemId: 'warded-coat', goldCost: 25, materials: [{ typeId: 'rust-iron', rarity: 0, count: 4 }, { typeId: 'ruin-shard', rarity: 1, count: 1 }] },
-  { id: 'craft-charm', resultItemId: 'echo-charm', goldCost: 35, materials: [{ typeId: 'ruin-shard', rarity: 1, count: 3 }, { typeId: 'rust-iron', rarity: 1, count: 1 }] },
-];
+export const craftingRecipes: CraftingRecipe[] = rawRecipes as CraftingRecipe[];
