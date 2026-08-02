@@ -345,70 +345,9 @@
 .tactical-consult{margin-top:10px;padding:10px;border:1px solid rgba(197,149,76,.62);background:linear-gradient(135deg,rgba(52,29,19,.94),rgba(96,54,27,.9));box-shadow:inset 0 1px rgba(255,224,151,.18);color:#f7e7bd}.tactical-consult small,.tactical-consult strong,.tactical-consult span{display:block}.tactical-consult small{color:#d8b86f;font-size:9px;letter-spacing:.1em}.tactical-consult strong{margin-top:2px;font-size:14px}.tactical-consult-controls{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.tactical-consult button{padding:4px 7px;border:1px solid #a87339;border-radius:2px;background:#422718;color:#f4e5bb;font-size:10px}.tactical-consult button.selected{background:#b87936;color:#2e190e}.tactical-consult button.consult-ask{margin-left:auto;background:linear-gradient(#f1d68e,#bd7d36);color:#3a210f;font-weight:700}.tactical-consult p{margin:7px 0 0;padding-top:7px;border-top:1px solid rgba(239,207,134,.2);font-size:11px;line-height:1.55;color:#fff1d0}.tactical-consult>span{font-size:9px;color:#d6c4a1;line-height:1.4}
 .enemy-trait{display:block;margin-top:4px;color:#744d2a;font-size:8px;line-height:1.35}
 
-/* Warm neutral pass: green stays only on health and rarity signals. */
-html:root { background: #f2ead4; }
-body, #root { background: #f2ead4; }
-body { color: #4b3b28; }
-.game-viewport { background: #efe4c8; }
-.page, .empty-state { background: #f6f0dc; border-color: rgba(170, 138, 80, 0.45); }
-.expedition-screen, .expedition-page { background: radial-gradient(circle at 48% 42%, rgba(253, 247, 224, 0.98), rgba(239, 221, 174, 0.98) 72%), repeating-linear-gradient(135deg, rgba(122, 93, 44, 0.045) 0 1px, transparent 1px 8px); color: #453724; }
-.town-page { background: #f6f0dc; }
-.town-news, .town-news-plaque { background: linear-gradient(160deg, rgba(39, 25, 14, 0.94), rgba(23, 15, 9, 0.92)); }
-.town-news li, .town-news-plaque strong, .town-news-plaque small { color: #e7dac0; }
-.quarters-page { background: #f6f0dc; }
-.quarters-page:after { background: linear-gradient(90deg, rgba(15, 9, 5, 0.1), transparent 46%), linear-gradient(0deg, rgba(8, 5, 3, 0.08), transparent 55%); }
-.quarters-topbar { background: rgba(244, 232, 200, 0.84); }
-.quarters-topbar .eyebrow { color: #8a6a3f; }
-.quarters-topbar label { color: #4b3b28; }
-.quarters-topbar select { background: #fff8e6; border-color: #b08a4a; color: #4b3b28; }
-.quarters-chat header, .quarters-chat footer { background: rgba(214, 192, 148, 0.72); }
-.quarters-chat header span, .quarters-chat header small, .quarters-chat footer span { color: #7a6846; }
-.gal-dialogue, .with-adventure-menu .quarters-chat.gal-dialogue { background: linear-gradient(105deg, rgba(250, 240, 214, 0.97), rgba(235, 214, 168, 0.95)); color: #4b3b28; }
-.gal-dialogue .chat-message, .gal-dialogue.history-open .chat-message { color: #4b3b28; }
-.gal-dialogue .chat-message.user { color: #6b5330; }
-.gal-dialogue .gal-history { color: #7a5b2f; }
-.gal-dialogue .gal-history:hover:not(:disabled) { background: rgba(122, 93, 44, 0.12); color: #5b3a18; }
-.gal-input .speaker-label { color: #7a5b2f; }
-.gal-input input { background: rgba(255, 252, 240, 0.72); color: #3f3120; border-color: rgba(170, 138, 80, 0.5); }
-.gal-input input::placeholder { color: #8a7650; }
-.gal-input input:focus { background: rgba(255, 252, 240, 0.9); border-color: #c08a3c; }
-.gal-dialogue .gal-nameplate { background: linear-gradient(90deg, #6b4522, #9a6b32); }
-.gal-dialogue .gal-nameplate span { color: #f0dcc0; }
-.dorm-stage-card { background: rgba(28, 17, 9, 0.92); }
-.dorm-stage-card p { color: #d9cbb1; }
-.dorm-proposal { background: rgba(30, 19, 10, 0.94); }
-.quarters-rest-button { background: linear-gradient(110deg, rgba(35, 21, 12, 0.92), rgba(57, 37, 20, 0.86)); }
-.quarters-rest-button span { color: #d3c3a5; }
-.room-entry { color: #4a3823; }
-.gift-row span { color: #6b5330; }
-.tavern-roster-panel>header, .mission-board-panel>footer { background: rgba(232, 217, 182, 0.84); }
-.quest-dialog>header { background: rgba(232, 217, 182, 0.76); }
-.quest-dialog>footer { background: rgba(228, 212, 175, 0.68); }
-.tavern-roster-drawer>header { background: rgba(230, 215, 180, 0.84); }
-.management-page, .settings-page { background: linear-gradient(135deg, #fcf8ec 0%, #f0e5c9 46%, #e4d6b6 100%); }
-.management-page, .settings-page { color: #453724; }
-.settings-page h2, .setting-card, .setting-card p, .setting-card small { color: #4b3b28; }
-.management-page:before, .settings-page:before { background: repeating-linear-gradient(0deg, rgba(122, 93, 44, 0.03) 0 1px, transparent 1px 7px), linear-gradient(90deg, rgba(122, 93, 44, 0.06), transparent 18%, transparent 82%, rgba(122, 93, 44, 0.06)); }
-.management-avatar { background: #8a6434; }
-.inventory-item.equipment, .equipped-item, .equipment-summary span { background: #ecdfc0; }
-.equipment-options button, .equipment-heroes>button.active, .reserve-panel>button.selected { background: #e8d9b8; }
-.hud-unit { background: linear-gradient(145deg, rgba(255, 252, 233, 0.94), rgba(240, 225, 187, 0.9)); border-color: rgba(170, 138, 80, 0.4); color: #453724; }
-.hud-actions button { background: #5a4528; border-color: #9a7844; color: #fff3d8; }
-.hud-actions button:hover:not(:disabled) { background: #71582f; }
-.hero-card { background: rgba(38, 26, 15, 0.92); border-color: #7c623c; }
-.portrait { background: linear-gradient(145deg, #b98d54, #7d5b31); color: #2c1c0d; }
-.phaser-loading { background: radial-gradient(circle at 50% 30%, #e9d8ae, #d6c08d 65%); border-color: #aa8a50; color: #5c3e1c; }
-.formation-actions button { background: #5a4528; border-color: #9a7844; color: #fff3d8; }
-.formation-actions button:hover:not(:disabled) { background: #71582f; }
-.craft-card button { background: rgba(122, 93, 44, 0.16); border-color: #9a7844; color: #5b3a18; }
-.craft-card button:hover:not(:disabled) { background: rgba(122, 93, 44, 0.3); }
-.button-row .active { background: #b98d54; color: #2c1c0d; }
-.expedition-page .supplies button { background: linear-gradient(180deg, #7a5527, #593d1d); border-color: #a97d3e; }
-.inventory-row.equipment { background: linear-gradient(180deg, #fdfdfb, #f1e6ca); }
-.item-avail { background: #efe4c8; border-color: #d8c59c; color: #7a6846; }
-.map-node i, .map-cell { background: #261a10; border-color: #8a6f48; color: #a9946f; }
-.map-node.passed i, .map-cell.passed, .route .passed { background: #8a6434; border-color: #b18a48; color: #f4e7c6; }
-.map-node.unknown span, .map-cell.unknown { color: #8a7a5d; background: #1d140c; }
-.battlefield { background: linear-gradient(90deg, #241a12, #2b2116 52%, #3a2920); }
-.combatant { background: linear-gradient(155deg, rgba(39, 25, 14, 0.93), rgba(22, 14, 8, 0.84)); border-color: rgba(170, 138, 80, 0.4); }
-.mini-map { background: linear-gradient(150deg, rgba(38, 25, 14, 0.94), rgba(26, 17, 10, 0.9)); }
+/* Minimal green frame fix: only border/frame colors, art and panels untouched. */
+html:root, body, #root { background: #3a2c1c; }
+.game-viewport { background: #3a2c1c; }
+.page, .settings-page, .empty-state { border-color: #a5844e; background: #241c13; }
+.town-page { background: #241c13; }
+.quarters-page { background: #241c13; }
