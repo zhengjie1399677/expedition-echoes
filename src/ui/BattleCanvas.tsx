@@ -97,8 +97,8 @@ class ExpeditionBattleScene extends Phaser.Scene {
     const scale = Math.max(width / background.width, height / background.height);
     background.setScale(scale).setDepth(-20);
 
-    this.add.rectangle(width / 2, height / 2, width, height, 0x294b55, 0.04).setDepth(-19);
-    this.add.rectangle(width / 2, height - 34, width, 92, 0x17342e, 0.1).setDepth(8);
+    this.add.rectangle(width / 2, height / 2, width, height, 0x3a2a1a, 0.05).setDepth(-19);
+    this.add.rectangle(width / 2, height - 34, width, 92, 0x241810, 0.12).setDepth(8);
     Object.keys(ACTORS).forEach((key) => this.textures.get(`actor-${key}`).setFilter(Phaser.Textures.FilterMode.NEAREST));
     Object.keys(ACTION_ACTORS).forEach((key) => this.textures.get(`actor-action-${key}`).setFilter(Phaser.Textures.FilterMode.NEAREST));
     this.createAmbientDust(width, height);
@@ -107,10 +107,10 @@ class ExpeditionBattleScene extends Phaser.Scene {
 
     this.add.text(24, 22, `第 ${this.nodeIndex + 1} 幕`, {
       fontFamily: '"Noto Serif SC", serif', fontSize: '13px', color: '#c6b577',
-      backgroundColor: '#0b1714bb', padding: { x: 10, y: 6 },
+      backgroundColor: '#231710bb', padding: { x: 10, y: 6 },
     }).setDepth(20);
     this.add.text(width / 2, height - 26, '点击角色发动攻击 · 金色轮廓表示当前可攻击', {
-      fontFamily: '"Noto Serif SC", serif', fontSize: '12px', color: '#fff0bf', stroke: '#14221e', strokeThickness: 3,
+      fontFamily: '"Noto Serif SC", serif', fontSize: '12px', color: '#fff0bf', stroke: '#1c140e', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(20);
   }
 
@@ -167,7 +167,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
       sprite.on('pointerdown', () => this.performAttack(hero, this.party.findIndex((item) => item.id === hero.id), sprite, sprite.x));
       const label = this.add.text(position.x, position.y + 7, hero.name, {
         fontFamily: '"Noto Serif SC", serif', fontSize: '14px', color: '#f4e7bf',
-        backgroundColor: '#10221ddd', padding: { x: 8, y: 4 },
+        backgroundColor: '#241812dd', padding: { x: 8, y: 4 },
       }).setOrigin(0.5, 0).setDepth(10);
       this.heroLabels.set(hero.id, label);
       this.playIdle(sprite, index);
