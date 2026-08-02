@@ -353,8 +353,6 @@ body { color: #4b3b28; }
 .page, .empty-state { background: #1c1510; border-color: rgba(170, 138, 80, 0.35); }
 .expedition-screen, .expedition-page { background: radial-gradient(circle at 48% 42%, rgba(253, 247, 224, 0.98), rgba(239, 221, 174, 0.98) 72%), repeating-linear-gradient(135deg, rgba(122, 93, 44, 0.045) 0 1px, transparent 1px 8px); color: #453724; }
 .town-page { background: #1d1611; }
-.town-map>img { filter: brightness(1.08) saturate(0.88) sepia(0.16) contrast(1.02); }
-.town-map-shade { display: block; background: linear-gradient(135deg, rgba(224, 178, 102, 0.16), rgba(96, 58, 28, 0.1)), linear-gradient(90deg, rgba(15, 9, 5, 0.4), transparent 38%), linear-gradient(0deg, rgba(10, 6, 3, 0.32), transparent 46%); }
 .town-news, .town-news-plaque { background: linear-gradient(160deg, rgba(39, 25, 14, 0.94), rgba(23, 15, 9, 0.92)); }
 .town-news li, .town-news-plaque strong, .town-news-plaque small { color: #e7dac0; }
 .quarters-page { background: #1b1410; }
