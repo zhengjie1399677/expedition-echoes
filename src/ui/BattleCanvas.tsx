@@ -97,8 +97,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
     const scale = Math.max(width / background.width, height / background.height);
     background.setScale(scale).setDepth(-20);
 
-    this.add.rectangle(width / 2, height / 2, width, height, 0x3a2a1a, 0.05).setDepth(-19);
-    this.add.rectangle(width / 2, height - 34, width, 92, 0x241810, 0.12).setDepth(8);
+    this.add.rectangle(width / 2, height - 34, width, 92, 0x241810, 0.06).setDepth(8);
     Object.keys(ACTORS).forEach((key) => this.textures.get(`actor-${key}`).setFilter(Phaser.Textures.FilterMode.NEAREST));
     Object.keys(ACTION_ACTORS).forEach((key) => this.textures.get(`actor-action-${key}`).setFilter(Phaser.Textures.FilterMode.NEAREST));
     this.createAmbientDust(width, height);

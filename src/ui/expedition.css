@@ -346,33 +346,41 @@
 .enemy-trait{display:block;margin-top:4px;color:#744d2a;font-size:8px;line-height:1.35}
 
 /* Warm neutral pass: green stays only on health and rarity signals. */
-html:root { background: #171310; }
-body, #root { background: #14100c; }
+html:root { background: #f2ead4; }
+body, #root { background: #f2ead4; }
 body { color: #4b3b28; }
-.game-viewport { background: #151009; }
-.page, .empty-state { background: #1c1510; border-color: rgba(170, 138, 80, 0.35); }
+.game-viewport { background: #efe4c8; }
+.page, .empty-state { background: #f6f0dc; border-color: rgba(170, 138, 80, 0.45); }
 .expedition-screen, .expedition-page { background: radial-gradient(circle at 48% 42%, rgba(253, 247, 224, 0.98), rgba(239, 221, 174, 0.98) 72%), repeating-linear-gradient(135deg, rgba(122, 93, 44, 0.045) 0 1px, transparent 1px 8px); color: #453724; }
-.town-page { background: #1d1611; }
+.town-page { background: #f6f0dc; }
 .town-news, .town-news-plaque { background: linear-gradient(160deg, rgba(39, 25, 14, 0.94), rgba(23, 15, 9, 0.92)); }
 .town-news li, .town-news-plaque strong, .town-news-plaque small { color: #e7dac0; }
-.quarters-page { background: #1b1410; }
-.quarters-page:after { background: linear-gradient(90deg, rgba(15, 9, 5, 0.52), transparent 46%), linear-gradient(0deg, rgba(8, 5, 3, 0.5), transparent 55%); }
-.quarters-topbar { background: rgba(27, 17, 10, 0.76); }
-.quarters-topbar .eyebrow { color: #d4c49d; }
-.quarters-topbar label { color: #e2d5bc; }
-.quarters-topbar select { background: #2c1e12; border-color: #8a6a3f; color: #f7eddb; }
+.quarters-page { background: #f6f0dc; }
+.quarters-page:after { background: linear-gradient(90deg, rgba(15, 9, 5, 0.1), transparent 46%), linear-gradient(0deg, rgba(8, 5, 3, 0.08), transparent 55%); }
+.quarters-topbar { background: rgba(244, 232, 200, 0.84); }
+.quarters-topbar .eyebrow { color: #8a6a3f; }
+.quarters-topbar label { color: #4b3b28; }
+.quarters-topbar select { background: #fff8e6; border-color: #b08a4a; color: #4b3b28; }
 .quarters-chat header, .quarters-chat footer { background: rgba(214, 192, 148, 0.72); }
 .quarters-chat header span, .quarters-chat header small, .quarters-chat footer span { color: #7a6846; }
-.gal-dialogue, .with-adventure-menu .quarters-chat.gal-dialogue { background: linear-gradient(105deg, rgba(28, 18, 11, 0.94), rgba(40, 27, 17, 0.88)); }
-.gal-dialogue .gal-nameplate { background: rgba(36, 23, 13, 0.96); }
-.gal-dialogue .gal-nameplate span { color: #c9b589; }
+.gal-dialogue, .with-adventure-menu .quarters-chat.gal-dialogue { background: linear-gradient(105deg, rgba(250, 240, 214, 0.97), rgba(235, 214, 168, 0.95)); color: #4b3b28; }
+.gal-dialogue .chat-message, .gal-dialogue.history-open .chat-message { color: #4b3b28; }
+.gal-dialogue .chat-message.user { color: #6b5330; }
+.gal-dialogue .gal-history { color: #7a5b2f; }
+.gal-dialogue .gal-history:hover:not(:disabled) { background: rgba(122, 93, 44, 0.12); color: #5b3a18; }
+.gal-input .speaker-label { color: #7a5b2f; }
+.gal-input input { background: rgba(255, 252, 240, 0.72); color: #3f3120; border-color: rgba(170, 138, 80, 0.5); }
+.gal-input input::placeholder { color: #8a7650; }
+.gal-input input:focus { background: rgba(255, 252, 240, 0.9); border-color: #c08a3c; }
+.gal-dialogue .gal-nameplate { background: linear-gradient(90deg, #6b4522, #9a6b32); }
+.gal-dialogue .gal-nameplate span { color: #f0dcc0; }
 .dorm-stage-card { background: rgba(28, 17, 9, 0.92); }
 .dorm-stage-card p { color: #d9cbb1; }
 .dorm-proposal { background: rgba(30, 19, 10, 0.94); }
 .quarters-rest-button { background: linear-gradient(110deg, rgba(35, 21, 12, 0.92), rgba(57, 37, 20, 0.86)); }
 .quarters-rest-button span { color: #d3c3a5; }
 .room-entry { color: #4a3823; }
-.gift-row span { color: #c8b895; }
+.gift-row span { color: #6b5330; }
 .tavern-roster-panel>header, .mission-board-panel>footer { background: rgba(232, 217, 182, 0.84); }
 .quest-dialog>header { background: rgba(232, 217, 182, 0.76); }
 .quest-dialog>footer { background: rgba(228, 212, 175, 0.68); }
