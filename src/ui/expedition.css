@@ -1332,7 +1332,6 @@
   padding: 10px 24px;
   font-size: 13px;
 }
-
 /* --- Media Queries --- */
 @media (max-width: 850px) {
   .expedition-card {
@@ -1513,3 +1512,14 @@
   color: #8a6d3b;
   margin-bottom: 2px;
 }
+
+/* (remote) tactical-consult 征询面板样式 — 保留兼容 */
+.tactical-consult{margin-top:10px;padding:10px;border:1px solid rgba(197,149,76,.62);background:linear-gradient(135deg,rgba(52,29,19,.94),rgba(96,54,27,.9));box-shadow:inset 0 1px rgba(255,224,151,.18);color:#f7e7bd}.tactical-consult small,.tactical-consult strong,.tactical-consult span{display:block}.tactical-consult small{color:#d8b86f;font-size:9px;letter-spacing:.1em}.tactical-consult strong{margin-top:2px;font-size:14px}.tactical-consult-controls{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.tactical-consult button{padding:4px 7px;border:1px solid #a87339;border-radius:2px;background:#422718;color:#f4e5bb;font-size:10px}.tactical-consult button.selected{background:#b87936;color:#2e190e}.tactical-consult button.consult-ask{margin-left:auto;background:linear-gradient(#f1d68e,#bd7d36);color:#3a210f;font-weight:700}.tactical-consult p{margin:7px 0 0;padding-top:7px;border-top:1px solid rgba(239,207,134,.2);font-size:11px;line-height:1.55;color:#fff1d0}.tactical-consult>span{font-size:9px;color:#d6c4a1;line-height:1.4}
+.enemy-trait{display:block;margin-top:4px;color:#744d2a;font-size:8px;line-height:1.35}
+
+/* Minimal green frame fix: only border/frame colors, art and panels untouched. */
+html:root, body, #root { background: #3a2c1c; }
+.game-viewport { background: #3a2c1c; }
+.page, .settings-page, .empty-state { border-color: #a5844e; background: #241c13; }
+.town-page { background: #241c13; }
+.quarters-page { background: #241c13; }
