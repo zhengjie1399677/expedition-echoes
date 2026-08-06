@@ -462,6 +462,25 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
                     {consulting ? '思考中…' : '征询'}
                   </button>
                 </div>
+                <div className="chat-bubble chat-consult-select">
+                  <span className="chat-consult-name">咨询对象</span>
+                  <div className="chat-consult-heroes">
+                    {party.filter((hero) => hero.hp > 0).map((hero) => (
+                      <button
+                        key={hero.id}
+                        className={advisor?.id === hero.id ? 'selected' : ''}
+                        onClick={() => setAdvisorId(hero.id)}
+                      >
+                        {hero.name}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="chat-consult-hint">
+                    {state.settings.llmEnabled && narrativeService.available
+                      ? '不会自动调用；由队长决定是否询问。'
+                      : 'LLM 未连接；战斗仍可完全正常进行。'}
+                  </span>
+                </div>
                 {consultation && (
                   <div className="chat-bubble chat-consult-result" role="status">
                     <span className="chat-consult-name">{advisor.name}的建议</span>
