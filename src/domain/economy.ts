@@ -1,6 +1,7 @@
-import { craftingRecipes, giftDefinitions, itemDefinitions, marketPrices, materialName, materialSellPrices, missions, rarityNames } from '../content/gameContent';
+import { craftingRecipes, giftDefinitions, itemDefinitions, marketPrices, materialName, materialSellPrices, missions, rarityNames, regions, threatMax } from '../content/gameContent';
 import type { Enemy, GameAction, GameState, MaterialInventory, Rarity, SettlementState } from './model';
 import { addLog, returnExpeditionSupplies } from './shared';
+import { onMissionSettled } from './daily';
 
 // 材料库存与掉落工具。key 形如 `${typeId}:${rarity}`，避免在多处拼字符串。
 export const materialKey = (typeId: string, rarity: Rarity) => `${typeId}:${rarity}`;
@@ -15,7 +16,7 @@ export const addMaterials = (inventory: MaterialInventory, gains: { typeId: stri
 };
 
 // 把库存 key 解析回结构化对象，统一处理越界/异常值，避免 as any。
-export function parseRarityKey(key: string): { typeId: string; rarity: Rarity; count: number } | null {
+function parseRarityKey(key: string): { typeId: string; rarity: Rarity; count: number } | null {
   const [typeId, rarityStr] = key.split(':');
   const rarity = Number(rarityStr);
   if (!typeId || !Number.isInteger(rarity) || rarity < 0 || rarity > 4) return null;
@@ -65,17 +66,27 @@ export function settleExpedition(
   const settlement: SettlementState = { outcome, consumedSupplies: consumed, lootGold, lootMaterials, gainedExperience };
   const missionTitle = missions.find((mission) => mission.id === state.expedition!.missionId)?.title;
   const returned = returnExpeditionSupplies(state);
+  // 区域威胁联动（M3）：任务失败或撤退 → 对应区域威胁升级（封顶 threatMax）
+  const mission = missions.find((item) => item.id === state.expedition!.missionId);
+  const region = mission ? regions.find((r) => r.missions.includes(mission.id)) : undefined;
+  const regionsNext = { ...returned.regions };
+  if (region && (outcome === 'defeated' || outcome === 'retreat') && (regionsNext[region.id] ?? 0) < threatMax) {
+    regionsNext[region.id] = ((regionsNext[region.id] ?? 0) + 1) as GameState['regions'][string];
+  }
   const next: GameState = {
     ...returned,
     gold: returned.gold + lootGold,
     materials: addMaterials(returned.materials, materialsFromInventory(lootMaterials)),
     page: 'settlement',
     settlement,
-    dayReport: { completedDay: state.day, outcome, missionTitle, townNews: '', recovery: [], reactions: [] },
+    dayReport: { completedDay: state.day, outcome, missionTitle, townNews: '', recovery: [], reactions: [], pending: true },
     expedition: null,
     hasAcceptedMission: false,
+    regions: regionsNext,
   };
-  return addLog(next, logMessage);
+  // 任务胜利 → 推进所属区域事件链（M3）
+  const settled = onMissionSettled(next, state.expedition.missionId, outcome);
+  return addLog(settled, logMessage);
 }
 
 export function economyReducer(state: GameState, action: GameAction): GameState {

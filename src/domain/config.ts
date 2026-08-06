@@ -7,28 +7,35 @@ export const BALANCE = {
   experiencePerLevel: 15, // 经验公式每级增量
   enemyExperienceBase: 8, // 击杀敌人经验基础值
   enemyExperiencePerHp: 8, // 击杀敌人经验按 maxHp 折算的分母
-  levelUpHealthGain: 3, // 每升一级增加的最大生命
+  levelUpHealthGain: 5, // 每升一级增加的最大生命
+  levelUpAttackGain: 2, // 每升一级增加的基础攻击
   // 职业被动
   rangerBackRowDamageBonus: 2, // 游侠后排伤害加成
   mageNeighborDamageBonus: 2, // 术士相邻队友伤害加成
   mageIsolatedDamagePenalty: 1, // 术士孤立伤害惩罚
-  // 士气与饥饿
-  moraleDamageReduction: 2, // 高士气减伤
-  moraleThreshold: 50, // 触发减伤的士气阈值
+  // 压力与饥饿
+  pressureDamageReduction: 2, // 高压力减伤
+  pressureThreshold: 50, // 触发减伤的压力阈值
   hungerDamagePenaltyPerStack: 1, // 每层饥饿减伤
-  counterattackMoraleGain: 11, // 被反击后士气增长
-  moraleCap: 100, // 士气上限
+  counterattackPressureGain: 11, // 被反击后压力增长
+  pressureCap: 100, // 压力上限
   // 先锋被动
   vanguardDamageReduction: 1, // 先锋前排减伤
   vanguardCounterattackDamage: 2, // 先锋贴身反击伤害
   // 战斗奖励
   lootGoldPerEnemy: 12, // 每击败一个敌人的金币奖励
+  // 战斗意图
+  chargeMaxLayers: 2, // 蓄力层数上限（伤害 ×2 封顶）
+  chargeMultiplierPerLayer: 1, // 每层蓄力的伤害倍率增量（1 层 = ×2）
+  guardDamageHalved: true, // guard 意图生效期间玩家伤害减半
   // 远征节点
   restNodeHpRecover: 5, // 休息节点生命恢复
-  restNodeMoraleRecover: 12, // 休息节点士气降低
+  restNodePressureRecover: 12, // 休息节点压力降低
   // 远征补给
   bandageHealAmount: 9, // 绷带治疗量
-  sedativeMoraleReduce: 25, // 镇定剂降低士气
+  sedativePressureReduce: 25, // 镇定剂降低压力
+  shieldElixirDamageReduction: 3, // 铁壁药丸减伤
+  defendDamageReduction: 4, // 普通防御姿态减伤（与铁壁药丸叠加）
   // 招募与升级
   recruitCost: 25, // 招募英雄金币
   upgradeBaseCost: 30, // 装备升级基础金币

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
-import type { Enemy, Hero } from '../domain/model';
+import type { Enemy, EnemyIntent, Hero } from '../domain/model';
+import { intentDescription } from '../domain/intents';
 
 interface BattleCanvasProps {
   party: Hero[];
@@ -8,19 +9,36 @@ interface BattleCanvasProps {
   targetEnemyId?: string;
   nodeIndex: number;
   backgroundPath?: string;
-  counterTargetId?: string;
+  enemyIntents?: Record<string, EnemyIntent>;
+  enemyCharge?: Record<string, number>;
+  // 每个存活敌人本轮实际会攻击的英雄（由 domain 的 targetForIntent 推导，纯展示，不计算数值）。
+  counters?: Record<string, string>;
   canHeroAttack: (hero: Hero, index: number, enemy: Enemy) => boolean;
   onAttack: (heroId: string, enemyId: string) => void;
   onSelectEnemy: (enemyId: string) => void;
   attackRequest?: { heroId: string; nonce: number };
+  feedbackRequest?: { kind: 'attack' | 'skill' | 'bandage' | 'sedative' | 'fire-bomb' | 'shield-elixir' | 'enemy-hit'; heroId: string; enemyId?: string; nonce: number };
 }
+
+const getAssetUrl = (path: string): string => {
+  const base = import.meta.env.BASE_URL || '/';
+  const prefix = '/' + 'assets/';
+  if (path.startsWith(prefix)) {
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${cleanBase}${path}`;
+  }
+  return path;
+};
 
 const ACTORS: Record<string, string> = {
   lan: '/assets/pixel/lan-vanguard-idle-v2.png',
   wu: '/assets/pixel/wu-archer-idle-v3.png',
   xingluo: '/assets/pixel/xingluo-mage-idle-v3.png',
-  cheng: '/assets/pixel/cheng-medic-idle-v1.png',
+  cheng: '/assets/pixel/cheng-medic-idle-v2.png',
+  yan: '/assets/actors-v2/yan-idle-v2.png',
   scout: '/assets/actors-v2/scout-idle-v2.png',
+  warden: '/assets/enemies/ruins-v1/warden-idle-v1.png',
+  gatekeeper: '/assets/enemies/ruins-v1/gatekeeper-idle-v1.png',
   'ash-wolf': '/assets/enemies/forest-v1/ash-wolf-v1.png',
   'thorn-stag': '/assets/enemies/forest-v1/thorn-stag-v1.png',
   'spore-beast': '/assets/enemies/forest-v1/spore-beast-v3.png',
@@ -32,22 +50,22 @@ const ACTION_ACTORS: Record<string, string> = {
   lan: '/assets/pixel/lan-vanguard-attack-v1.png',
   wu: '/assets/pixel/wu-archer-attack-v1.png',
   xingluo: '/assets/pixel/xingluo-mage-cast-v1.png',
-  cheng: '/assets/pixel/cheng-medic-cast-v1.png',
-};
-
-const LAN_RIG_PARTS: Record<string, string> = {
-  torso: '/assets/rigs/lan-vanguard-v1/parts/part-01.png', head: '/assets/rigs/lan-vanguard-v1/parts/part-02.png', rearLeg: '/assets/rigs/lan-vanguard-v1/parts/part-03.png', rearArm: '/assets/rigs/lan-vanguard-v1/parts/part-04.png', frontArm: '/assets/rigs/lan-vanguard-v1/parts/part-05.png', frontLeg: '/assets/rigs/lan-vanguard-v1/parts/part-06.png', shield: '/assets/rigs/lan-vanguard-v1/parts/part-07.png', scarfMain: '/assets/rigs/lan-vanguard-v1/parts/part-08.png', scarfMid: '/assets/rigs/lan-vanguard-v1/parts/part-09.png', scarfTip: '/assets/rigs/lan-vanguard-v1/parts/part-10.png', spear: '/assets/rigs/lan-vanguard-v1/parts/part-11.png',
+  cheng: '/assets/pixel/cheng-medic-cast-v2.png',
+  // 医师 yan 暂无独立攻击帧，复用医师施法帧（二者皆医师），避免回退到先锋兰的攻击姿势。
+  yan: '/assets/pixel/cheng-medic-cast-v2.png',
 };
 
 const CHARACTER_HEIGHTS: Record<string, number> = {
-  lan: 0.3, wu: 0.31, xingluo: 0.31, cheng: 0.31, scout: 0.32,
+  lan: 0.3, wu: 0.31, xingluo: 0.31, cheng: 0.31, yan: 0.33, scout: 0.32,
+  warden: 0.28, gatekeeper: 0.36, // 守卫矮壮、门卫高大
   'ash-wolf': 0.2, 'thorn-stag': 0.31, 'spore-beast': 0.28, 'rock-lizard': 0.22, 'grove-guardian': 0.48,
 };
 const IDLE_FOOT_ORIGIN_Y: Record<string, number> = {
-  lan: 1, wu: 0.933, xingluo: 0.969, cheng: 0.95, scout: 0.974,
+  lan: 1, wu: 0.933, xingluo: 0.969, cheng: 0.96, yan: 0.97, scout: 0.974,
+  warden: 0.97, gatekeeper: 0.985,
   'ash-wolf': 0.96, 'thorn-stag': 0.96, 'spore-beast': 0.96, 'rock-lizard': 0.96, 'grove-guardian': 0.96,
 };
-const ACTION_FOOT_ORIGIN_Y: Record<string, number> = { lan: 0.918, wu: 0.929, xingluo: 0.944, cheng: 0.93 };
+const ACTION_FOOT_ORIGIN_Y: Record<string, number> = { lan: 0.918, wu: 0.929, xingluo: 0.944, cheng: 0.945 };
 type CombatVisual = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 const actorIdForEnemy = (enemy: Enemy) => enemy.id.replace(/-\d+$/, '');
 const visualWidth = (visual: CombatVisual) => visual instanceof Phaser.GameObjects.Container ? visual.getBounds().width : visual.displayWidth;
@@ -65,7 +83,10 @@ class ExpeditionBattleScene extends Phaser.Scene {
   private canHeroAttack: BattleCanvasProps['canHeroAttack'];
   private onAttack: BattleCanvasProps['onAttack'];
   private onSelectEnemy: BattleCanvasProps['onSelectEnemy'];
-  private counterTargetId?: string;
+  private enemyIntents: Record<string, EnemyIntent> = {};
+  private enemyCharge: Record<string, number> = {};
+  private counters: Record<string, string> = {};
+  private enemyIntentLabels = new Map<string, Phaser.GameObjects.Text>();
   private heroSprites = new Map<string, CombatVisual>();
   private heroShadows = new Map<string, Phaser.GameObjects.Ellipse>();
   private heroLabels = new Map<string, Phaser.GameObjects.Text>();
@@ -84,13 +105,15 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.canHeroAttack = props.canHeroAttack;
     this.onAttack = props.onAttack;
     this.onSelectEnemy = props.onSelectEnemy;
-    this.counterTargetId = props.counterTargetId;
+    this.enemyIntents = props.enemyIntents ?? {};
+    this.enemyCharge = props.enemyCharge ?? {};
+    this.counters = props.counters ?? {};
   }
 
   preload() {
-    this.load.image('battle-bg', this.backgroundPath ?? '/assets/world/ruins-road-battle-v2.png');
-    Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, path));
-    Object.entries(ACTION_ACTORS).forEach(([key, path]) => this.load.image(`actor-action-${key}`, path));
+    this.load.image('battle-bg', getAssetUrl(this.backgroundPath ?? '/assets/world/ruins-road-battle-v2.png'));
+    Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, getAssetUrl(path)));
+    Object.entries(ACTION_ACTORS).forEach(([key, path]) => this.load.image(`actor-action-${key}`, getAssetUrl(path)));
   }
 
   create() {
@@ -125,7 +148,10 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.canHeroAttack = props.canHeroAttack;
     this.onAttack = props.onAttack;
     this.onSelectEnemy = props.onSelectEnemy;
-    this.counterTargetId = props.counterTargetId;
+    this.enemyIntents = props.enemyIntents ?? {};
+    this.enemyCharge = props.enemyCharge ?? {};
+    this.counters = props.counters ?? {};
+    this.refreshEnemyIntents();
     if (formationChanged) this.syncFormation();
     this.formationKey = nextFormationKey;
     this.heroSprites.forEach((sprite, id) => {
@@ -139,6 +165,38 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.enemySprite = this.enemySprites.get(this.targetEnemyId ?? '') ?? this.enemySprites.get(this.enemies.find((item) => item.hp > 0)?.id ?? '');
   }
 
+  // 敌人头顶的"威胁预告"：只读 domain 算好的 enemyIntents/enemyCharge，不做任何数值计算。
+  // 颜色与 expedition.css 的 .enemy-intent 体系对应（attack 默认 / charge 红 / guard 蓝 / pressure 紫）。
+  private refreshEnemyIntents() {
+    this.enemySprites.forEach((sprite, id) => {
+      const enemy = this.enemies.find((item) => item.id === id);
+      const intent = this.enemyIntents[id];
+      let label = this.enemyIntentLabels.get(id);
+      if (!enemy || !intent || enemy.hp <= 0) {
+        if (label) { label.destroy(); this.enemyIntentLabels.delete(id); }
+        return;
+      }
+      if (!label) {
+        label = this.add.text(sprite.x, 0, '', {
+          fontFamily: '"Noto Serif SC", serif', fontSize: '13px', color: '#f7e7bd',
+          backgroundColor: '#3a2110b8', padding: { x: 8, y: 4 }, align: 'center',
+        }).setOrigin(0.5, 1).setDepth(21);
+        this.enemyIntentLabels.set(id, label);
+      }
+      const charge = this.enemyCharge[id] ?? 0;
+      const typeColor: Record<EnemyIntent['type'], string> = {
+        attack: '#f7e7bd', charge: '#ffd9a8', guard: '#d5ecff', pressure: '#ecd7ff',
+      };
+      const bg: Record<EnemyIntent['type'], string> = {
+        attack: '#3a2110b8', charge: '#7a2a1ac7', guard: '#224058c7', pressure: '#4a2658c7',
+      };
+      label.setText(intentDescription(intent, charge, enemy.name));
+      label.setColor(typeColor[intent.type]);
+      label.setBackgroundColor(bg[intent.type]);
+      label.setPosition(sprite.x, sprite.y - sprite.displayHeight * 0.98);
+    });
+  }
+
   requestAttack(heroId: string) {
     const index = this.party.findIndex((hero) => hero.id === heroId);
     const hero = this.party[index];
@@ -150,7 +208,11 @@ class ExpeditionBattleScene extends Phaser.Scene {
     const positions = this.partyPositions(width, height);
     this.party.forEach((hero, index) => {
       const position = positions[index];
-      const sprite: CombatVisual = this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, IDLE_FOOT_ORIGIN_Y[hero.id] ?? 1).setDepth(5 - index).setScale((height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / this.textures.get(`actor-${hero.id}`).getSourceImage().height);
+      const texture = this.textures.get(`actor-${hero.id}`);
+      const sourceImg = texture ? texture.getSourceImage() : null;
+      const imgHeight = sourceImg && sourceImg.height > 0 ? sourceImg.height : 32;
+      const spriteScale = (height * (CHARACTER_HEIGHTS[hero.id] ?? 0.3)) / imgHeight;
+      const sprite: CombatVisual = this.add.image(position.x, position.y, `actor-${hero.id}`).setOrigin(0.5, IDLE_FOOT_ORIGIN_Y[hero.id] ?? 1).setDepth(5 - index).setScale(spriteScale);
       sprite.setAlpha(hero.hp <= 0 ? 0.35 : 1).setInteractive({ useHandCursor: true });
       sprite.setData('baseScaleX', sprite.scaleX).setData('baseScaleY', sprite.scaleY);
       this.heroSprites.set(hero.id, sprite);
@@ -203,18 +265,6 @@ class ExpeditionBattleScene extends Phaser.Scene {
       if (shadow) this.tweens.add({ targets: shadow, x: position.x, duration: 360, ease: 'Sine.InOut' });
       if (label) this.tweens.add({ targets: label, x: position.x, duration: 360, ease: 'Sine.InOut' });
     });
-  }
-
-  private createLanPuppet(x: number, groundY: number, targetHeight: number, depth: number) {
-    const root = this.add.container(x, groundY).setDepth(depth).setSize(620, 760);
-    const part = (key: string, px: number, py: number, ox = .5, oy = 1) => this.add.image(px, py, `lan-rig-${key}`).setOrigin(ox, oy);
-    const scarfMain = part('scarfMain', -116, -385, .2, .5), scarfMid = part('scarfMid', -72, -352, .18, .5), scarfTip = part('scarfTip', -34, -323, .15, .5);
-    const rearLeg = part('rearLeg', -40, 0), frontLeg = part('frontLeg', 44, 0), rearArm = part('rearArm', -65, -275, .5, .14), torso = part('torso', 0, -162), head = part('head', -12, -450);
-    const spear = part('spear', 104, -266, .5, .5), frontArm = part('frontArm', 63, -275, .5, .14), shield = part('shield', 112, -300, .5, .5);
-    root.add([scarfMain, scarfMid, scarfTip, rearLeg, frontLeg, rearArm, torso, head, spear, frontArm, shield]);
-    root.setScale(targetHeight / 650); root.setData('attackParts', [spear, frontArm, shield]);
-    [[scarfMain, 2.1, 1700], [scarfMid, 3.5, 1450], [scarfTip, 5.2, 1250]].forEach(([item, angle, duration]) => this.tweens.add({ targets: item as Phaser.GameObjects.Image, angle: angle as number, duration: duration as number, yoyo: true, repeat: -1, ease: 'Sine.InOut' }));
-    return root;
   }
 
   private createEnemy(width: number, height: number) {
@@ -377,8 +427,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   private resolveAttack(hero: Hero, enemy: Enemy, kind: 'melee' | 'arrow' | 'magic') {
     this.impact(this.enemySprite!, kind);
     this.onAttack(hero.id, enemy.id);
-    // Wait until the attacker has returned to idle. Otherwise a counter against
-    // that same hero can cancel the return tween and leave the scene busy forever.
+    // 等攻击者回到待机位再播放反击，避免反击 tween 打断返回动画导致场景卡死。
     this.time.delayedCall(kind === 'melee' ? 480 : 340, () => this.enemyCounter());
   }
 
@@ -435,14 +484,24 @@ class ExpeditionBattleScene extends Phaser.Scene {
     this.showFloatingText(target.x, target.y - target.displayHeight * 0.72, '命中', '#ffe49a');
   }
 
+  // 反击表现：对每一个"本轮会行动"的存活敌人，按 domain 已算好的实际目标（this.counters）
+  // 播放突进动画。不再只表现单体、也不再用前排第一人硬套——画面与数值结算一致。
   private enemyCounter() {
-    const enemy = this.enemies.find((item) => item.id === this.targetEnemyId) ?? this.enemies.find((item) => item.hp > 0);
-    if (!this.enemySprite || !enemy || enemy.hp <= 0) return;
-    const target = this.counterTargetId ? this.heroSprites.get(this.counterTargetId) : undefined;
-    if (!target) return;
-    const startX = this.enemySprite.x;
+    const surviving = this.enemies.filter((item) => item.hp > 0);
+    surviving.forEach((enemy, index) => {
+      const enemySprite = this.enemySprites.get(enemy.id);
+      const heroId = this.counters[enemy.id];
+      const target = heroId ? this.heroSprites.get(heroId) : undefined;
+      if (!enemySprite || !target) return;
+      // 错开多个敌人的突进，避免重叠成一团。
+      this.time.delayedCall(index * 90, () => this.lungeAt(enemySprite, target));
+    });
+  }
+
+  private lungeAt(enemySprite: Phaser.GameObjects.Image, target: CombatVisual) {
+    const startX = enemySprite.x;
     this.tweens.add({
-      targets: this.enemySprite, x: target.x + target.displayWidth * 0.3, duration: 190, ease: 'Cubic.In',
+      targets: enemySprite, x: target.x + target.displayWidth * 0.3, duration: 190, ease: 'Cubic.In',
       onComplete: () => {
         this.cameras.main.shake(110, 0.004);
         setVisualTint(target, 0xff8877);
@@ -453,11 +512,74 @@ class ExpeditionBattleScene extends Phaser.Scene {
         this.tweens.add({
           targets: target, x: targetX - 22, angle: -7, scaleX: baseScaleX * .86, scaleY: baseScaleY * 1.08,
           duration: 90, yoyo: true, repeat: 1, ease: 'Quad.Out',
-          onComplete: () => { target.setPosition(targetX, target.y).setAngle(0).setScale(baseScaleX, baseScaleY); setVisualTint(target); this.playIdle(target, this.party.findIndex((hero) => hero.id === this.counterTargetId)); },
+          onComplete: () => {
+            const heroIndex = this.party.findIndex((hero) => this.heroSprites.get(hero.id) === target);
+            target.setPosition(targetX, target.y).setAngle(0).setScale(baseScaleX, baseScaleY);
+            setVisualTint(target);
+            if (heroIndex >= 0) this.playIdle(target, heroIndex);
+          },
         });
-        this.tweens.add({ targets: this.enemySprite, x: startX, duration: 280, ease: 'Cubic.Out' });
+        this.tweens.add({ targets: enemySprite, x: startX, duration: 280, ease: 'Cubic.Out' });
       },
     });
+  }
+
+  // 按钮反馈：技能/道具/火焰瓶等点击时播放视觉表现（飘字/闪光/震动）。
+  // 数据事实由 domain 层决定，这里只做表现，不改变任何数值。
+  playFeedback(feedback: NonNullable<BattleCanvasProps['feedbackRequest']>) {
+    const { kind, heroId } = feedback;
+    const heroSprite = this.heroSprites.get(heroId);
+    const enemy = this.enemies.find((item) => item.id === feedback.enemyId && item.hp > 0)
+      ?? this.enemies.find((item) => item.hp > 0)
+      ?? this.enemies[0];
+    const heroX = heroSprite ? heroSprite.x : this.scale.width * 0.3;
+    const heroY = heroSprite ? heroSprite.y - (heroSprite.displayHeight ?? 90) * 0.7 : this.scale.height * 0.45;
+
+    switch (kind) {
+      case 'bandage':
+        this.showFloatingText(heroX, heroY, '包扎', '#7fe0a0');
+        if (heroSprite) this.tweens.add({ targets: heroSprite, scaleX: heroSprite.scaleX * 1.06, scaleY: heroSprite.scaleY * 0.96, duration: 120, yoyo: true });
+        break;
+      case 'sedative':
+        this.showFloatingText(heroX, heroY, '镇定', '#8fd4ff');
+        this.cameras.main.flash(120, 140, 190, 255);
+        break;
+      case 'shield-elixir':
+        this.showFloatingText(heroX, heroY, '铁壁', '#d8b3ff');
+        if (heroSprite) this.tweens.add({ targets: heroSprite, angle: 4, duration: 90, yoyo: true, repeat: 2 });
+        break;
+      case 'fire-bomb':
+        if (enemy) {
+          const enemySprite = this.enemySprites.get(enemy.id) ?? this.enemySprite;
+          if (enemySprite) {
+            this.impact(enemySprite, 'melee');
+            this.showFloatingText(enemySprite.x, enemySprite.y - enemySprite.displayHeight * 0.6, '火焰瓶！', '#ff9a5c');
+          }
+        }
+        break;
+      case 'skill':
+        if (enemy) {
+          const enemySprite = this.enemySprites.get(enemy.id) ?? this.enemySprite;
+          if (enemySprite) {
+            this.impact(enemySprite, 'magic');
+            this.showFloatingText(enemySprite.x, enemySprite.y - enemySprite.displayHeight * 0.6, '技能！', '#8ce9ff');
+          }
+        } else {
+          this.showFloatingText(heroX, heroY, '技能！', '#8ce9ff');
+        }
+        break;
+      case 'enemy-hit':
+        if (enemy) {
+          const enemySprite = this.enemySprites.get(enemy.id) ?? this.enemySprite;
+          if (enemySprite) {
+            this.impact(enemySprite, 'melee');
+          }
+        }
+        break;
+      case 'attack':
+      default:
+        break; // 攻击反馈已由 performAttack 动画负责，这里不重复
+    }
   }
 
   private showFloatingText(x: number, y: number, value: string, color: string) {
@@ -509,21 +631,31 @@ export function BattleCanvas(props: BattleCanvasProps) {
   useEffect(() => {
     // 拆分依赖：之前用整个 props，每次父组件 render 都会触发 scene.updateState；
     // 现在仅依赖真正影响场景渲染的字段，减少 Phaser scene 内部重建。
+    // 注意：enemyIntents / enemyCharge / counters 必须一并传入并加入依赖，
+    // 否则 updateState 内部会以 `?? {}` 覆盖，导致威胁预告与反击动画在首轮行动后失效。
     sceneRef.current?.updateState({
       party: props.party,
       enemies: props.enemies,
       targetEnemyId: props.targetEnemyId,
       nodeIndex: props.nodeIndex,
-      counterTargetId: props.counterTargetId,
       canHeroAttack: props.canHeroAttack,
       onAttack: props.onAttack,
       onSelectEnemy: props.onSelectEnemy,
+      enemyIntents: props.enemyIntents,
+      enemyCharge: props.enemyCharge,
+      counters: props.counters,
     });
-  }, [props.party, props.enemies, props.targetEnemyId, props.nodeIndex, props.counterTargetId, props.canHeroAttack, props.onAttack, props.onSelectEnemy]);
+  }, [props.party, props.enemies, props.targetEnemyId, props.nodeIndex, props.canHeroAttack, props.onAttack, props.onSelectEnemy, props.enemyIntents, props.enemyCharge, props.counters]);
 
   useEffect(() => {
     if (props.attackRequest) sceneRef.current?.requestAttack(props.attackRequest.heroId);
   }, [props.attackRequest]);
+
+  useEffect(() => {
+    if (props.feedbackRequest && sceneRef.current) {
+      sceneRef.current.playFeedback(props.feedbackRequest);
+    }
+  }, [props.feedbackRequest]);
 
   return <div className="phaser-battle-shell" ref={hostRef} aria-label="远征战斗场景" role="img" tabIndex={0} />;
 }

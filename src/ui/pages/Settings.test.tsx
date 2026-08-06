@@ -14,9 +14,9 @@ describe('Settings 页面组件', () => {
     cleanup();
   });
 
-  it('点击“压力系统”和“真实角色聊天”的开关时，应分别派发 (dispatch) TOGGLE_MORALE / TOGGLE_LLM Actions', () => {
+  it('点击“压力系统”和“真实角色聊天”的开关时，应分别派发 (dispatch) TOGGLE_PRESSURE / TOGGLE_LLM Actions', () => {
     const dispatch = vi.fn();
-    const state = createInitialGame(); // 默认 moraleEnabled: true, llmEnabled: true
+    const state = createInitialGame(); // 默认 pressureEnabled: true, llmEnabled: true
 
     render(<Settings state={state} dispatch={dispatch} />);
 
@@ -25,7 +25,7 @@ describe('Settings 页面组件', () => {
 
     // 点击压力系统开关
     fireEvent.click(toggles[0]);
-    expect(dispatch).toHaveBeenCalledWith({ type: 'TOGGLE_MORALE' });
+    expect(dispatch).toHaveBeenCalledWith({ type: 'TOGGLE_PRESSURE' });
 
     // 点击真实角色聊天开关
     fireEvent.click(toggles[1]);

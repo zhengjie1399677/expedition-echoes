@@ -32,7 +32,7 @@ const providerNames = { auto: '自动选择', 'mobile-tavern': 'Mobile-Tavern', 
 const cleanReply = (text: string): string => text.trim().replace(/^["“]+|["”]+$/g, '').trim();
 const sceneContext = (state: GameState, hero: Hero): string => {
   const party = state.expedition?.formation ?? state.selectedHeroIds;
-  const pressure = state.roster.find((item) => item.id === hero.id)?.morale ?? 0;
+  const pressure = state.roster.find((item) => item.id === hero.id)?.pressure ?? 0;
   const recent = state.log.slice(0, 3).join(' / ') || '队伍正在城镇休整。';
   const eventState = state.expedition ? `远征进行中，第 ${state.expedition.nodeIndex + 1} 个节点。` : '远征已结束，队伍在城镇。';
   return `场景上下文（这是既定事实，不得改写）：${eventState} ${hero.name}当前压力 ${pressure}/100；当前队伍：${party.join('、')}；最近经过：${recent}`;

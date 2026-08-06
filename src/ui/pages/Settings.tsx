@@ -36,10 +36,10 @@ export function Settings({ state, dispatch }: SettingsProps) {
           <p>开启后，受击与冒险会增加压力；达到 50 时进入“动摇”，攻击降低 2 点。</p>
         </div>
         <button
-          className={`toggle-btn ${state.settings.moraleEnabled ? 'active' : ''}`}
-          onClick={() => dispatch({ type: 'TOGGLE_MORALE' })}
+          className={`toggle-btn ${state.settings.pressureEnabled ? 'active' : ''}`}
+          onClick={() => dispatch({ type: 'TOGGLE_PRESSURE' })}
         >
-          {state.settings.moraleEnabled ? '已开启' : '已关闭'}
+          {state.settings.pressureEnabled ? '已开启' : '已关闭'}
         </button>
       </div>
       <div className="setting-card">

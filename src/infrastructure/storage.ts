@@ -1,20 +1,16 @@
-import type { GameState, Hero, Rarity, HeroClass, Enemy, DropEntry } from '../domain/model';
-import { initialHeroes, initialInventory } from '../content/gameContent';
+import type { GameState, Hero, Rarity, HeroClass, Enemy, DropEntry, EnemyIntent, ThreatLevel } from '../domain/model';
+import { initialHeroes, initialInventory, regions, eventChains } from '../content/gameContent';
 
-const KEY = 'expedition-echoes.save.v12';
-const V11_KEY = 'expedition-echoes.save.v11';
-const V10_KEY = 'expedition-echoes.save.v10';
-const V9_KEY = 'expedition-echoes.save.v9';
-const V8_KEY = 'expedition-echoes.save.v8';
-const V7_KEY = 'expedition-echoes.save.v7';
-const V6_KEY = 'expedition-echoes.save.v6';
-const V5_KEY = 'expedition-echoes.save.v5';
+const KEY = 'expedition-echoes.save.v13';
+const V12_KEY = 'expedition-echoes.save.v12';
 const LEGACY_KEYS = ['expedition-echoes.save.v3', 'expedition-echoes.save.v4'];
-const SUPPORTED_VERSION_MIN = 5;
-const SUPPORTED_VERSION_MAX = 12;
+// 迁移截止策略：仅保留最近一代旧档（v12）的读取与迁移；v5–v11 迁移链已下线。
+// 设定迁移截止时间后可将 SUPPORTED_VERSION_MIN 直接提到 13 并删除 V12_KEY。
+const SUPPORTED_VERSION_MIN = 12;
+const SUPPORTED_VERSION_MAX = 13;
 
 type StoredHero = Omit<Hero, 'level' | 'experience' | 'equipment' | 'affinity' | 'preferredGiftTags'> & Partial<Pick<Hero, 'level' | 'experience' | 'equipment' | 'affinity' | 'preferredGiftTags'>>;
-type StoredGame = Omit<GameState, 'version' | 'roster' | 'inventory' | 'materials' | 'hasAcceptedMission' | 'day' | 'missionAcceptedToday' | 'food' | 'hunger' | 'giftsGivenToday' | 'settlement' | 'dayReport'> & {
+type StoredGame = Omit<GameState, 'version' | 'roster' | 'inventory' | 'materials' | 'hasAcceptedMission' | 'day' | 'missionAcceptedToday' | 'food' | 'hunger' | 'giftsGivenToday' | 'regions' | 'eventChains' | 'settlement' | 'dayReport'> & {
   version: number;
   roster: StoredHero[];
   inventory?: Record<string, number>;
@@ -25,6 +21,8 @@ type StoredGame = Omit<GameState, 'version' | 'roster' | 'inventory' | 'material
   food?: number;
   hunger?: number;
   giftsGivenToday?: Record<string, number>;
+  regions?: Record<string, unknown>;
+  eventChains?: Record<string, unknown>;
   settlement?: GameState['settlement'];
   dayReport?: GameState['dayReport'];
 };
@@ -65,6 +63,34 @@ const cleanBooleanRecord = (raw: unknown): Record<string, boolean> => {
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) if (value === true && isSafeKey(key)) out[key] = true;
   return out;
 };
+// 区域威胁等级：只接受 0-3 整数；缺失/非法回退 0（新档用 regions 静态数据兜底，见 loadGame）。
+const cleanThreatRecord = (raw: unknown): Record<string, ThreatLevel> => {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, ThreatLevel> = Object.create(null);
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 3) continue;
+    if (!isSafeKey(key)) continue;
+    out[key] = value as ThreatLevel;
+  }
+  return out;
+};
+// 事件链状态：缺字段时回退静态定义初始值；已有链保留进度。
+const cleanEventChains = (raw: unknown): GameState['eventChains'] => {
+  const defaults: GameState['eventChains'] = Object.fromEntries(
+    eventChains.map((c) => [c.id, { currentNode: c.nodes[0]?.id ?? 'start', completed: false }]),
+  );
+  if (!raw || typeof raw !== 'object') return defaults;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isSafeKey(key) || !(key in defaults)) continue;
+    if (!value || typeof value !== 'object') continue;
+    const v = value as Record<string, unknown>;
+    defaults[key] = {
+      currentNode: typeof v.currentNode === 'string' ? v.currentNode : defaults[key].currentNode,
+      completed: typeof v.completed === 'boolean' ? v.completed : false,
+    };
+  }
+  return defaults;
+};
 
 function cleanDrop(raw: unknown): DropEntry | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -94,7 +120,15 @@ function cleanEnemy(raw: unknown): Enemy | null {
     damage: num(e.damage, 1),
     drops: Array.isArray(e.drops) ? e.drops.map(cleanDrop).filter(Boolean) as DropEntry[] : undefined,
     trait: (e.trait === 'pack' || e.trait === 'thorns' || e.trait === 'spores' || e.trait === 'rock-armor' || e.trait === 'ancient-core') ? e.trait : undefined,
+    intents: Array.isArray(e.intents) ? e.intents.filter(cleanIntent) : undefined,
   };
+}
+
+// 意图池条目校验：只允许 attack/charge/guard/pressure 四类。
+function cleanIntent(raw: unknown): raw is EnemyIntent {
+  if (!raw || typeof raw !== 'object') return false;
+  const i = raw as Record<string, unknown>;
+  return i.type === 'attack' || i.type === 'charge' || i.type === 'guard' || i.type === 'pressure';
 }
 
 function cleanHero(raw: unknown): Hero | null {
@@ -112,7 +146,8 @@ function cleanHero(raw: unknown): Hero | null {
     heroClass,
     maxHp: num(h.maxHp, base?.maxHp ?? 20),
     hp: num(h.hp, base?.hp ?? 20),
-    morale: num(h.morale, 0),
+    // 旧档（v12 及以下）字段为 morale，新档为 pressure；读取时兼容迁移。
+    pressure: num(h.pressure, num(h.morale, 0)),
     gearLevel: num(h.gearLevel, 0),
     level: num(h.level, 1),
     experience: num(h.experience, 0),
@@ -122,7 +157,10 @@ function cleanHero(raw: unknown): Hero | null {
     affinity: num(h.affinity, 0),
     preferredGiftTags: Array.isArray(h.preferredGiftTags) ? h.preferredGiftTags.filter((t): t is string => typeof t === 'string') : [],
     story: base?.story ?? String(h.story ?? ''),
-    skillId: typeof h.skillId === 'string' ? h.skillId : base?.skillId ?? '',
+    // 旧档（v13 及以前）使用单值 skillId；迁移为 skills 数组（首项保留原技能）。
+    skills: Array.isArray((h as any).skills) && (h as any).skills.length > 0
+      ? (h as any).skills.filter((s: unknown): s is string => typeof s === 'string')
+      : (typeof (h as any).skillId === 'string' && (h as any).skillId ? [(h as any).skillId] : ((base as any)?.skills?.length ? (base as any).skills : [(base as any)?.skillId ?? ''].filter(Boolean))),
     reactions: (h.reactions && typeof h.reactions === 'object') ? (h.reactions as Hero['reactions']) : (base?.reactions ?? { victory: '', retreat: '', defeated: '', idle: '' }),
   };
 }
@@ -138,13 +176,7 @@ export function loadGame(): GameState | null {
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(KEY)
-      ?? localStorage.getItem(V11_KEY)
-      ?? localStorage.getItem(V10_KEY)
-      ?? localStorage.getItem(V9_KEY)
-      ?? localStorage.getItem(V8_KEY)
-      ?? localStorage.getItem(V7_KEY)
-      ?? localStorage.getItem(V6_KEY)
-      ?? localStorage.getItem(V5_KEY);
+      ?? localStorage.getItem(V12_KEY);
   } catch (error) {
     console.warn('[storage] 读取 localStorage 失败，回退到新档。', error);
     return null;
@@ -200,7 +232,7 @@ export function loadGame(): GameState | null {
     });
 
     const state: GameState = {
-      version: 12,
+      version: 13,
       page: parsed.page ?? 'town',
       gold: num(parsed.gold, 100),
       roster: loadedRoster,
@@ -233,10 +265,14 @@ export function loadGame(): GameState | null {
                 gainedExperience: num(exp.gainedExperience, 0),
                 eventResolved: exp.eventResolved ?? false,
                 skillUses: cleanBooleanRecord(exp.skillUses),
+                seenEvents: Array.isArray(exp.seenEvents) ? exp.seenEvents.filter((item): item is string => typeof item === 'string') : [],
+                enemyIntents: (exp.enemyIntents && typeof exp.enemyIntents === 'object') ? exp.enemyIntents : {},
+                enemyCharge: cleanRecord(exp.enemyCharge),
               }
             : null,
       settings: {
-        moraleEnabled: typeof settingsObj.moraleEnabled === 'boolean' ? settingsObj.moraleEnabled : true,
+        // 旧档（v12 及以下）字段为 moraleEnabled，新档为 pressureEnabled；读取时兼容迁移。
+        pressureEnabled: typeof settingsObj.pressureEnabled === 'boolean' ? settingsObj.pressureEnabled : (typeof settingsObj.moraleEnabled === 'boolean' ? settingsObj.moraleEnabled : true),
         llmEnabled: typeof settingsObj.llmEnabled === 'boolean' ? settingsObj.llmEnabled : true,
       },
       log: Array.isArray(parsed.log) ? parsed.log.filter((line): line is string => typeof line === 'string').slice(0, 8) : [],
@@ -247,15 +283,17 @@ export function loadGame(): GameState | null {
       food: num(parsed.food, 5),
       hunger: num(parsed.hunger, 0),
       giftsGivenToday: cleanRecord(parsed.giftsGivenToday),
+      // 区域威胁：旧档无字段时回退静态默认值；新档读取已存等级（缺失区域补默认）
+      regions: { ...Object.fromEntries(regions.map((r) => [r.id, r.threat])), ...cleanThreatRecord(parsed.regions) },
+      // 事件链：旧档无字段时按静态定义初始化
+      eventChains: cleanEventChains(parsed.eventChains),
       settlement: (parsed.settlement && typeof parsed.settlement === 'object') ? parsed.settlement : null,
       dayReport: (parsed.dayReport && typeof parsed.dayReport === 'object') ? parsed.dayReport : null,
     };
 
     // 升级后清理旧版 key，避免下次再走迁移分支。
-    if (parsed.version < 12) {
-      [V11_KEY, V10_KEY, V9_KEY, V8_KEY, V7_KEY, V6_KEY, V5_KEY].forEach((key) => {
-        try { localStorage.removeItem(key); } catch { /* ignore */ }
-      });
+    if (parsed.version < 13) {
+      try { localStorage.removeItem(V12_KEY); } catch { /* ignore */ }
     }
     return state;
   } catch (error) {
@@ -306,7 +344,7 @@ export function clearGame(): void {
     latestStateToSave = null;
   }
   try {
-    [KEY, V11_KEY, V10_KEY, V9_KEY, V8_KEY, V7_KEY, V6_KEY, V5_KEY, ...LEGACY_KEYS].forEach((key) => localStorage.removeItem(key));
+    [KEY, V12_KEY, ...LEGACY_KEYS].forEach((key) => localStorage.removeItem(key));
   } catch (error) {
     console.warn('[storage] 清理 localStorage 失败。', error);
   }

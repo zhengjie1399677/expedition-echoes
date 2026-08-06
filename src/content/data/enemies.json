@@ -1,27 +1,53 @@
 [
   { "id": "scout", "name": "遗迹斥候", "maxHp": 26, "hp": 26, "distance": 1, "attackMinRange": 2, "attackMaxRange": 3, "damage": 4,
+    "intents": [
+      { "type": "attack" }, { "type": "attack" }, { "type": "charge", "targetHint": "back" }
+    ],
     "drops": [
       { "typeId": "ruin-shard", "rarity": 0, "chance": 0.6 },
       { "typeId": "ruin-shard", "rarity": 1, "chance": 0.15 }
     ] },
   { "id": "warden", "name": "锈甲守卫", "maxHp": 34, "hp": 34, "distance": 1, "attackMinRange": 1, "attackMaxRange": 1, "damage": 5,
+    "intents": [
+      { "type": "attack" }, { "type": "attack" }, { "type": "guard" }
+    ],
     "drops": [
       { "typeId": "rust-iron", "rarity": 0, "chance": 0.65 },
       { "typeId": "rust-iron", "rarity": 1, "chance": 0.18 }
     ] },
   { "id": "gatekeeper", "name": "遗迹门卫", "maxHp": 46, "hp": 46, "distance": 1, "attackMinRange": 1, "attackMaxRange": 2, "damage": 7,
+    "intents": [
+      { "type": "attack" }, { "type": "attack" }, { "type": "attack" }, { "type": "charge", "targetHint": "front" }
+    ],
     "drops": [
       { "typeId": "rust-iron", "rarity": 1, "chance": 0.5 },
       { "typeId": "ruin-shard", "rarity": 1, "chance": 0.35 }
     ] },
   { "id": "ash-wolf", "name": "灰烬林狼", "maxHp": 20, "hp": 20, "distance": 1, "attackMinRange": 1, "attackMaxRange": 2, "damage": 4, "trait": "pack",
+    "intents": [
+      { "type": "attack" }
+    ],
     "drops": [{ "typeId": "ruin-shard", "rarity": 0, "chance": 0.35 }] },
   { "id": "thorn-stag", "name": "荆角巨鹿", "maxHp": 38, "hp": 38, "distance": 1, "attackMinRange": 1, "attackMaxRange": 2, "damage": 6, "trait": "thorns",
+    "intents": [
+      { "type": "attack" }, { "type": "charge", "targetHint": "front" }
+    ],
     "drops": [{ "typeId": "ruin-shard", "rarity": 1, "chance": 0.45 }] },
   { "id": "spore-beast", "name": "毒蕈孢子兽", "maxHp": 30, "hp": 30, "distance": 2, "attackMinRange": 2, "attackMaxRange": 3, "damage": 3, "trait": "spores",
+    "intents": [
+      { "type": "attack", "targetHint": "back" }, { "type": "attack", "targetHint": "back" },
+      { "type": "pressure", "targetHint": "back", "pressure": 6 }
+    ],
     "drops": [{ "typeId": "ruin-shard", "rarity": 0, "chance": 0.55 }] },
   { "id": "rock-lizard", "name": "岩甲蜥", "maxHp": 42, "hp": 42, "distance": 1, "attackMinRange": 1, "attackMaxRange": 1, "damage": 5, "trait": "rock-armor",
+    "intents": [
+      { "type": "attack" }, { "type": "guard" }
+    ],
     "drops": [{ "typeId": "rust-iron", "rarity": 1, "chance": 0.5 }] },
   { "id": "grove-guardian", "name": "古树守卫", "maxHp": 88, "hp": 88, "distance": 1, "attackMinRange": 1, "attackMaxRange": 3, "damage": 8, "trait": "ancient-core",
+    "intents": [
+      { "type": "attack", "targetHint": "front" }, { "type": "charge", "targetHint": "weakest" },
+      { "type": "guard" }, { "type": "pressure", "targetHint": "weakest", "pressure": 8 }
+    ],
     "drops": [{ "typeId": "ruin-shard", "rarity": 2, "chance": 1 }, { "typeId": "rust-iron", "rarity": 2, "chance": 0.5 }] }
 ]

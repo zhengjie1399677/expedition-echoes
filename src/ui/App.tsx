@@ -76,7 +76,7 @@ export function App() {
         {state.page === 'settlement' && <Settlement state={state} dispatch={dispatch} />}
       </div>
       <BottomAdventureMenu state={state} dispatch={dispatch} />
-      {state.dayReport && <DayReportOverlay state={state} dispatch={dispatch} />}
+      {state.dayReport && !state.dayReport.pending && <DayReportOverlay state={state} dispatch={dispatch} />}
       {confirmRest && (
         <div className="confirm-overlay" onClick={() => setConfirmRest(false)}>
           <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>

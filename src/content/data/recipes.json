@@ -4,5 +4,18 @@
   { "id": "craft-staff", "resultItemId": "star-staff", "goldCost": 25, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 2 }, { "typeId": "rust-iron", "rarity": 0, "count": 3 }] },
   { "id": "craft-mail", "resultItemId": "field-mail", "goldCost": 30, "materials": [{ "typeId": "rust-iron", "rarity": 1, "count": 3 }, { "typeId": "ruin-shard", "rarity": 0, "count": 2 }] },
   { "id": "craft-coat", "resultItemId": "warded-coat", "goldCost": 25, "materials": [{ "typeId": "rust-iron", "rarity": 0, "count": 4 }, { "typeId": "ruin-shard", "rarity": 1, "count": 1 }] },
-  { "id": "craft-charm", "resultItemId": "echo-charm", "goldCost": 35, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 3 }, { "typeId": "rust-iron", "rarity": 1, "count": 1 }] }
+  { "id": "craft-charm", "resultItemId": "echo-charm", "goldCost": 35, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 3 }, { "typeId": "rust-iron", "rarity": 1, "count": 1 }] },
+
+  { "id": "craft-spear-fine", "resultItemId": "vanguard-spear-fine", "goldCost": 40, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 3 }, { "typeId": "rust-iron", "rarity": 1, "count": 1 }] },
+  { "id": "craft-spear-rare", "resultItemId": "vanguard-spear-rare", "goldCost": 65, "materials": [{ "typeId": "ruin-shard", "rarity": 2, "count": 2 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }] },
+  { "id": "craft-bow-fine", "resultItemId": "ranger-bow-fine", "goldCost": 40, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 3 }, { "typeId": "rust-iron", "rarity": 1, "count": 1 }] },
+  { "id": "craft-bow-rare", "resultItemId": "ranger-bow-rare", "goldCost": 65, "materials": [{ "typeId": "ruin-shard", "rarity": 2, "count": 2 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }] },
+  { "id": "craft-staff-fine", "resultItemId": "star-staff-fine", "goldCost": 45, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 2 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }] },
+  { "id": "craft-staff-rare", "resultItemId": "star-staff-rare", "goldCost": 70, "materials": [{ "typeId": "ruin-shard", "rarity": 2, "count": 2 }, { "typeId": "rust-iron", "rarity": 2, "count": 2 }] },
+  { "id": "craft-mail-fine", "resultItemId": "field-mail-fine", "goldCost": 50, "materials": [{ "typeId": "rust-iron", "rarity": 1, "count": 3 }, { "typeId": "ruin-shard", "rarity": 1, "count": 1 }] },
+  { "id": "craft-mail-rare", "resultItemId": "field-mail-rare", "goldCost": 75, "materials": [{ "typeId": "rust-iron", "rarity": 2, "count": 2 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }] },
+  { "id": "craft-coat-fine", "resultItemId": "warded-coat-fine", "goldCost": 45, "materials": [{ "typeId": "rust-iron", "rarity": 1, "count": 3 }, { "typeId": "ruin-shard", "rarity": 1, "count": 1 }] },
+  { "id": "craft-coat-rare", "resultItemId": "warded-coat-rare", "goldCost": 70, "materials": [{ "typeId": "rust-iron", "rarity": 2, "count": 2 }, { "typeId": "ruin-shard", "rarity": 1, "count": 2 }] },
+  { "id": "craft-charm-fine", "resultItemId": "echo-charm-fine", "goldCost": 50, "materials": [{ "typeId": "ruin-shard", "rarity": 1, "count": 3 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }] },
+  { "id": "craft-charm-rare", "resultItemId": "echo-charm-rare", "goldCost": 80, "materials": [{ "typeId": "ruin-shard", "rarity": 2, "count": 2 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }] }
 ]

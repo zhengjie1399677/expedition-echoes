@@ -3,9 +3,9 @@ import type { GameState } from '../domain/model';
 import { createInitialGame } from '../domain/gameEngine';
 import { clearGame, loadGame, saveGame, saveGameDebounced, flushSaveGame } from './storage';
 
-const KEY = 'expedition-echoes.save.v12';
-const V5_KEY = 'expedition-echoes.save.v5';
-const V11_KEY = 'expedition-echoes.save.v11';
+const KEY = 'expedition-echoes.save.v13';
+const V12_KEY = 'expedition-echoes.save.v12';
+const V3_KEY = 'expedition-echoes.save.v3';
 
 // 用 Map 模拟 localStorage，避免互相污染。
 const makeStorage = () => {
@@ -42,7 +42,7 @@ describe('存档加载与迁移', () => {
     saveGame(state);
     const loaded = loadGame();
     expect(loaded).not.toBeNull();
-    expect(loaded?.version).toBe(12);
+    expect(loaded?.version).toBe(13);
     expect(loaded?.gold).toBe(state.gold);
     expect(loaded?.roster.length).toBe(state.roster.length);
     expect(loaded?.selectedHeroIds).toEqual(state.selectedHeroIds);
@@ -62,9 +62,9 @@ describe('存档加载与迁移', () => {
   });
 
   it('旧版存档字段缺失时使用默认值兜底，不崩溃', () => {
-    // 模拟 V5 旧档：缺 day/food/hunger/giftsGivenToday 等字段，expedition.supplies 也缺 food。
+    // 模拟 v12 旧档：缺 day/food/hunger/giftsGivenToday 等字段，expedition.supplies 也缺 food。
     const legacy = {
-      version: 5,
+      version: 12,
       page: 'town',
       gold: 80,
       roster: [{ id: 'lan', name: '岚', heroClass: 'vanguard', maxHp: 32, hp: 32, morale: 0, gearLevel: 0, recruited: true, personality: '谨慎', affinity: 0 }],
@@ -87,19 +87,44 @@ describe('存档加载与迁移', () => {
       materials: {},
       hasAcceptedMission: true,
     };
-    storage.setItem(V5_KEY, JSON.stringify(legacy));
+    storage.setItem(V12_KEY, JSON.stringify(legacy));
 
     const loaded = loadGame();
     expect(loaded).not.toBeNull();
-    expect(loaded?.version).toBe(12);
+    expect(loaded?.version).toBe(13);
     expect(loaded?.day).toBe(1); // 缺失字段使用默认
     expect(loaded?.food).toBe(5);
     expect(loaded?.hunger).toBe(0);
+    // 旧档 morale 字段迁移为 pressure
+    expect(loaded?.roster[0].pressure).toBe(0);
+    // 旧档 settings.moraleEnabled 迁移为 pressureEnabled
+    expect(loaded?.settings.pressureEnabled).toBe(true);
     expect(loaded?.expedition?.supplies.food).toBe(0); // 缺失字段兜底为 0
     expect(loaded?.expedition?.supplies.bandage).toBe(1);
     expect(loaded?.expedition?.startSupplies.sedative).toBe(0);
     // 加载后旧版 key 应被清理
-    expect(storage.getItem(V5_KEY)).toBeNull();
+    expect(storage.getItem(V12_KEY)).toBeNull();
+  });
+
+  it('v12 旧档（morale 字段）迁移到 v13 pressure 字段', () => {
+    const legacy = {
+      ...createInitialGame(),
+      version: 12,
+      roster: createInitialGame().roster.map((hero) => ({ ...hero, morale: 42 }) as Record<string, unknown>),
+      settings: { moraleEnabled: false, llmEnabled: true },
+    };
+    // 移除新字段，模拟真实 v12 存档结构
+    legacy.roster = (legacy.roster as Record<string, unknown>[]).map(({ pressure, ...rest }) => rest);
+    storage.setItem(V12_KEY, JSON.stringify(legacy));
+
+    const loaded = loadGame();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.version).toBe(13);
+    expect(loaded?.roster[0].pressure).toBe(42);
+    expect((loaded?.roster[0] as unknown as Record<string, unknown>).morale).toBeUndefined();
+    expect(loaded?.settings.pressureEnabled).toBe(false);
+    // 迁移后旧版 key 被清理
+    expect(storage.getItem(V12_KEY)).toBeNull();
   });
 
   it('材料库存 key 异常时被过滤', () => {
@@ -135,8 +160,8 @@ describe('存档加载与迁移', () => {
       void level; void experience; void equipment; void affinity; void preferredGiftTags;
       return rest;
     });
-    const legacy = { ...state, version: 11, roster: stripped };
-    storage.setItem(V11_KEY, JSON.stringify(legacy));
+    const legacy = { ...state, version: 12, roster: stripped };
+    storage.setItem(V12_KEY, JSON.stringify(legacy));
 
     const loaded = loadGame();
     expect(loaded?.roster[0].level).toBe(1);
@@ -149,13 +174,13 @@ describe('存档加载与迁移', () => {
   it('clearGame 清除所有版本 key', () => {
     const state = createInitialGame();
     saveGame(state);
-    storage.setItem(V11_KEY, '{"version":11}');
-    storage.setItem(V5_KEY, '{"version":5}');
+    storage.setItem(V12_KEY, '{"version":12}');
+    storage.setItem(V3_KEY, '{"version":3}');
     expect(storage._dump().size).toBeGreaterThan(0);
     clearGame();
     expect(storage.getItem(KEY)).toBeNull();
-    expect(storage.getItem(V11_KEY)).toBeNull();
-    expect(storage.getItem(V5_KEY)).toBeNull();
+    expect(storage.getItem(V12_KEY)).toBeNull();
+    expect(storage.getItem(V3_KEY)).toBeNull();
   });
 
   it('保存的 GameState 类型完整', () => {

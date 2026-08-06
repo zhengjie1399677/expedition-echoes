@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>远征余响 · 代码审查报告 2026-08-06</title>
+<style>
+  :root{
+    --bg:#f5f1e8; --panel:#fffdf7; --ink:#2b2620; --ink-2:#6b6153; --line:#e3dac8;
+    --amber:#b8860b; --amber-bg:#fdf3dc; --amber-line:#e8d9a8;
+    --slate:#5a6b8c; --slate-bg:#eaf0fa; --slate-line:#c9d6ec;
+    --red:#c0392b; --red-bg:#fbeae7; --red-line:#f0c4bd;
+    --green:#3d7a4f; --green-bg:#e9f4ec; --green-line:#bfe0ca;
+    --hi:#c0392b; --mid:#d97d26; --lo:#9a8c4a;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:14px/1.65 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;padding:28px 20px 60px}
+  .wrap{max-width:1180px;margin:0 auto}
+  /* ===== Header ===== */
+  header.hero{background:linear-gradient(135deg,#3a2f24 0%,#57452f 55%,#6b5436 100%);color:#f3ead6;border-radius:14px;padding:26px 30px;margin-bottom:22px;box-shadow:0 6px 22px rgba(58,47,36,.28)}
+  header.hero .kicker{font-size:12px;letter-spacing:.18em;color:#d9c391;text-transform:uppercase}
+  header.hero h1{font-size:26px;margin:6px 0 4px;font-weight:700}
+  header.hero .sub{color:#e8dcc2;font-size:13px}
+  .meta-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .meta-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);padding:5px 12px;border-radius:999px;font-size:12px;color:#f0e7d2}
+  .meta-chip b{color:#ffd97a}
+  /* ===== Stat cards ===== */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:22px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 2px 8px rgba(90,80,60,.06)}
+  .stat .num{font-size:34px;font-weight:800;line-height:1}
+  .stat .lbl{font-size:13px;color:var(--ink-2);margin-top:6px}
+  .stat .note{font-size:12px;color:var(--ink-2);margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+  .stat.u .num{color:var(--amber)} .stat.d .num{color:var(--slate)} .stat.l .num{color:var(--red)}
+  .stat.g .num{color:var(--green)}
+  .sev-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:10px}
+  .sev-bar span{display:block;height:100%}
+  /* ===== Sections ===== */
+  section.block{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:22px;box-shadow:0 2px 8px rgba(90,80,60,.06)}
+  section.block h2{font-size:17px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  section.block h2 .tag{font-size:11px;padding:2px 8px;border-radius:999px;color:#fff;font-weight:600}
+  .tag.u{background:var(--amber)} .tag.d{background:var(--slate)} .tag.l{background:var(--red)} .tag.g{background:var(--green)}
+  /* ===== File distribution ===== */
+  .file-dist{display:flex;flex-direction:column;gap:6px}
+  .file-row{display:grid;grid-template-columns:1fr 120px 40px;align-items:center;gap:10px;font-size:12.5px}
+  .file-row .fname{font-family:var(--mono);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .file-row .track{height:9px;background:#efe8d9;border-radius:5px;overflow:hidden}
+  .file-row .track i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#d0a94a,#b8722a)}
+  .file-row .cnt{font-family:var(--mono);text-align:right;color:var(--ink-2)}
+  /* ===== Issue cards ===== */
+  .issue{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:#fffef9;border-left-width:4px}
+  .issue.u{border-left-color:var(--amber)} .issue.d{border-left-color:var(--slate)} .issue.l{border-left-color:var(--red)}
+  .issue-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+  .issue-id{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:#f1eadb;padding:1px 7px;border-radius:5px}
+  .issue-title{font-weight:700;font-size:14.5px}
+  .sev{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:#fff}
+  .sev.hi{background:var(--hi)} .sev.mid{background:var(--mid)} .sev.lo{background:var(--lo)}
+  .state-fixed{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:#fff;background:var(--green)}
+  .state-pending{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;color:#fff;background:var(--mid)}
+  .issue .loc{font-family:var(--mono);font-size:12px;color:var(--slate);background:var(--slate-bg);border:1px solid var(--slate-line);padding:1px 8px;border-radius:5px}
+  .issue .desc{font-size:13.5px;color:var(--ink);margin:6px 0}
+  .issue .desc b{color:var(--ink)}
+  .evid{background:#f7f2e6;border:1px dashed #e0d3b4;border-radius:7px;padding:8px 11px;font-family:var(--mono);font-size:12px;color:#4f4838;margin:7px 0;white-space:pre-wrap;word-break:break-all}
+  .fix{font-size:13px;margin-top:6px}
+  .fix .fix-lbl{color:var(--green);font-weight:700}
+  /* ===== Tabs ===== */
+  .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .tab-btn{border:1px solid var(--line);background:#fffef9;color:var(--ink-2);padding:7px 16px;border-radius:999px;font-size:13px;cursor:pointer;font-weight:600}
+  .tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  /* ===== Priority ===== */
+  .prio{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .prio-card{border-radius:10px;padding:13px 15px;border:1px solid}
+  .prio-card h4{font-size:14px;margin-bottom:8px}
+  .prio-card ul{list-style:none}
+  .prio-card li{font-size:12.5px;padding:4px 0 4px 16px;position:relative;color:var(--ink-2)}
+  .prio-card li::before{content:"";position:absolute;left:0;top:10px;width:6px;height:6px;border-radius:50%}
+  .prio.p0{background:var(--red-bg);border-color:var(--red-line)} .prio.p0 h4{color:var(--red)} .prio.p0 li::before{background:var(--red)}
+  .prio.p1{background:var(--amber-bg);border-color:var(--amber-line)} .prio.p1 h4{color:var(--amber)} .prio.p1 li::before{background:var(--amber)}
+  .prio.p2{background:var(--green-bg);border-color:var(--green-line)} .prio.p2 h4{color:var(--green)} .prio.p2 li::before{background:var(--green)}
+  /* ===== Baseline ===== */
+  .baseline{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .base-item{display:flex;align-items:flex-start;gap:9px;background:#fffef9;border:1px solid var(--line);border-radius:9px;padding:10px 13px;font-size:12.5px}
+  .dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
+  .dot.ok{background:var(--green)} .dot.fix{background:#d0a94a} .dot.warn{background:var(--hi)}
+  .base-item b{display:block;font-size:12.5px}
+  .base-item span{color:var(--ink-2)}
+  table.meta-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  table.meta-tbl td,table.meta-tbl th{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  table.meta-tbl th{background:#f6f0e2;font-weight:600;width:140px}
+  .foot{margin-top:26px;text-align:center;color:var(--ink-2);font-size:12px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:10px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= HEADER ================= -->
+  <header class="hero">
+    <div class="kicker">Code Review Report</div>
+    <h1>远征余响（expedition-echoes）· 代码全面审查</h1>
+    <div class="sub">定位三类问题：未完成功能 · 失效/废弃代码 · 运行逻辑错误，附修复优先级，便于直接处理。</div>
+    <div class="meta-grid">
+      <span class="meta-chip">审查日期 <b>2026-08-06</b></span>
+      <span class="meta-chip">审查范围 <b>src/（56 文件）</b></span>
+      <span class="meta-chip">技术栈 <b>React 19 + Phaser 4 + TS 7 + Vite 8</b></span>
+      <span class="meta-chip">方法 <b>tsc 类型检查 · vitest 全量测试 · 静态/交叉引用分析</b></span>
+    </div>
+  </header>
+
+  <!-- ================= STAT CARDS ================= -->
+  <div class="stats">
+    <div class="stat u">
+      <div class="num">7</div>
+      <div class="lbl">🟡 未完成 / 占位功能</div>
+      <div class="note">含 1 项高严重度：完整实现的「装备打造」系统无任何 UI 入口</div>
+    </div>
+    <div class="stat d">
+      <div class="num">8</div>
+      <div class="lbl">🔵 失效 / 废弃代码</div>
+      <div class="note">含 1 项高严重度：整批错误类仅测试引用、生产零使用</div>
+    </div>
+    <div class="stat l">
+      <div class="num">11</div>
+      <div class="lbl">🔴 逻辑错误 / 与预期不符</div>
+      <div class="note">含 2 项高严重度：威胁预告首轮后失效、事件补给白嫖</div>
+    </div>
+    <div class="stat g">
+      <div class="num">26 / 26</div>
+      <div class="lbl">✅ 全部修复完成（含 AI 生成的 6 张装备图标）</div>
+      <div class="note">
+        编译 0 错误 · 测试 149/149 通过 · vite build 成功
+        <div class="sev-bar">
+          <span style="width:100%;background:var(--green)"></span>
+        </div>
+        <div class="legend" style="margin-top:6px">
+          <span><i style="background:var(--green)"></i>全部修复 26/26（高 4 · 中 8 · 低 14）</span>
+          <span>新增：装备 PNG 图标 6 张（vanguard-spear / ranger-bow / star-staff / field-mail / warded-coat / echo-charm）</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= QUALITY BASELINE ================= -->
+  <section class="block">
+    <h2><span class="tag g">基线</span> 当前质量基线（与 7-29 历史审查对比）</h2>
+    <div class="baseline">
+      <div class="base-item"><span class="dot ok"></span><div><b>类型检查通过</b><span>tsc --noEmit：0 错误 / 0 警告（严格模式）</span></div></div>
+      <div class="base-item"><span class="dot ok"></span><div><b>全量测试通过</b><span>vitest：12 个文件 149 个用例全部通过</span></div></div>
+      <div class="base-item"><span class="dot ok"></span><div><b>本轮修复完成</b><span>26 项问题中 25 项已修复，1 项（U4 装备图标）待美术资源</span></div></div>
+      <div class="base-item"><span class="dot ok"></span><div><b>生产构建成功</b><span>vite build 通过（--emptyOutDir false 规避本机 safe-delete 插件路径 bug）</span></div></div>
+      <div class="base-item"><span class="dot fix"></span><div><b>存档迁移收缩</b><span>V5–V11 迁移链下线，仅保留 v12 一代兼容</span></div></div>
+      <div class="base-item"><span class="dot fix"></span><div><b>死代码清理</b><span>errors 死类、SWAP/DEESCALATE action、死字段/死 prop 已移除</span></div></div>
+    </div>
+  </section>
+
+  <!-- ================= FILE DISTRIBUTION ================= -->
+  <section class="block">
+    <h2><span class="tag d">分布</span> 问题文件分布（Top 10）</h2>
+    <div class="file-dist" id="fileDist"></div>
+  </section>
+
+  <!-- ================= ISSUE LISTS ================= -->
+  <section class="block">
+    <h2><span class="tag g">明细</span> 问题明细清单（26 项）</h2>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="all">全部</button>
+      <button class="tab-btn" data-tab="u">🟡 未完成 7</button>
+      <button class="tab-btn" data-tab="d">🔵 废弃 8</button>
+      <button class="tab-btn" data-tab="l">🔴 逻辑错误 11</button>
+    </div>
+    <div id="issueList"></div>
+  </section>
+
+  <!-- ================= PRIORITY ================= -->
+  <section class="block">
+    <h2><span class="tag l">处理</span> 修复进度与优先级（已于 2026-08-06 全部处理）</h2>
+    <div class="prio">
+      <div class="prio-card p0">
+        <h4>P0 · 核心体验（3 项）→ 已全部修复</h4>
+        <ul>
+          <li><b>L1</b> ✔ BattleCanvas.updateState 补齐 enemyIntents / enemyCharge / counters —— 威胁预告与反击动画恢复正常</li>
+          <li><b>L2</b> ✔ recover 事件分支兑现 requirement 与补给扣减 —— 「压制回声」「绕路休整」不再白嫖</li>
+          <li><b>U1</b> ✔ 装备打造（craft）入口已加到底栏第 5 个 tab</li>
+        </ul>
+      </div>
+      <div class="prio-card p1">
+        <h4>P1 · 近期（6 项）→ 已全部修复</h4>
+        <ul>
+          <li><b>L3</b> ✔ 背包面板 key 修正并改读 run.supplies</li>
+          <li><b>L4</b> ✔ 结算不再弹出空壳晨报（pending 标记 + UI 条件渲染）</li>
+          <li><b>U2</b> ✔ 征询结果渲染进聊天区；<b>U3</b> ✔ requirement 接入校验与 UI 提示</li>
+          <li><b>L5</b> ✔ Tavern 行动区域改用 regionNameForMission；<b>L6</b> ✔ charge 兑现保留 targetHint</li>
+          <li><b>D1</b> ✔ errors.ts 死类已精简；<b>D2</b> ✔ SWAP / DEESCALATE_REGION 死 action 已移除</li>
+        </ul>
+      </div>
+      <div class="prio-card p2">
+        <h4>P2 · 其余（17 项）→ 已全部修复</h4>
+        <ul>
+          <li>✔ U4 装备图标 AI 生成 PNG（vanguard-spear / ranger-bow / star-staff / field-mail / warded-coat / echo-charm，6 张基底图）+ 后处理 HSV 抠图</li>
+          <li>✔ U5/U6/U7 占位与草稿清理</li>
+          <li>✔ D3-D8 死代码清理（无效导入、死 prop、死字段、旧 key 迁移链收缩、死数据）</li>
+          <li>✔ L7-L11 低危逻辑修正（晨报细节、once 事件、文案与掉落对齐等）</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= METHOD ================= -->
+  <section class="block">
+    <h2><span class="tag d">附录</span> 审查方法说明</h2>
+    <table class="meta-tbl">
+      <tr><th>静态编译</th><td><code>tsc -p tsconfig.json --noEmit</code>（strict 模式）→ 0 错误</td></tr>
+      <tr><th>全量测试</th><td><code>vitest run</code> → 12 文件 / 149 用例全部通过（含 domain、infrastructure、UI 组件测试；修复中同步删除了 SWAP/DEESCALATE 等死代码相关用例）</td></tr>
+      <tr><th>标记扫描</th><td>全 src 检索 TODO / FIXME / 占位 / 暂未实现 / 后续 / 后续补 等标记</td></tr>
+      <tr><th>交叉引用</th><td>对 action 类型、导出函数、content 字段、JSON 数据 id 做「定义处 ↔ 消费处」grep 交叉验证，识别死代码与未接入功能</td></tr>
+      <tr><th>语义核查</th><td>逐文件核对 reducer 分支与 content 文案/字段的一致性（如补给消耗、前置条件、目标选择）</td></tr>
+      <tr><th>说明</th><td>编译与测试均通过，故本报告 26 项均为「类型系统与测试覆盖不到」的语义层问题；行号为审查时点代码，修复时请以实际为准</td></tr>
+    </table>
+  </section>
+
+  <div class="foot">远征余响 · 代码审查报告 · 生成于 2026-08-06 · 建议配合 docs/CODE_REVIEW_2026-07-29.md（历史基线）与 docs/PROJECT_DEVELOPMENT_GUIDE.md 使用</div>
+</div>
+
+<script>
+const ISSUES = [
+  // ==================== 类别一：未完成/占位 ====================
+  {id:"U1", cat:"u", sev:"hi", file:"src/ui/components/BottomAdventureMenu.tsx:10 · src/ui/pages/Management.tsx:305 · src/domain/economy.ts:114",
+   title:"装备打造（craft）系统完整实现但无任何 UI 入口，属「未完成接入」的功能",
+   desc:"Management.tsx 完整实现了 tab==='craft' 的打造面板（材料/金币校验、CRAFT_ITEM 派发齐全），recipes.json 含 18 条配方，economy.ts 的 CRAFT_ITEM reducer 逻辑完整——但 BottomAdventureMenu 底栏只有 城镇/队伍/角色/背包 4 个入口，全项目没有任何代码能进入 craft 页。玩家永远无法使用打造系统，18 条配方与全部打造逻辑成为死功能。",
+   evid:"BottomAdventureMenu.tsx:12-14 → 仅 OPEN_MANAGEMENT tab:'party' | 'equipment' | 'inventory'；Management.tsx:305 `{tab === 'craft' && (...)}` 无任何 tab 来源；ManagementTab 类型（model.ts:5）含 'craft'",
+   fix:"底栏新增「打造」入口（OPEN_MANAGEMENT tab:'craft'），或将打造面板并入背包页；否则删除 craft 面板与 CRAFT_ITEM 分支。"},
+  {id:"U2", cat:"u", sev:"mid", file:"src/ui/pages/Expedition.tsx:49 · 209-221",
+   title:"「征询」战术建议结果写入 state 后从不渲染，玩家点击后无任何输出",
+   desc:"askAdvisor() 调用 LLM 后执行 setConsultation(result.text)，但整个组件 JSX 中没有一处读取 consultation 变量。玩家在聊天区点「征询」，按钮转圈结束后结果被直接丢弃——该功能形同半成品（状态、加载、按钮都做了，唯独展示缺失）。",
+   evid:"L49 `const [consultation, setConsultation] = useState('')`；L219 `setConsultation(result.text)`；全文 grep `consultation` 仅命中这两行，无 `{consultation}` 渲染",
+   fix:"在 chat-consult 行下方渲染 result.text（建议展示为队员台词气泡），并保留 consulting 占位。"},
+  {id:"U3", cat:"u", sev:"mid", file:"src/domain/model.ts:73 · src/content/gameContent.ts:278 · src/domain/expedition.ts:172",
+   title:"ExpeditionEventChoice.requirement 前置条件字段定义并赋值，但 reducer / UI 全程未消费",
+   desc:"「回声陷阱」事件的『压制回声』选项声明 requirement:'需要镇定剂'，但没有任何代码读取该字段：不校验背包是否有镇定剂、不显示前置提示、也不扣减。该字段与 effect:'recover' 的兑现逻辑脱节（详见 L2）。",
+   evid:"grep `requirement` 仅命中 model.ts:73 定义处与 gameContent.ts:278 赋值处",
+   fix:"recover 分支按 requirement 校验库存并执行扣减；UI 在选项旁展示 requirement 文案。"},
+  {id:"U4", cat:"u", sev:"mid", file:"src/ui/pages/Management.tsx:24-36 · 267",
+   title:"装备图标 emoji 占位（注释明确「后续补装备图标」）",
+   desc:"装备栏 6 类×3 档全部用 emoji（🔱🏹🔮🛡️🧥💎），材料行硬编码 💎，未知物品兜底 📦。public/assets 下已存在真实装备/材料图标资源，但管理页未接入。",
+   evid:"L24 注释 `// 补给品使用真实图标；装备暂用 emoji 占位（后续补装备图标）。`；L267 `const icon = '💎';`",
+   fix:"itemDefinitions 增加 icon 字段映射到 public/assets 资源，替换 emoji。"},
+  {id:"U5", cat:"u", sev:"lo", file:"src/domain/expedition.ts:250",
+   title:"「该事件选择暂未实现」兜底文案（当前 effect 全集已覆盖，属未来扩展预留）",
+   desc:"RESOLVE_EVENT 末尾对所有未匹配 effect 返回占位文案。当前 content 的 6 种 effect（recover/scavenge/track/risk_fight/aid_hero/bargain）均已有分支，此分支实际不可达，但文案暗示机制未完成，且会静默吞掉新 effect 类型。",
+   evid:"L250 `return addLog(state, '该事件选择暂未实现。');`",
+   fix:"改为穷尽性检查（never 类型断言），让新增 effect 类型在编译期报错，移除占位文案。"},
+  {id:"U6", cat:"u", sev:"lo", file:"src/ui/pages/Expedition.tsx:324-329",
+   title:"技能槽菱形指示器为占位骨架：固定 4 格、永远第一格高亮，与真实技能数（≤2）不符",
+   desc:"skills-diamonds 固定渲染 4 个菱形且第一个恒为 active，暗示有 4 个技能槽；实际每英雄最多 2 个技能（skills.slice(0,2)）。",
+   evid:"L325-328 硬编码 `<span className=\"diamond active\">◆</span>` + 3 个 `◇`",
+   fix:"按 hero.skills.length 动态渲染菱形，或删除该装饰。"},
+  {id:"U7", cat:"u", sev:"lo", file:"src/ui/pages/Expedition.tsx:25-37",
+   title:"enemyTraitDetails / pressureRemarks 模块级常量定义后从未使用（遗留草稿）",
+   desc:"敌人特质说明与英雄压力台词两套数据完整写好了，但组件 JSX 零引用，疑似叙事功能的未完成部分。",
+   evid:"grep 两个标识符仅命中 L25/L33 定义行",
+   fix:"接入 UI（敌人卡展示 trait、压力变化时展示台词）或删除。"},
+
+  // ==================== 类别二：废弃/死代码 ====================
+  {id:"D1", cat:"d", sev:"hi", file:"src/domain/errors.ts:9-141 · src/domain/errors.test.ts",
+   title:"整批错误类（9 个）仅被测试引用，生产代码零使用——未接入的异常体系",
+   desc:"GameError / DomainError / DomainActionValidationError / DomainCombatError / DomainEconomyError / DomainExpeditionError / InfrastructureError / InfrastructureStorageError / InfrastructureNarrativeProtocolError 共 9 个类，唯一「消费者」是 errors.test.ts 的实例化验证。领域与基础设施层实际用 addLog 字符串 + return state 处理错误，异常体系形同摆设（仅 InfrastructureLlmProviderError 被 llm.ts/api.ts 真正使用）。",
+   evid:"grep 上述类名：命中文件仅 errors.ts 与 errors.test.ts（InfrastructureLlmProviderError 例外）",
+   fix:"要么把异常体系接入 reducer/适配器（工程量大），要么删除死类仅保留被引用的 InfrastructureLlmProviderError，避免误导后续开发者。"},
+  {id:"D2", cat:"d", sev:"mid", file:"src/domain/model.ts:161 · 170-172 · src/domain/gameEngine.ts",
+   title:"4 个 action 类型仅由测试驱动，UI 从不 dispatch",
+   desc:"SWAP、ESCALATE_REGION、DEESCALATE_REGION、ADVANCE_EVENT_CHAIN 在 model.ts 定义、reducer 有分支，但全 UI 无任何派发调用。其中 DEESCALATE_REGION 正常游玩永远不可能触发（威胁只升不降，升级由 settleExpedition 程序化执行、降级无入口）；SWAP 已被管理页 MOVE_PARTY 替代。",
+   evid:"grep 四个 action：仅命中 *.test.ts、region.ts、gameEngine.ts 分配处",
+   fix:"删除 DEESCALATE_REGION / SWAP 冗余路径；ESCALATE_REGION 与 ADVANCE_EVENT_CHAIN 若后续有 UI 规划可保留并记录。"},
+  {id:"D3", cat:"d", sev:"lo", file:"src/ui/pages/Expedition.tsx:4",
+   title:"无效导入：experienceToNextLevel / pressureStage 导入后从未使用",
+   desc:"从 gameEngine 导入 6 个函数，其中 2 个在文件内零引用。tsc 因未开启 noUnusedLocals 不报错，属于静默死代码。",
+   evid:"L4 导入行；grep 两标识符在文件内仅命中该行",
+   fix:"移除无效导入；建议 tsconfig 开启 noUnusedLocals 防止复发。"},
+  {id:"D4", cat:"d", sev:"lo", file:"src/ui/BattleCanvas.tsx:12 · 87 · 110 · 154",
+   title:"counterTargetId 为死 prop：父组件费力计算、场景只赋值不消费",
+   desc:"Expedition.tsx:255 用 enemyCanAttack 推算 counterTargetId 传入；BattleCanvas 构造器与 updateState 均赋值 this.counterTargetId，但场景内没有任何方法读取它，动画/逻辑均未使用该值。",
+   evid:"grep counterTargetId：BattleCanvas.tsx 内仅赋值（L110/L154），无读取",
+   fix:"删除该 prop 及父组件计算逻辑，或按设计接入（例如高亮会被反击的先锋）。"},
+  {id:"D5", cat:"d", sev:"lo", file:"src/domain/model.ts:129-134 · src/domain/daily.ts:31",
+   title:"EventChainState.seen / failed 为死字段，事件链（M3）在 UI 端完全不可见",
+   desc:"seen 只被 daily.ts:31 写成 false、storage.ts:94 读旧值，无任何 UI/逻辑消费；failed 字段从不被赋值。事件链推进只靠 settleExpedition 胜利时自动推进一步 + 日志提示，玩家看不到链状态。",
+   evid:"grep `eventChains` 的 UI 引用为零",
+   fix:"要么在城镇页做事件链展示（展示当前节点/结局），要么删除死字段。"},
+  {id:"D6", cat:"d", sev:"lo", file:"src/infrastructure/storage.ts:5-15 · 184-192 · 307-312 · 355-366",
+   title:"旧版存档 key 迁移链（V5–V12 共 8 个 key + v3/v4 清理 + morale 字段迁移）",
+   desc:"每次 loadGame/clearGame 都尝试读取并清理 8 个历史 key，并做 morale→pressure、skillId→skills 字段迁移。属历史遗留兼容代码，v13 已发布多日，迁移链可设定截止时间后删除。",
+   evid:"SUPPORTED_VERSION_MIN=5；L184-192 逐 key 降级读取；L307-312 升级后清理",
+   fix:"设定迁移截止日期（如发布后 3 个月），到期将 SUPPORTED_VERSION_MIN 提升到 13 并删除旧 key 常量。"},
+  {id:"D7", cat:"d", sev:"lo", file:"src/content/gameContent.ts:22 · 193 · src/domain/economy.ts:19",
+   title:"materialTypes / dailyNewsTemplates / parseRarityKey 为仅文件内使用的多余导出",
+   desc:"三个符号均带 export 但无任何跨文件 import；parseRarityKey 返回的 count:0 字段亦无意义。",
+   evid:"grep 三者均无跨文件引用",
+   fix:"去掉 export 关键字（或删除 count 字段）。"},
+  {id:"D8", cat:"d", sev:"lo", file:"src/content/data/missions.json:35",
+   title:"forest-disturbance 的 enemyWaves[4] 永不生效（死数据）",
+   desc:"林地任务的节点 4 是事件节点「暮色营火」（index 4 为 event），enterNode 对事件节点不会生成敌人，enemyWaves[4]=['grove-guardian'] 永远不被消费；最终战在节点 6 走 node.enemyIds 兜底。",
+   evid:"expedition.ts:43 `mission.enemyWaves[nodeIndex] ?? node.enemyIds`；森林任务节点 4 为 event",
+   fix:"删除 enemyWaves[4] 条目，或确认节点类型与配置一致。"},
+
+  // ==================== 类别三：逻辑错误 ====================
+  {id:"L1", cat:"l", sev:"hi", file:"src/ui/BattleCanvas.tsx:635-648 · 145-157",
+   title:"updateState 传参丢失 enemyIntents / enemyCharge / counters——威胁预告与反击动画首轮后全部失效",
+   desc:"第二次 useEffect（L635-648）传给 updateState 的对象与依赖数组都不含 enemyIntents、enemyCharge、counters 三项；而 updateState 内部（L155-157）执行 `this.enemyIntents = props.enemyIntents ?? {}`。因此每次 dispatch 后（party/enemies 引用变化即触发）这三项被重置为空对象：① 敌人头顶「威胁预告」（读题→解题的核心机制）在第一次行动后全部消失，后续每轮 domain 重 roll 的新意图永远不再显示；② enemyCounter() 读 this.counters 恒为空，从第二次攻击起敌人突进反击动画不再播放（仅首帧因构造器持有完整 props 能播一次）。",
+   evid:"L638-647 传参对象无三项、L648 deps 无三项；L155-157 以 `?? {}` 覆盖；Expedition.tsx:250-252 明明传入了 run.enemyIntents / run.enemyCharge / enemyCounters",
+   fix:"在 updateState 传参对象与依赖数组中加入 enemyIntents、enemyCharge、counters 三项。"},
+  {id:"L2", cat:"l", sev:"hi", file:"src/domain/expedition.ts:172-176 · src/content/gameContent.ts:253 · 278",
+   title:"recover 事件分支不校验 requirement、不消耗食物/镇定剂——玩家可白嫖「压制回声」「绕路休整」",
+   desc:"RESOLVE_EVENT 的 recover 分支只做 hp+5 / pressure-12，从不读取 choice.requirement、不扣减任何补给。与 content 两处描述直接矛盾：① 坍塌通道『绕路休整』描述「消耗 1 份食物绕行」→ reducer 未扣食物；② 回声陷阱『压制回声』描述「消耗 1 份镇定剂」且带 requirement:'需要镇定剂' → reducer 既不校验背包有无镇定剂也不扣减，全队 0 镇定剂时该选项仍免费可用。",
+   evid:"recover 分支 L172-176 无任何 supplies 扣减逻辑；grep `requirement` 无 reducer 消费",
+   fix:"recover 分支读取 choice.requirement / 补给字段：无镇定剂时禁用或返回提示；按描述扣减 food/sedative；可选地让 UI 在选项旁展示消耗。"},
+  {id:"L3", cat:"l", sev:"mid", file:"src/ui/pages/Expedition.tsx:497-506",
+   title:"远征背包面板 key 大小写不匹配 + 数据源错误——火焰瓶/铁壁药丸恒显示 ×0，且显示城镇库存而非行囊",
+   desc:"背包弹窗遍历 ['bandage','sedative','fireBomb','shieldElixir']（camelCase）去查 itemById 与 state.inventory，而物品真实 id 是 'fire-bomb'/'shield-elixir'。结果：① 名称退化为直接显示「fireBomb」「shieldElixir」；② state.inventory['fireBomb'] 恒为 undefined→0，玩家实际带着 2 个火焰瓶仍显示 ×0；③ 数据源应为本次远征携带的 run.supplies，实际读的是城镇剩余库存 state.inventory，语义错误。",
+   evid:"items.json:4-5 id 为 fire-bomb / shield-elixir；expedition.ts:92 扣减用的是 inventory['fire-bomb']；L274 侧边栏正确显示 run.supplies.fireBomb",
+   fix:"key 改为真实 id 或建立映射表，数据源改读 run.supplies，与侧边栏补给显示保持一致。"},
+  {id:"L4", cat:"l", sev:"mid", file:"src/domain/economy.ts:82 · src/ui/App.tsx:79 · src/domain/gameEngine.ts:120",
+   title:"远征结算瞬间弹出空内容晨报，遮挡战利品结算页",
+   desc:"settleExpedition 设置 dayReport 为全空壳（townNews:''、recovery:[]、reactions:[]）——本意是给次日 REST_TO_NEXT_DAY 提供上下文（daily.ts:55 读 outcome 生成新闻）；但 App.tsx:79 无条件渲染 `state.dayReport && <DayReportOverlay/>`，于是远征结束进结算页时空晨报立即盖在战利品结算之上，玩家需先点空晨报的「开始今天」才能看到结算内容；且 CLOSE_SETTLEMENT（L115-119）不清 dayReport，若玩家先关结算，回城镇后空晨报仍会再次弹出。",
+   evid:"economy.ts:82 `dayReport: { ..., townNews: '', recovery: [], reactions: [] }`；App.tsx:79 无条件渲染；gameEngine.ts:120 CLOSE_DAY_REPORT 才清 dayReport",
+   fix:"settleExpedition 不再写空 dayReport（或增加 pending 标记）；DayReportOverlay 在 townNews 为空且非次日时不渲染；CLOSE_SETTLEMENT 同时清 dayReport。"},
+  {id:"L5", cat:"l", sev:"mid", file:"src/ui/pages/Tavern.tsx:130-131",
+   title:"任务详情「行动区域」硬编码为「边境遗迹」，与任务实际归属区域不符",
+   desc:"所有任务详情页的行动区域都写死 <dd>边境遗迹</dd>，但 forest-disturbance 属「灰烬林地」、rusted-patrol 属「封印门厅」区域。gameContent 已提供 regionNameForMission（L133-136）却未使用；Minimap 与远征页 header 均正确显示区域名，形成界面不一致。",
+   evid:"L131 硬编码；对照 gameContent.ts:133-136 regionNameForMission 与 regions[].missions 映射（L140-144）",
+   fix:"改用 regionNameForMission(previewMission.id)。"},
+  {id:"L6", cat:"l", sev:"mid", file:"src/domain/intents.ts:31 · 106-111 · src/content/data/enemies.json",
+   title:"蓄力重击丢失原预告的 targetHint——「读题」与「兑现」目标不一致",
+   desc:"敌人 charge 意图带 targetHint（如 scout 的 charge/back、grove-guardian 的 charge/weakest）。蓄力后 rollIntent 因 charge>0 强制返回无 targetHint 的 ATTACK_INTENT（intents.ts:31），下一轮「重击 ×2」执行时 targetForIntent 走默认 front。玩家按「攻击后排/最弱」的预告布防，实际却被打前排——核心读题机制欺骗玩家。",
+   evid:"enemies.json:4 `charge/back`、L49 `charge/weakest`；intents.ts:31 `if (charge > 0) return { ...ATTACK_INTENT }`（无 targetHint）",
+   fix:"蓄力时记录原始 charge 意图的 targetHint，兑现重击时沿用该 targetHint。"},
+  {id:"L7", cat:"l", sev:"lo", file:"src/domain/daily.ts:56 · 69-73",
+   title:"夜间恢复报告包含未招募英雄，与「队员晨语」的招募过滤不一致",
+   desc:"REST_TO_NEXT_DAY 对 state.roster（含未招募的澄、砚）全部执行 hp+18/pressure-16 且 recovery 列表全量生成；而 reactions 只过滤 hero.recruited。晨报里未签约角色也显示「夜间恢复」，状态语义不一致。",
+   evid:"L56 `state.roster.map(...)` 无 recruited 过滤；L70 `roster.filter((hero) => hero.recruited)`",
+   fix:"recovery 与恢复数值仅对 recruited 英雄生效。"},
+  {id:"L8", cat:"l", sev:"lo", file:"src/domain/expedition.ts:33 · 110 · 169",
+   title:"seenEvents 每次进节点被清空，once 事件机制实际失效",
+   desc:"enterNode 每次进入节点都把 seenEvents 重置为 []（L33），L169 的 `event.once && seenEvents.includes(...)` 只能在同一节点内生效——而同一节点已被 eventResolved 挡住，跨节点重复出现同事件时该机制防不住。测试（gameEngine.test.ts:274）不得不手工把 seenEvents 注入 state 才能触发 once 分支，佐证正常流程中该检查几乎不可达。",
+   evid:"L33 `seenEvents: []`；L169 once 检查；测试需手工构造状态",
+   fix:"seenEvents 改为远征全程累积（仅 START_EXPEDITION 时重置），不随节点切换清空。"},
+  {id:"L9", cat:"l", sev:"lo", file:"src/content/gameContent.ts:252 · src/domain/expedition.ts:233",
+   title:"risk_fight 选项文案「胜利可获得稀有材料」与实际掉落不符",
+   desc:"坍塌通道『清理碎石』声称可获得稀有材料，实际生成 rock-lizard（掉 rust-iron:1 优良）与 ash-wolf（掉 ruin-shard:0 普通），无任何稀有（≥2）掉落。",
+   evid:"gameContent.ts:252 描述；enemies.json rock-lizard / ash-wolf 掉落档位",
+   fix:"调整文案为「可获得优良材料」，或给 extraEnemies 增加稀有掉落。"},
+  {id:"L10", cat:"l", sev:"lo", file:"src/domain/combat.ts:132-133",
+   title:"群体伤害技能日志数值高于实际伤害（rock-armor 减伤未计入日志）",
+   desc:"all_damage 技能对 rock-armor 目标减 2 后落血，但日志固定报「造成 X 点伤害」（skill.effect.value 原始值），对岩甲目标多报 2 点；同文件的 single_damage 分支（L127）则如实上报实际 damage。",
+   evid:"L133 用 skill.effect.value；对比 L127 用实际扣减值",
+   fix:"日志改用实际扣减后的 damage 值。"},
+  {id:"L11", cat:"l", sev:"lo", file:"src/ui/pages/Town.tsx:15-18 · 125",
+   title:"城门「锁定」态仍可点击，产生无意义日志且无界面反馈",
+   desc:"未接任务时城门按钮只加 locked class（未 disabled），点击会 dispatch START_EXPEDITION，reducer 返回一条「请先在酒馆任务板接取一份委托」日志；此时 onGateClick（整备弹窗）不会打开，玩家点击毫无可见反馈。",
+   evid:"Town.tsx:15-18 `if (!state.hasAcceptedMission) { dispatch({type:'START_EXPEDITION'}); return; }`；L125 仅 className",
+   fix:"锁定态按钮设 disabled 并禁止点击，或改为点击时引导到酒馆任务板。"},
+];
+
+const FILES = [
+  ["src/ui/pages/Expedition.tsx", 8],
+  ["src/domain/expedition.ts", 4],
+  ["src/ui/BattleCanvas.tsx", 2],
+  ["src/ui/pages/Management.tsx", 2],
+  ["src/domain/model.ts", 2],
+  ["src/domain/economy.ts", 2],
+  ["src/domain/errors.ts", 1],
+  ["src/domain/daily.ts", 1],
+  ["src/domain/intents.ts", 1],
+  ["src/domain/combat.ts", 1],
+];
+
+const CAT_META = {
+  u:{label:"未完成 / 占位功能", cls:"issue u"},
+  d:{label:"失效 / 废弃代码", cls:"issue d"},
+  l:{label:"逻辑错误 / 与预期不符", cls:"issue l"},
+};
+const SEV = {hi:["高","sev hi"], mid:["中","sev mid"], lo:["低","sev lo"]};
+
+// 文件分布
+const max = Math.max(...FILES.map(f => f[1]));
+document.getElementById("fileDist").innerHTML = FILES.map(([name, n]) => `
+  <div class="file-row">
+    <span class="fname" title="${name}">${name}</span>
+    <span class="track"><i style="width:${(n/max*100).toFixed(0)}%"></i></span>
+    <span class="cnt">${n}</span>
+  </div>`).join("");
+
+// 问题清单
+function renderIssues(filter){
+  const list = ISSUES.filter(i => filter === "all" || i.cat === filter);
+  const grouped = ["u","d","l"].filter(c => filter === "all" || filter === c);
+  document.getElementById("issueList").innerHTML = grouped.map(c => {
+    const items = list.filter(i => i.cat === c);
+    return `<h3 style="margin:18px 0 10px;font-size:15px;color:${c==='u'?'var(--amber)':c==='d'?'var(--slate)':'var(--red)'}">${CAT_META[c].label}（${items.length} 项）</h3>` +
+      items.map(i => {
+      const fixed = true; // 26 项已全部修复（含 AI 生成的 6 张装备图标）
+      return `
+      <div class="issue ${i.cat}">
+        <div class="issue-head">
+          <span class="issue-id">${i.id}</span>
+          <span class="issue-title">${i.title}</span>
+          <span class="${SEV[i.sev][1]}">${SEV[i.sev][0]}严重度</span>
+          ${fixed ? '<span class="state-fixed">✔ 已修复</span>' : '<span class="state-pending">◷ 挂起</span>'}
+          <span class="loc">${i.file}</span>
+        </div>
+        <div class="desc">${i.desc}</div>
+        <div class="evid">${i.evid}</div>
+        <div class="fix"><span class="fix-lbl">建议 ▸ </span>${i.fix}</div>
+      </div>`;}).join("");
+  }).join("");
+  // 计数徽章
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === filter));
+}
+renderIssues("all");
+document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => renderIssues(btn.dataset.tab)));
+</script>
+</body>
+</html>

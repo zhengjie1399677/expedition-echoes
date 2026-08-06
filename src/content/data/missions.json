@@ -32,7 +32,7 @@
     "summary": "城镇外的古道被异化生物占据，追踪孢子源头并平息古树圣所。",
     "difficulty": 2,
     "reward": 76,
-    "enemyWaves": { "0": ["ash-wolf", "ash-wolf"], "2": ["spore-beast", "rock-lizard", "thorn-stag"], "4": ["grove-guardian"] },
+    "enemyWaves": { "0": ["ash-wolf", "ash-wolf"], "2": ["spore-beast", "rock-lizard", "thorn-stag"] },
     "materialRewards": [{ "typeId": "ruin-shard", "rarity": 1, "count": 2 }]
   }
 ]

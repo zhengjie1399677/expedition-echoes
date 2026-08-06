@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { attackDamage, availableItemCount, canAttack, createInitialGame, enemyCanAttack, equipmentBonuses, experienceToNextLevel, gainExperience, gameReducer, pressureStage } from './gameEngine';
 import type { Enemy, GameState } from './model';
 import { affinityStage, nodesForMission } from '../content/gameContent';
+
+// 意图系统与掉落引入随机性：固定 Math.random = 0.2 保证
+// 1) 不触发暴击（阈值 0.12）；2) rollIntent 对任意意图池长度都取第一个意图（attack）。
+// 所有敌人意图池首项均为 attack，使现有精确断言稳定可复现。
+beforeEach(() => {
+  vi.spyOn(Math, 'random').mockReturnValue(0.2);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const target = (distance: number): Enemy => ({ id: 'a', name: '目标', hp: 1, maxHp: 1, distance, attackMinRange: 1, attackMaxRange: 3, damage: 1 });
 // 远征前必须先接取任务，统一用 border-echoes 作为默认委托。
@@ -18,24 +28,25 @@ describe('双方攻击距离', () => {
   it('远程怪物只攻击覆盖范围内的站位', () => { const enemy = { ...target(2), attackMinRange: 2, attackMaxRange: 3 }; expect(enemyCanAttack(enemy, 0)).toBe(true); expect(enemyCanAttack(enemy, 1)).toBe(true); expect(enemyCanAttack(enemy, 2)).toBe(false); });
 });
 
-describe('士气与装备', () => {
+describe('压力与装备', () => {
   it('压力阶段在阈值处明确变化', () => { expect(pressureStage(0).name).toBe('沉着'); expect(pressureStage(30).name).toBe('紧绷'); expect(pressureStage(50).name).toBe('动摇'); expect(pressureStage(75).name).toBe('临界'); });
-  it('动摇降低 2 点攻击，关闭士气后不生效', () => { const hero = { ...createInitialGame().roster[0], morale: 50, gearLevel: 1 }; expect(attackDamage(hero, true)).toBe(6); expect(attackDamage(hero, false)).toBe(8); });
+  it('动摇降低 2 点攻击，关闭压力后不生效', () => { const hero = { ...createInitialGame().roster[0], pressure: 50, gearLevel: 1 }; expect(attackDamage(hero, true)).toBe(6); expect(attackDamage(hero, false)).toBe(8); });
   it('装备只能在有足够金币时升级', () => { const initial = createInitialGame(); const upgraded = gameReducer(initial, { type: 'UPGRADE_GEAR', heroId: 'lan' }); expect(upgraded.roster[0].gearLevel).toBe(1); expect(upgraded.gold).toBe(70); });
 });
 
 describe('day transition feedback', () => {
   it('turns a completed expedition into a next-day report and applies overnight recovery', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
-    const completed = gameReducer({ ...started, expedition: { ...started.expedition!, nodeIndex: 4, enemies: [] } }, { type: 'ADVANCE' });
-    const wounded = { ...completed, roster: completed.roster.map((hero) => hero.id === 'lan' ? { ...hero, hp: 10, morale: 30 } : hero) };
+    const completed = gameReducer({ ...started, expedition: { ...started.expedition!, nodeIndex: 6, enemies: [] } }, { type: 'ADVANCE' });
+    const wounded = { ...completed, roster: completed.roster.map((hero) => hero.id === 'lan' ? { ...hero, hp: 10, pressure: 30 } : hero) };
     const nextDay = gameReducer(wounded, { type: 'REST_TO_NEXT_DAY' });
     const lan = nextDay.roster.find((hero) => hero.id === 'lan')!;
     expect(nextDay.page).toBe('town');
     expect(nextDay.dayReport?.outcome).toBe('victory');
-    expect(nextDay.dayReport?.townNews).toContain('告示板');
+    // border-echoes 属于 border-ruins（威胁 2）：胜利后新闻引用区域平息
+    expect(nextDay.dayReport?.townNews).toContain('平息');
     expect(lan.hp).toBe(28);
-    expect(lan.morale).toBe(14);
+    expect(lan.pressure).toBe(14);
     expect(lan.affinity).toBe(wounded.roster.find((hero) => hero.id === 'lan')!.affinity + 1);
   });
 });
@@ -43,11 +54,12 @@ describe('day transition feedback', () => {
 describe('角色主动技能', () => {
   it('岚的守望号令会降低全队压力，且每场只能使用一次', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
-    const pressured = { ...started, roster: started.roster.map((hero) => started.expedition!.formation.includes(hero.id) ? { ...hero, morale: 20 } : hero) };
+    const pressured = { ...started, roster: started.roster.map((hero) => started.expedition!.formation.includes(hero.id) ? { ...hero, pressure: 20 } : hero) };
     const used = gameReducer(pressured, { type: 'USE_SKILL', heroId: 'lan' });
-    expect(used.roster.filter((hero) => used.expedition!.formation.includes(hero.id)).every((hero) => hero.morale === 12)).toBe(true);
-    expect(used.expedition?.skillUses.lan).toBe(true);
-    expect(gameReducer(used, { type: 'USE_SKILL', heroId: 'lan' }).roster[0].morale).toBe(12);
+    expect(used.roster.filter((hero) => used.expedition!.formation.includes(hero.id)).every((hero) => hero.pressure === 12)).toBe(true);
+    expect(used.expedition?.skillUses['lan:guardians-order']).toBe(true);
+    // 同一技能本场再次使用被拦截，压力不变。
+    expect(gameReducer(used, { type: 'USE_SKILL', heroId: 'lan', skillId: 'guardians-order' }).roster[0].pressure).toBe(12);
   });
   it('雾与星罗的技能会造成伤害，但不绕开普通攻击的击杀结算', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
@@ -61,7 +73,9 @@ describe('角色主动技能', () => {
 
 describe('等级与经验', () => {
   it('一级升二级需要 30 经验', () => { expect(experienceToNextLevel(1)).toBe(30); });
-  it('升级会保留溢出经验并提高、补充生命', () => { const hero = { ...createInitialGame().roster[0], hp: 20 }; const leveled = gainExperience(hero, 35); expect(leveled.level).toBe(2); expect(leveled.experience).toBe(5); expect(leveled.maxHp).toBe(35); expect(leveled.hp).toBe(23); });
+  it('升级会保留溢出经验并提高、补充生命', () => { const hero = { ...createInitialGame().roster[0], hp: 20 }; const leveled = gainExperience(hero, 35); expect(leveled.level).toBe(2); expect(leveled.experience).toBe(5); expect(leveled.maxHp).toBe(37); expect(leveled.hp).toBe(25); });
+  it('每级基础攻击 +2，升级带来的伤害差距可感知', () => { const base = createInitialGame().roster[0]; const lv1 = attackDamage({ ...base, level: 1 }, false); const lv3 = attackDamage({ ...base, level: 3 }, false); expect(lv1).toBe(7); expect(lv3 - lv1).toBe(4); });
+  it('一次跨越多级升级会按级累加最大生命', () => { const hero = createInitialGame().roster[0]; const leveled = gainExperience(hero, 75); expect(leveled.level).toBe(3); expect(leveled.maxHp).toBe(42); expect(leveled.experience).toBe(0); });
   it('击败敌人时出征队伍全员获得经验', () => { const started = gameReducer(ready(), { type: 'START_EXPEDITION' }); const weakened = { ...started, expedition: { ...started.expedition!, enemies: started.expedition!.enemies.map((enemy, index) => index === 0 ? { ...enemy, hp: 1 } : enemy) } }; const result = gameReducer(weakened, { type: 'ATTACK', heroId: 'lan', enemyId: 'scout' }); const party = result.roster.filter((hero) => result.expedition!.formation.includes(hero.id)); expect(party.every((hero) => hero.experience > 0)).toBe(true); });
 });
 
@@ -76,6 +90,25 @@ describe('队伍、背包与装备', () => {
   it('可以调整出征站位顺序', () => { const state = createInitialGame(); const moved = gameReducer(state, { type: 'MOVE_PARTY', index: 0, direction: 1 }); expect(moved.selectedHeroIds).toEqual(['wu', 'lan', 'xingluo']); });
   it('装备会占用背包数量并提供属性', () => { const state = createInitialGame(); const equipped = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'lan', itemId: 'vanguard-spear' }); const lan = equipped.roster.find((hero) => hero.id === 'lan')!; expect(lan.equipment.weapon).toBe('vanguard-spear'); expect(equipmentBonuses(lan).attack).toBe(2); expect(availableItemCount(equipped, 'vanguard-spear')).toBe(0); });
   it('职业不匹配时不能装备专属武器', () => { const state = createInitialGame(); const result = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'wu', itemId: 'vanguard-spear' }); expect(result.roster.find((hero) => hero.id === 'wu')?.equipment.weapon).toBeUndefined(); });
+  it('装备品质分级：普通/优良/稀有提供明显不同的攻击加成', () => {
+    const base = createInitialGame().roster[0];
+    expect(equipmentBonuses({ ...base, equipment: { weapon: 'vanguard-spear' } }).attack).toBe(2);
+    expect(equipmentBonuses({ ...base, equipment: { weapon: 'vanguard-spear-fine' } }).attack).toBe(4);
+    expect(equipmentBonuses({ ...base, equipment: { weapon: 'vanguard-spear-rare' } }).attack).toBe(6);
+  });
+  it('打造优良装备会消耗高稀有材料与金币并产出对应装备', () => {
+    const withResources: GameState = { ...createInitialGame(), materials: { 'ruin-shard:1': 3, 'rust-iron:1': 1 }, gold: 100 };
+    const crafted = gameReducer(withResources, { type: 'CRAFT_ITEM', recipeId: 'craft-spear-fine' });
+    expect(crafted.inventory['vanguard-spear-fine']).toBe(1);
+    expect(crafted.materials['ruin-shard:1']).toBe(0);
+    expect(crafted.materials['rust-iron:1']).toBe(0);
+    expect(crafted.gold).toBe(60);
+  });
+  it('高 tier 装备仍受职业限制约束', () => {
+    const state: GameState = { ...createInitialGame(), inventory: { ...createInitialGame().inventory, 'vanguard-spear-fine': 1 } };
+    const result = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'wu', itemId: 'vanguard-spear-fine' });
+    expect(result.roster.find((hero) => hero.id === 'wu')?.equipment.weapon).toBeUndefined();
+  });
   it('远征携带背包补给，撤退时返还剩余数量', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 0, bandage: 3, sedative: 1 } });
     expect(started.inventory.bandage).toBe(2);
@@ -117,7 +150,9 @@ describe('完整远征状态', () => {
       '/assets/world/forest-v1/forest-road-v1.png',
       '/assets/world/forest-v1/forest-camp-v1.png',
       '/assets/world/forest-v1/forest-road-v1.png',
+      '/assets/world/forest-v1/herb-grove-v1.png',
       '/assets/world/forest-v1/forest-camp-v1.png',
+      '/assets/world/forest-v1/echo-trap-v1.png',
       '/assets/world/forest-v1/grove-sanctuary-v1.png',
     ]);
   });
@@ -128,11 +163,10 @@ describe('完整远征状态', () => {
     expect(started.expedition?.enemies.every((enemy) => enemy.trait === 'pack')).toBe(true);
   });
   it('击败敌人前不能前进', () => { const started = gameReducer(ready(), { type: 'START_EXPEDITION' }); const blocked = gameReducer(started, { type: 'ADVANCE' }); expect(blocked.expedition?.nodeIndex).toBe(0); });
-  it('换位会交换当前位与后一位，且第一位仍代表靠近敌方的前排', () => { const started = gameReducer(ready(), { type: 'START_EXPEDITION' }); const before = started.expedition!.formation; const swapped = gameReducer(started, { type: 'SWAP', index: 0 }); expect(swapped.expedition?.formation).toEqual([before[1], before[0], ...before.slice(2)]); });
   it('绷带会治疗指定角色并消耗数量', () => { let state = gameReducer(ready(), { type: 'START_EXPEDITION' }); state = { ...state, roster: state.roster.map((hero) => hero.id === 'lan' ? { ...hero, hp: 10 } : hero) }; const healed = gameReducer(state, { type: 'USE_BANDAGE', heroId: 'lan' }); expect(healed.roster[0].hp).toBe(19); expect(healed.expedition?.supplies.bandage).toBe(2); });
   it('完成远征会发放任务材料奖励并重置接取状态', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
-    const atLastNode: GameState = { ...started, expedition: { ...started.expedition!, nodeIndex: 4, enemies: [] } };
+    const atLastNode: GameState = { ...started, expedition: { ...started.expedition!, nodeIndex: 6, enemies: [] } };
     const completed = gameReducer(atLastNode, { type: 'ADVANCE' });
     expect(completed.page).toBe('settlement');
     expect(completed.settlement?.outcome).toBe('victory');
@@ -186,6 +220,62 @@ describe('材料出售与装备打造', () => {
   });
 });
 
+describe('远征事件扩展（A2 新事件）', () => {
+  // 事件节点的 eventResolved 初始为 false；手动跳节点时需显式设置。
+  const atEvent = (started: GameState, nodeIndex: number, extra: Partial<NonNullable<GameState['expedition']>> = {}) => ({
+    ...started,
+    expedition: { ...started.expedition!, nodeIndex, eventResolved: false, enemies: [], ...extra },
+  });
+
+  it('坍塌通道：选择清理碎石触发额外战斗（risk_fight）', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    const fought = gameReducer(atEvent(started, 4), { type: 'RESOLVE_EVENT', eventId: 'collapsed-passage', choiceId: 'risk_fight' });
+    expect(fought.expedition?.enemies.length).toBeGreaterThan(0);
+    expect(fought.expedition?.seenEvents).toContain('collapsed-passage');
+  });
+
+  it('坍塌通道：选择绕路消耗食物并休整（recover）', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    const recovered = gameReducer(atEvent(started, 4), { type: 'RESOLVE_EVENT', eventId: 'collapsed-passage', choiceId: 'recover' });
+    expect(recovered.expedition?.enemies.length).toBe(0);
+    expect(recovered.expedition?.eventResolved).toBe(true);
+  });
+
+  it('游商帐篷：出售材料换金币（bargain）', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    // 节点 5 是游商帐篷；预置 2 份遗迹碎片到本次收益
+    const sold = gameReducer(atEvent(started, 5, { gainedMaterials: { 'ruin-shard:0': 2 } }), { type: 'RESOLVE_EVENT', eventId: 'traveling-merchant', choiceId: 'bargain' });
+    expect(sold.expedition?.gainedGold).toBe(24);
+    expect(sold.expedition?.gainedMaterials['ruin-shard:0']).toBe(0);
+  });
+
+  it('药草丛：谨慎采摘治疗最虚弱队员（aid_hero）', () => {
+    const accepted = gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'forest-disturbance' });
+    const started = gameReducer(accepted, { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    // 林地线节点 3 是药草丛；把星罗血量压低
+    const wounded = { ...atEvent(started, 3), roster: started.roster.map((h) => (h.id === 'xingluo' ? { ...h, hp: 5 } : h)) };
+    const healed = gameReducer(wounded, { type: 'RESOLVE_EVENT', eventId: 'herb-grove', choiceId: 'aid_hero' });
+    const xingluo = healed.roster.find((h) => h.id === 'xingluo')!;
+    expect(xingluo.hp).toBe(17); // 5 + 12
+  });
+
+  it('回声陷阱：快速通过压力大幅上升（track + pressureCost）', () => {
+    const accepted = gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'forest-disturbance' });
+    const started = gameReducer(accepted, { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    // 林地线节点 5 是回声陷阱
+    const tracked = gameReducer(atEvent(started, 5), { type: 'RESOLVE_EVENT', eventId: 'echo-trap', choiceId: 'track' });
+    expect(tracked.expedition?.gainedGold).toBe(12);
+    expect(tracked.roster.find((h) => h.id === 'lan')!.pressure).toBeGreaterThanOrEqual(12);
+  });
+
+  it('一次性事件同一远征不重复出现', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    const again = gameReducer(atEvent(started, 4, { seenEvents: ['collapsed-passage'] }), { type: 'RESOLVE_EVENT', eventId: 'collapsed-passage', choiceId: 'risk_fight' });
+    expect(again.expedition?.enemies.length).toBe(0); // 未触发（已被拒绝）
+    expect(again.log[0]).toContain('已经处理过');
+  });
+});
+
 describe('每日任务限制', () => {
   it('每天只能接取一次任务，重复接取会被拒绝', () => {
     const first = gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'border-echoes' });
@@ -207,7 +297,7 @@ describe('每日任务限制', () => {
   });
   it('远征完成后仍不能再次接取任务，需休息至次日', () => {
     const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
-    const atLastNode: GameState = { ...started, expedition: { ...started.expedition!, nodeIndex: 4, enemies: [] } };
+    const atLastNode: GameState = { ...started, expedition: { ...started.expedition!, nodeIndex: 6, enemies: [] } };
     const completed = gameReducer(atLastNode, { type: 'ADVANCE' });
     expect(completed.hasAcceptedMission).toBe(false);
     expect(completed.missionAcceptedToday).toBe(true);

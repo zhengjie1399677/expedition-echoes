@@ -32,7 +32,7 @@ describe('BottomAdventureMenu 组件', () => {
     expect(menu).toBeDefined();
 
     const buttons = screen.getAllByRole('button');
-    expect(buttons.length).toBe(4);
+    expect(buttons.length).toBe(5);
 
     // 验证对应文本与激活类
     const townButton = buttons.find((btn) => btn.textContent?.includes('城镇'));
@@ -42,6 +42,10 @@ describe('BottomAdventureMenu 组件', () => {
     const backpackButton = buttons.find((btn) => btn.textContent?.includes('背包'));
     expect(backpackButton).toBeDefined();
     expect(backpackButton?.className).not.toContain('active');
+
+    const craftButton = buttons.find((btn) => btn.textContent?.includes('打造'));
+    expect(craftButton).toBeDefined();
+    expect(craftButton?.className).not.toContain('active');
   });
 
   it('点击其他非激活按钮时，应正确派发 (dispatch) 对应 NAVIGATE 或 OPEN_MANAGEMENT Action', () => {

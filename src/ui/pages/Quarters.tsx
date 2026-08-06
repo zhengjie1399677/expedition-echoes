@@ -15,6 +15,7 @@ const quartersPortraits: Record<string, string> = {
   wu: '/assets/portraits-dorm/wu-dorm-v2.png',
   xingluo: '/assets/portraits-dorm/xingluo-dorm-v2.png',
   cheng: '/assets/portraits-dorm/cheng-dorm-v2.png',
+  yan: '/assets/portraits-dorm/yan-dorm-v2.png',
   scout: '/assets/actors/scout-v1.png',
 };
 

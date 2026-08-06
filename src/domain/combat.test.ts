@@ -1,8 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { gameReducer, createInitialGame } from './gameEngine';
 import type { GameState } from './model';
 
 const ready = () => gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'border-echoes' });
+
+// 固定随机：0.2 → 不暴击（≥0.12）且 rollIntent 全取意图池首项（attack），保证敌人行为确定。
+beforeEach(() => {
+  vi.spyOn(Math, 'random').mockReturnValue(0.2);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('战术道具与暴击机制测试', () => {
   it('暴击机制：12% 几率下触发 1.5 倍伤害', () => {

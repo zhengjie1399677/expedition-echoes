@@ -12,6 +12,8 @@ import {
 } from '../../content/gameContent';
 import { availableItemCount, equipmentBonuses, pressureStage } from '../../domain/gameEngine';
 import { quartersPortraits } from './Quarters';
+import { RarityBadge } from '../components/RarityBadge';
+import { StatLine } from '../components/StatLine';
 
 export interface ManagementProps {
   state: GameState;
@@ -19,16 +21,32 @@ export interface ManagementProps {
 }
 
 const equipmentSlotNames: Record<EquipmentSlot, string> = { weapon: '武器', armor: '防具', accessory: '饰品' };
+// 物品图标：补给品与装备均使用 PNG（fine/rare 档复用基底图，由 .rarity CSS 叠加光效）。
 const itemIcons: Record<string, string> = {
-  bandage: '🩹',
-  sedative: '🧪',
-  'vanguard-spear': '🔱',
-  'ranger-bow': '🏹',
-  'star-staff': '🔮',
-  'field-mail': '🛡️',
-  'warded-coat': '🧥',
-  'echo-charm': '💎',
+  bandage: '/assets/ui/items/bandage.png',
+  sedative: '/assets/ui/items/sedative.png',
+  'fire-bomb': '/assets/ui/items/fire-bomb.png',
+  'shield-elixir': '/assets/ui/items/shield-elixir.png',
+  'vanguard-spear': '/assets/ui/items/equipment/vanguard-spear.png',
+  'vanguard-spear-fine': '/assets/ui/items/equipment/vanguard-spear.png',
+  'vanguard-spear-rare': '/assets/ui/items/equipment/vanguard-spear.png',
+  'ranger-bow': '/assets/ui/items/equipment/ranger-bow.png',
+  'ranger-bow-fine': '/assets/ui/items/equipment/ranger-bow.png',
+  'ranger-bow-rare': '/assets/ui/items/equipment/ranger-bow.png',
+  'star-staff': '/assets/ui/items/equipment/star-staff.png',
+  'star-staff-fine': '/assets/ui/items/equipment/star-staff.png',
+  'star-staff-rare': '/assets/ui/items/equipment/star-staff.png',
+  'field-mail': '/assets/ui/items/equipment/field-mail.png',
+  'field-mail-fine': '/assets/ui/items/equipment/field-mail.png',
+  'field-mail-rare': '/assets/ui/items/equipment/field-mail.png',
+  'warded-coat': '/assets/ui/items/equipment/warded-coat.png',
+  'warded-coat-fine': '/assets/ui/items/equipment/warded-coat.png',
+  'warded-coat-rare': '/assets/ui/items/equipment/warded-coat.png',
+  'echo-charm': '/assets/ui/items/equipment/echo-charm.png',
+  'echo-charm-fine': '/assets/ui/items/equipment/echo-charm.png',
+  'echo-charm-rare': '/assets/ui/items/equipment/echo-charm.png',
 };
+const isIconUrl = (icon: string): boolean => icon.includes('/assets/');
 
 export function Management({ state, dispatch }: ManagementProps) {
   const tab = state.managementTab;
@@ -69,7 +87,7 @@ export function Management({ state, dispatch }: ManagementProps) {
       description: item.description,
       count: state.inventory[item.id],
       data: item,
-      rarity: 0 as Rarity
+      rarity: item.rarity ?? 0
     })),
     ...materialEntries.map(m => ({
       key: `material:${m.typeId}:${m.rarity}`,
@@ -206,8 +224,8 @@ export function Management({ state, dispatch }: ManagementProps) {
               </div>
               <div className="loadout-vitals">
                 <span>生命 <b>{hero.hp}/{hero.maxHp}</b></span>
-                <span className={`pressure-state ${pressureStage(hero.morale).tone}`}>
-                  压力 <b>{hero.morale}/100 · {pressureStage(hero.morale).name}</b>
+                <span className={`pressure-state ${pressureStage(hero.pressure).tone}`}>
+                  压力 <b>{hero.pressure}/100 · {pressureStage(hero.pressure).name}</b>
                 </span>
               </div>
               <div className="loadout-slots">
@@ -216,8 +234,9 @@ export function Management({ state, dispatch }: ManagementProps) {
                   return (
                     <button key={slot} onClick={() => dispatch({ type: 'OPEN_MANAGEMENT', tab: 'equipment' })}>
                       <small>{equipmentSlotNames[slot]}</small>
-                      <strong>{equipped?.name ?? '未装备'}</strong>
+                      <strong style={equipped?.rarity ? { color: rarityColors[equipped.rarity] } : undefined}>{equipped?.name ?? '未装备'}</strong>
                       <span>{equipped ? equipped.description : '点击前往装备管理'}</span>
+                      <StatLine attack={equipped?.attack} defense={equipped?.defense} />
                     </button>
                   );
                 })}
@@ -238,13 +257,17 @@ export function Management({ state, dispatch }: ManagementProps) {
 
                     return (
                       <article key={item.key} className={`inventory-row ${rowClass}`}>
-                        <span className="item-icon-frame">{icon}</span>
+                        <span className="item-icon-frame">{isIconUrl(icon) ? <img className="item-icon-img" src={icon} alt="" /> : icon}</span>
                         <div className="item-body">
                           <div className="item-meta">
-                            <strong className="item-name">{item.name}</strong>
+                            <strong className="item-name" style={item.rarity ? { color: rarityColors[item.rarity] } : undefined}>{item.name}</strong>
                             <span className="item-badge">{kindLabel}</span>
+                            {item.rarity ? <RarityBadge rarity={item.rarity} size="sm" /> : null}
                           </div>
                           <p className="item-desc">{item.description}</p>
+                          {item.data!.kind === 'equipment' && (
+                            <div className="item-stats"><StatLine attack={item.data!.attack} defense={item.data!.defense} /></div>
+                          )}
                         </div>
                         <div className="item-actions">
                           {item.data!.kind === 'equipment' && <span className="item-avail">可用 {available}</span>}
@@ -306,7 +329,7 @@ export function Management({ state, dispatch }: ManagementProps) {
               return (
                 <article key={recipe.id} className={`craft-card ${canCraft ? '' : 'disabled'}`}>
                   <div className="craft-result">
-                    <strong>{result?.name ?? recipe.resultItemId}</strong>
+                    <strong style={result?.rarity ? { color: rarityColors[result.rarity] } : undefined}>{result?.name ?? recipe.resultItemId}</strong>
                     <small>
                       {result?.attack ? `攻击 +${result.attack}` : ''}
                       {result?.attack && result?.defense ? ' · ' : ''}
@@ -315,15 +338,19 @@ export function Management({ state, dispatch }: ManagementProps) {
                   </div>
                   <div className="craft-cost">
                     <span className="craft-mats">
-                      {recipe.materials.map((m, i) => (
-                        <span
-                          key={i}
-                          className={`rarity-badge rarity-${m.rarity}`}
-                          style={{ borderColor: rarityColors[m.rarity], color: rarityColors[m.rarity] }}
-                        >
-                          {materialName(m.typeId)}·{rarityNames[m.rarity]} ×{m.count}
-                        </span>
-                      ))}
+                      {recipe.materials.map((m, i) => {
+                        const owned = state.materials[`${m.typeId}:${m.rarity}`] ?? 0;
+                        const insufficient = owned < m.count;
+                        return (
+                          <span
+                            key={i}
+                            className={`rarity-badge rarity-${m.rarity}${insufficient ? ' insufficient' : ''}`}
+                            style={insufficient ? undefined : { borderColor: rarityColors[m.rarity], color: rarityColors[m.rarity] }}
+                          >
+                            {materialName(m.typeId)}·{rarityNames[m.rarity]} ×{m.count}（持有 {owned}）
+                          </span>
+                        );
+                      })}
                     </span>
                     <span className="craft-gold">{recipe.goldCost} 金币</span>
                   </div>
@@ -381,7 +408,7 @@ export function Management({ state, dispatch }: ManagementProps) {
                     <div className="equipped-item">
                       {current ? (
                         <>
-                          <b>{current.name}</b>
+                          <b style={current.rarity ? { color: rarityColors[current.rarity] } : undefined}>{current.name}</b>
                           <span>{current.description}</span>
                         </>
                       ) : (
@@ -394,6 +421,9 @@ export function Management({ state, dispatch }: ManagementProps) {
                         .map((item) => {
                           const equipped = currentId === item.id;
                           const available = availableItemCount(state, item.id);
+                          // 读取领域层纯函数预览装备后总加成，UI 不计算规则。
+                          const previewBonuses = equipmentBonuses({ ...hero, equipment: { ...hero.equipment, [slot]: item.id } });
+                          const delta = { attack: previewBonuses.attack - bonuses.attack, defense: previewBonuses.defense - bonuses.defense };
                           return (
                             <button
                               key={item.id}
@@ -401,12 +431,14 @@ export function Management({ state, dispatch }: ManagementProps) {
                               disabled={!equipped && available < 1}
                               onClick={() => dispatch({ type: 'EQUIP_ITEM', heroId: hero.id, itemId: item.id })}
                             >
-                              <strong>{item.name}</strong>
+                              <strong style={item.rarity ? { color: rarityColors[item.rarity] } : undefined}>{item.name}</strong>
+                              {item.rarity ? <RarityBadge rarity={item.rarity} size="sm" /> : null}
                               <small>
                                 {item.attack ? `攻击 +${item.attack}` : ''}
                                 {item.attack && item.defense ? ' · ' : ''}
                                 {item.defense ? `减伤 +${item.defense}` : ''} · 可用 {available}
                               </small>
+                              {!equipped && <StatLine delta={delta} />}
                             </button>
                           );
                         })}

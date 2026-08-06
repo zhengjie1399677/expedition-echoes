@@ -1,12 +1,25 @@
 [
   { "id": "bandage", "name": "绷带", "kind": "consumable", "description": "远征时恢复 9 点生命。" },
-  { "id": "sedative", "name": "镇定剂", "kind": "consumable", "description": "远征时降低 25 点士气压力。" },
+  { "id": "sedative", "name": "镇定剂", "kind": "consumable", "description": "远征时降低 25 点压力。" },
   { "id": "fire-bomb", "name": "火焰瓶", "kind": "consumable", "description": "远征中投掷，造成 8 点无视防御的固定伤害。" },
   { "id": "shield-elixir", "name": "铁壁药丸", "kind": "consumable", "description": "远征中使用，令目标本场战斗伤害减免 +3。" },
-  { "id": "vanguard-spear", "name": "守望长枪", "kind": "equipment", "slot": "weapon", "description": "先锋制式长枪。", "attack": 2, "allowedClasses": ["vanguard"] },
-  { "id": "ranger-bow", "name": "白榆猎弓", "kind": "equipment", "slot": "weapon", "description": "轻巧而稳定的远射武器。", "attack": 2, "allowedClasses": ["ranger"] },
-  { "id": "star-staff", "name": "星辉法杖", "kind": "equipment", "slot": "weapon", "description": "引导星术的晶石法杖。", "attack": 2, "allowedClasses": ["mage"] },
-  { "id": "field-mail", "name": "远征锁甲", "kind": "equipment", "slot": "armor", "description": "抵消 1 点受到的伤害。", "defense": 1 },
-  { "id": "warded-coat", "name": "刻印旅行衣", "kind": "equipment", "slot": "armor", "description": "轻便且带有防护刻印。", "defense": 1 },
-  { "id": "echo-charm", "name": "回声护符", "kind": "equipment", "slot": "accessory", "description": "微弱增幅持有者的攻击。", "attack": 1 }
+  { "id": "vanguard-spear", "name": "守望长枪", "kind": "equipment", "slot": "weapon", "description": "先锋制式长枪。", "attack": 2, "allowedClasses": ["vanguard"], "rarity": 0 },
+  { "id": "ranger-bow", "name": "白榆猎弓", "kind": "equipment", "slot": "weapon", "description": "轻巧而稳定的远射武器。", "attack": 2, "allowedClasses": ["ranger"], "rarity": 0 },
+  { "id": "star-staff", "name": "星辉法杖", "kind": "equipment", "slot": "weapon", "description": "引导星术的晶石法杖。", "attack": 2, "allowedClasses": ["mage"], "rarity": 0 },
+  { "id": "field-mail", "name": "远征锁甲", "kind": "equipment", "slot": "armor", "description": "抵消 1 点受到的伤害。", "defense": 1, "rarity": 0 },
+  { "id": "warded-coat", "name": "刻印旅行衣", "kind": "equipment", "slot": "armor", "description": "轻便且带有防护刻印。", "defense": 1, "rarity": 0 },
+  { "id": "echo-charm", "name": "回声护符", "kind": "equipment", "slot": "accessory", "description": "微弱增幅持有者的攻击。", "attack": 1, "rarity": 0 },
+
+  { "id": "vanguard-spear-fine", "name": "守望长枪·优良", "kind": "equipment", "slot": "weapon", "description": "锋刃经遗迹碎片反复淬炼的长枪。", "attack": 4, "allowedClasses": ["vanguard"], "rarity": 1 },
+  { "id": "vanguard-spear-rare", "name": "守望长枪·稀有", "kind": "equipment", "slot": "weapon", "description": "枪尖嵌入高纯度遗迹晶石，破甲锐利。", "attack": 6, "allowedClasses": ["vanguard"], "rarity": 2 },
+  { "id": "ranger-bow-fine", "name": "白榆猎弓·优良", "kind": "equipment", "slot": "weapon", "description": "弓臂加固后张力更稳。", "attack": 4, "allowedClasses": ["ranger"], "rarity": 1 },
+  { "id": "ranger-bow-rare", "name": "白榆猎弓·稀有", "kind": "equipment", "slot": "weapon", "description": "锈铁构件调校的复合猎弓，射程与威力俱增。", "attack": 6, "allowedClasses": ["ranger"], "rarity": 2 },
+  { "id": "star-staff-fine", "name": "星辉法杖·优良", "kind": "equipment", "slot": "weapon", "description": "晶石经进一步打磨，星术引导更顺畅。", "attack": 4, "allowedClasses": ["mage"], "rarity": 1 },
+  { "id": "star-staff-rare", "name": "星辉法杖·稀有", "kind": "equipment", "slot": "weapon", "description": "顶端镶嵌高纯度星辉结晶，法术威力显著提升。", "attack": 6, "allowedClasses": ["mage"], "rarity": 2 },
+  { "id": "field-mail-fine", "name": "远征锁甲·优良", "kind": "equipment", "slot": "armor", "description": "加固铆钉的锁甲，抵消 2 点伤害。", "defense": 2, "rarity": 1 },
+  { "id": "field-mail-rare", "name": "远征锁甲·稀有", "kind": "equipment", "slot": "armor", "description": "锈铁与遗迹碎片锻造的重型锁甲，抵消 3 点伤害。", "defense": 3, "rarity": 2 },
+  { "id": "warded-coat-fine", "name": "刻印旅行衣·优良", "kind": "equipment", "slot": "armor", "description": "刻印加深的旅行衣，抵消 2 点伤害。", "defense": 2, "rarity": 1 },
+  { "id": "warded-coat-rare", "name": "刻印旅行衣·稀有", "kind": "equipment", "slot": "armor", "description": "高纯度遗迹符文织入衣料，抵消 3 点伤害。", "defense": 3, "rarity": 2 },
+  { "id": "echo-charm-fine", "name": "回声护符·优良", "kind": "equipment", "slot": "accessory", "description": "经过充能的护符，进一步增幅攻击。", "attack": 2, "rarity": 1 },
+  { "id": "echo-charm-rare", "name": "回声护符·稀有", "kind": "equipment", "slot": "accessory", "description": "高纯度晶石核心的护符，攻击增幅显著。", "attack": 3, "rarity": 2 }
 ]

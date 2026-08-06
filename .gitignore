@@ -4,3 +4,7 @@ dist/
 *.tsbuildinfo
 *.log
 tmp/
+.trae/
+.workbuddy/
+.workbuddy-ai/
+.openai/

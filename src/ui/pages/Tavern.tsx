@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GameState, GameAction } from '../../domain/model';
-import { missions, missionOpinions, materialName, rarityNames, rarityColors } from '../../content/gameContent';
+import { missions, missionOpinions, materialName, rarityNames, rarityColors, regions, regionNameForMission, threatNames } from '../../content/gameContent';
 import { HeroCard } from '../components/HeroCard';
 
 export interface TavernProps {
@@ -53,16 +53,30 @@ export function Tavern({ state, dispatch }: TavernProps) {
             <button onClick={closeBoard}>关闭</button>
           </header>
           <div className="quest-dialog-list">
-            {missions.map((mission) => (
-              <button key={mission.id} className="quest-dialog-card" onClick={() => setPreviewMissionId(mission.id)}>
-                <div>
-                  <strong>{mission.title}</strong>
-                  <span>{'◆'.repeat(mission.difficulty)}{'◇'.repeat(3 - mission.difficulty)}</span>
+            {regions.map((region) => {
+              const regionMissions = region.missions.map((id) => missions.find((m) => m.id === id)).filter((m): m is NonNullable<typeof m> => Boolean(m));
+              if (regionMissions.length === 0) return null;
+              const threat = state.regions[region.id] ?? region.threat;
+              return (
+                <div key={region.id} className="quest-region-group">
+                  <div className="quest-region-header">
+                    <strong>{region.name}</strong>
+                    <span className={`threat-badge threat-${threat}`}>威胁：{threatNames[threat] ?? threat}</span>
+                  </div>
+                  <p className="quest-region-desc">{region.description}</p>
+                  {regionMissions.map((mission) => (
+                    <button key={mission.id} className="quest-dialog-card" onClick={() => setPreviewMissionId(mission.id)}>
+                      <div>
+                        <strong>{mission.title}</strong>
+                        <span>{'◆'.repeat(mission.difficulty)}{'◇'.repeat(3 - mission.difficulty)}</span>
+                      </div>
+                      <p>{mission.summary}</p>
+                      <small>{mission.reward} 金币 · 点击展开委托</small>
+                    </button>
+                  ))}
                 </div>
-                <p>{mission.summary}</p>
-                <small>{mission.reward} 金币 · 点击展开委托</small>
-              </button>
-            ))}
+              );
+            })}
           </div>
           <footer>选择一张委托，查看完整内容。</footer>
         </aside>
@@ -114,7 +128,7 @@ export function Tavern({ state, dispatch }: TavernProps) {
             ) : null}
             <div>
               <dt>行动区域</dt>
-              <dd>边境遗迹</dd>
+              <dd>{regionNameForMission(previewMission.id)}</dd>
             </div>
             <div>
               <dt>预计行程</dt>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { GameState, GameAction } from '../../domain/model';
-import { itemDefinitions, giftDefinitions, marketPrices } from '../../content/gameContent';
+import type { GameState, GameAction, ItemDefinition, Rarity } from '../../domain/model';
+import { itemDefinitions, giftDefinitions, marketPrices, rarityNames, rarityColors } from '../../content/gameContent';
 
 export interface TownProps {
   state: GameState;
@@ -13,16 +13,17 @@ export function Town({ state, dispatch, onGateClick }: TownProps) {
   const [marketStall, setMarketStall] = useState<'equipment' | 'accessory' | 'gift' | null>(null);
   const handleGateClick = () => {
     if (!state.hasAcceptedMission) {
-      dispatch({ type: 'START_EXPEDITION' });
+      // 未接任务时城门处于"锁定"态：点击引导到酒馆任务板，而非静默派发无意义动作。
+      dispatch({ type: 'NAVIGATE', page: 'tavern' });
       return;
     }
     onGateClick();
   };
   const stallTitle = marketStall === 'equipment' ? '装备商' : marketStall === 'accessory' ? '饰品商' : '礼物摊';
   const stallItems = marketStall === 'equipment'
-    ? itemDefinitions.filter((item) => item.kind === 'equipment' && item.slot !== 'accessory')
+    ? itemDefinitions.filter((item) => item.kind === 'equipment' && item.slot !== 'accessory' && marketPrices[item.id] !== undefined)
     : marketStall === 'accessory'
-      ? itemDefinitions.filter((item) => item.slot === 'accessory')
+      ? itemDefinitions.filter((item) => item.slot === 'accessory' && marketPrices[item.id] !== undefined)
       : giftDefinitions.map((gift) => ({ ...gift, description: `送给队员的${gift.name}` }));
 
   if (marketOpen) {
@@ -54,10 +55,13 @@ export function Town({ state, dispatch, onGateClick }: TownProps) {
                 <button onClick={() => setMarketStall(null)}>收起</button>
               </header>
               <div>
-                {stallItems.map((item) => (
+                {stallItems.map((item) => {
+                  const rarity = (item as ItemDefinition).rarity as Rarity | undefined;
+                  return (
                   <article key={item.id}>
                     <div>
-                      <strong>{item.name}</strong>
+                      <strong style={rarity ? { color: rarityColors[rarity] } : undefined}>{item.name}</strong>
+                      {rarity ? <small style={{ color: rarityColors[rarity] }}>{rarityNames[rarity]}</small> : null}
                       <small>{item.description}</small>
                     </div>
                     <button
@@ -67,7 +71,8 @@ export function Town({ state, dispatch, onGateClick }: TownProps) {
                       {marketPrices[item.id]} 金币
                     </button>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             </aside>
           )}
@@ -84,7 +89,7 @@ export function Town({ state, dispatch, onGateClick }: TownProps) {
         <div className="town-sun-haze" aria-hidden="true" />
         <div className="town-distance-mist" aria-hidden="true" />
         <div className="town-map-frame" />
-        {state.dayReport && (
+        {state.dayReport && !state.dayReport.pending && (
           <div className="town-news-plaque" aria-label="今日城镇消息">
             <small>晨间告示</small>
             <strong>{state.dayReport.townNews}</strong>
