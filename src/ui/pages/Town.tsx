@@ -84,7 +84,7 @@ export function Town({ state, dispatch, onGateClick }: TownProps) {
   return (
     <section className="page town-page">
       <div className="town-map">
-        <img src="/assets/world/town-hub-v3.png" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
+        <img src="/assets/world/town-hub-v3.webp" alt="明亮的冒险者城镇，包含酒馆、广场、宿舍和城门" />
         <div className="town-map-shade" />
         <div className="town-sun-haze" aria-hidden="true" />
         <div className="town-distance-mist" aria-hidden="true" />
