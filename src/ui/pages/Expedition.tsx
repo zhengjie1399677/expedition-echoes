@@ -6,6 +6,7 @@ import { skillUseKey } from '../../domain/combat';
 import { narrativeService, playerPlaceholder } from '../../infrastructure/llm';
 import { targetForIntent } from '../../domain/intents';
 import { MiniMap } from '../components/MiniMap';
+import { BattleCanvasBoundary } from '../components/BattleCanvasBoundary';
 
 const BattleCanvas = lazy(() => import('../BattleCanvas').then((module) => ({ default: module.BattleCanvas })));
 
@@ -29,6 +30,8 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
     heroId: string;
     enemyId?: string;
     nonce: number;
+    subKind?: 'damage' | 'buff' | 'heal';
+    skillName?: string;
   }>();
   const [selectedEnemyId, setSelectedEnemyId] = useState<string>();
   const [advisorId, setAdvisorId] = useState('');
@@ -47,8 +50,17 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
   ] as const;
 
   const useSkill = (heroId: string, skillId: string) => {
-    dispatch({ type: 'USE_SKILL', heroId, enemyId: selectedEnemy?.id, skillId });
-    setFeedback({ kind: 'skill', heroId, enemyId: selectedEnemy?.id, nonce: Date.now() });
+    const def = skillDefinitions[skillId];
+    const effectType = def?.effect.type;
+    // 技能效果子类：buff（压力恢复）、heal（单体治疗）、damage（单/群体伤害）。
+    // 仅 damage 形技能需要 enemyId；buff/heal 形不传 enemyId，避免误把法术打到当前选中的敌人身上。
+    const subKind: 'damage' | 'buff' | 'heal' =
+      effectType === 'pressure_recovery' ? 'buff'
+      : effectType === 'heal_single' ? 'heal'
+      : 'damage';
+    const enemyId = subKind === 'damage' ? selectedEnemy?.id : undefined;
+    dispatch({ type: 'USE_SKILL', heroId, enemyId, skillId });
+    setFeedback({ kind: 'skill', heroId, subKind, skillName: def?.name ?? '技能', enemyId, nonce: Date.now() });
   };
   const useDefend = (heroId: string) => {
     dispatch({ type: 'DEFEND', heroId });
@@ -225,22 +237,24 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
 
         <div className="expedition-stage">
           <Suspense fallback={<div className="phaser-loading">正在展开远征场景…</div>}>
-            <BattleCanvas
-              key={`${run.missionId}-${run.nodeIndex}-${run.enemies.map((enemy) => enemy.id).join('-') || 'rest'}`}
-              party={party}
-              enemies={run.enemies}
-              targetEnemyId={selectedEnemy?.id}
-              onSelectEnemy={setSelectedEnemyId}
-              nodeIndex={run.nodeIndex}
-              backgroundPath={node.background}
-              enemyIntents={run.enemyIntents}
-              enemyCharge={run.enemyCharge}
-              counters={enemyCounters}
-              attackRequest={attackRequest}
-              feedbackRequest={feedback}
-              canHeroAttack={(hero, index, enemy) => canAttack(hero, enemy, index)}
-              onAttack={commitAttack}
-            />
+            <BattleCanvasBoundary>
+              <BattleCanvas
+                key={`${run.missionId}-${run.nodeIndex}-${run.enemies.map((enemy) => enemy.id).join('-') || 'rest'}`}
+                party={party}
+                enemies={run.enemies}
+                targetEnemyId={selectedEnemy?.id}
+                onSelectEnemy={setSelectedEnemyId}
+                nodeIndex={run.nodeIndex}
+                backgroundPath={node.background}
+                enemyIntents={run.enemyIntents}
+                enemyCharge={run.enemyCharge}
+                counters={enemyCounters}
+                attackRequest={attackRequest}
+                feedbackRequest={feedback}
+                canHeroAttack={(hero, index, enemy) => canAttack(hero, enemy, index)}
+                onAttack={commitAttack}
+              />
+            </BattleCanvasBoundary>
           </Suspense>
           <div className="expedition-stage-hint">点击角色发动攻击 · 点击敌人选择目标 · 金色轮廓表示可攻击</div>
         </div>
@@ -433,7 +447,7 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
               <button
                 className="exp-hud-main-action-btn"
                 disabled={aliveEnemies.length > 0}
-                onClick={() => dispatch({ type: 'ADVANCE' })}
+                onClick={() => { setFeedback(undefined); dispatch({ type: 'ADVANCE' }); }}
                 title="推进"
               >
                 <div className="compass-icon">🧭</div>

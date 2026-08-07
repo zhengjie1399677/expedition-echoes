@@ -17,7 +17,7 @@ interface BattleCanvasProps {
   onAttack: (heroId: string, enemyId: string) => void;
   onSelectEnemy: (enemyId: string) => void;
   attackRequest?: { heroId: string; nonce: number };
-  feedbackRequest?: { kind: 'attack' | 'skill' | 'bandage' | 'sedative' | 'fire-bomb' | 'shield-elixir' | 'enemy-hit'; heroId: string; enemyId?: string; nonce: number };
+  feedbackRequest?: { kind: 'attack' | 'skill' | 'bandage' | 'sedative' | 'fire-bomb' | 'shield-elixir' | 'enemy-hit'; heroId: string; enemyId?: string; nonce: number; subKind?: 'damage' | 'buff' | 'heal'; skillName?: string };
 }
 
 const getAssetUrl = (path: string): string => {
@@ -111,7 +111,7 @@ class ExpeditionBattleScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('battle-bg', getAssetUrl(this.backgroundPath ?? '/assets/world/ruins-road-battle-v2.png'));
+    this.load.image('battle-bg', getAssetUrl(this.backgroundPath ?? '/assets/world/ruins-road-battle-v2.webp'));
     Object.entries(ACTORS).forEach(([key, path]) => this.load.image(`actor-${key}`, getAssetUrl(path)));
     Object.entries(ACTION_ACTORS).forEach(([key, path]) => this.load.image(`actor-action-${key}`, getAssetUrl(path)));
   }
@@ -556,17 +556,28 @@ class ExpeditionBattleScene extends Phaser.Scene {
           }
         }
         break;
-      case 'skill':
-        if (enemy) {
+      case 'skill': {
+        // 区分 buff/heal/damage：施法者始终有本体反馈（动作帧/法阵/技能名飘字），
+        // 仅 damage 型才冲击目标；buff/heal 不再误伤敌方。
+        const subKind: 'damage' | 'buff' | 'heal' = feedback.subKind ?? 'damage';
+        const skillName = feedback.skillName ?? '技能';
+        const hero = this.party.find((h) => h.id === heroId);
+        const tintMap: Record<typeof subKind, number> = { damage: 0x69cfe9, buff: 0x8ce9ff, heal: 0x7fe0a0 };
+        const labelMap: Record<typeof subKind, string> = { damage: '#8ce9ff', buff: '#8ce9ff', heal: '#7fe0a0' };
+        if (hero && heroSprite) {
+          this.playCasterCast(hero, heroSprite, tintMap[subKind], `${skillName}！`, labelMap[subKind]);
+        } else if (heroSprite) {
+          this.showFloatingText(heroSprite.x, heroSprite.y - heroSprite.displayHeight * 0.7, `${skillName}！`, labelMap[subKind]);
+        }
+        if (subKind === 'damage' && enemy) {
           const enemySprite = this.enemySprites.get(enemy.id) ?? this.enemySprite;
           if (enemySprite) {
             this.impact(enemySprite, 'magic');
             this.showFloatingText(enemySprite.x, enemySprite.y - enemySprite.displayHeight * 0.6, '技能！', '#8ce9ff');
           }
-        } else {
-          this.showFloatingText(heroX, heroY, '技能！', '#8ce9ff');
         }
         break;
+      }
       case 'enemy-hit':
         if (enemy) {
           const enemySprite = this.enemySprites.get(enemy.id) ?? this.enemySprite;
@@ -579,6 +590,35 @@ class ExpeditionBattleScene extends Phaser.Scene {
       default:
         break; // 攻击反馈已由 performAttack 动画负责，这里不重复
     }
+  }
+
+  // 技能施法者本体反馈：切换动作帧、色调闪烁、缩放顿挫、法阵与技能名飘字，确保
+  // 玩家能清晰看到是「谁」在施法。buff/heal 型不冲击敌方，damage 型由调用方另行叠加 impact。
+  private playCasterCast(hero: Hero, sprite: CombatVisual, tintColor: number, label: string, labelColor: string) {
+    if (!sprite) return;
+    const baseScaleX = sprite.getData('baseScaleX') as number;
+    const baseScaleY = sprite.getData('baseScaleY') as number;
+    const heroIndex = this.party.findIndex((h) => h.id === hero.id);
+    if (sprite instanceof Phaser.GameObjects.Image) {
+      const actionKey = ACTION_ACTORS[hero.id] ? `actor-action-${hero.id}` : 'actor-action-lan';
+      const originY = ACTION_FOOT_ORIGIN_Y[hero.id] ?? IDLE_FOOT_ORIGIN_Y[hero.id] ?? 1;
+      sprite.setTexture(actionKey).setOrigin(0.5, originY);
+    }
+    setVisualTint(sprite, tintColor);
+    this.tweens.add({ targets: sprite, scaleX: baseScaleX * 1.16, scaleY: baseScaleY * 0.88, duration: 160, yoyo: true, repeat: 1, ease: 'Quad.Out' });
+    const sigilX = sprite.x + sprite.displayWidth * 0.2;
+    const sigilY = sprite.y - sprite.displayHeight * 0.58;
+    const sigil = this.add.star(sigilX, sigilY, 6, 12, 30, tintColor, 0.4).setDepth(17).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: sigil, angle: 120, scale: 1.25, alpha: 0, duration: 540, ease: 'Quad.Out', onComplete: () => sigil.destroy() });
+    this.showFloatingText(sprite.x, sprite.y - sprite.displayHeight * 0.7, label, labelColor);
+    this.time.delayedCall(460, () => {
+      if (sprite instanceof Phaser.GameObjects.Image) {
+        const actorKey = ACTORS[hero.id] ? `actor-${hero.id}` : 'actor-lan';
+        sprite.setTexture(actorKey).setOrigin(0.5, IDLE_FOOT_ORIGIN_Y[hero.id] ?? 1);
+      }
+      setVisualTint(sprite);
+      if (heroIndex >= 0) this.playIdle(sprite, heroIndex);
+    });
   }
 
   private showFloatingText(x: number, y: number, value: string, color: string) {
@@ -605,24 +645,31 @@ export function BattleCanvas(props: BattleCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<ExpeditionBattleScene | null>(null);
+  const lastFeedbackNonceRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (!hostRef.current) return;
-    const scene = new ExpeditionBattleScene(props);
-    sceneRef.current = scene;
-    gameRef.current = new Phaser.Game({
-      type: Phaser.AUTO,
-      parent: hostRef.current,
-      width: 1440,
-      height: 650,
-      transparent: true,
-      scene,
-      render: { antialias: true, pixelArt: false },
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    // React 19 StrictMode 在 dev 下会 mount→cleanup→mount，若在首次 mount 同步 new Phaser.Game，
+    // cleanup 销毁的全局渲染器/WebGL 上下文与紧随其后的二次构造会产生竞态抛错，
+    // 进而导致整页卸载出现黑屏。延迟到微任务可让 StrictMode 的首轮 cleanup 先执行完毕再创建。
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled || !hostRef.current) return;
+      const scene = new ExpeditionBattleScene(props);
+      sceneRef.current = scene;
+      gameRef.current = new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: hostRef.current,
+        width: 1440,
+        height: 650,
+        transparent: true,
+        scene,
+        render: { antialias: true, pixelArt: false },
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      });
     });
     return () => {
-      gameRef.current?.destroy(true);
-      gameRef.current = null;
+      cancelled = true;
+      if (gameRef.current) { gameRef.current.destroy(true); gameRef.current = null; }
       sceneRef.current = null;
     };
   }, []);
@@ -651,10 +698,15 @@ export function BattleCanvas(props: BattleCanvasProps) {
   }, [props.attackRequest]);
 
   useEffect(() => {
-    if (props.feedbackRequest && sceneRef.current) {
-      sceneRef.current.playFeedback(props.feedbackRequest);
-    }
-  }, [props.feedbackRequest]);
+    const req = props.feedbackRequest;
+    if (!req || !sceneRef.current) return;
+    if (lastFeedbackNonceRef.current === req.nonce) return;
+    // 守卫：旧节点的反馈若 heroId 已不在当前编队（战斗→事件 key 切换时状态未清），
+    // 直接丢弃，避免在事件节点凭空飘出战斗技能字。
+    if (req.heroId && !props.party.some((h) => h.id === req.heroId)) return;
+    lastFeedbackNonceRef.current = req.nonce;
+    sceneRef.current.playFeedback(req);
+  }, [props.feedbackRequest, props.party]);
 
   return <div className="phaser-battle-shell" ref={hostRef} aria-label="远征战斗场景" role="img" tabIndex={0} />;
 }
