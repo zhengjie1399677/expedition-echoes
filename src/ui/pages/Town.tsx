@@ -34,7 +34,7 @@ export function Town({ state, dispatch, onGateClick }: TownProps) {
     return (
       <section className="page town-page plaza-page">
         <div className="plaza-scene">
-          <img src="/assets/world/central-market-v1.png" alt="阳光下的中央广场集市，左侧是装备商，右侧是补给商、饰品商和礼物摊" />
+          <img src="/assets/world/central-market-v1.webp" alt="阳光下的中央广场集市，左侧是装备商，右侧是补给商、饰品商和礼物摊" />
           <div className="plaza-scene-vignette" />
           <button className="plaza-back" onClick={() => { setMarketOpen(false); setMarketStall(null); }}>返回城镇</button>
           <button className="plaza-hotspot plaza-equipment" onClick={() => setMarketStall('equipment')}>

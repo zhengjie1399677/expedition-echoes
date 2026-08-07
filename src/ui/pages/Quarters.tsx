@@ -81,7 +81,7 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
   if (!roomHeroId) {
     return (
       <section className="page quarters-page quarters-hall">
-        <img className="quarters-background" src="/assets/world/quarters-hall-v1.png" alt="冒险者宿舍公共走廊" />
+        <img className="quarters-background" src="/assets/world/quarters-hall-v1.webp" alt="冒险者宿舍公共走廊" />
         <div className="room-directory">
           {recruited.map((item, index) => (
             <button className={`room-entry room-entry-${index}`} key={item.id} onClick={() => enterRoom(item.id)}>
@@ -100,7 +100,7 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
 
   return (
     <section className="page quarters-page">
-      <img className="quarters-background" src="/assets/world/quarters-dorm-v1.png" alt="暮色中的冒险者宿舍" />
+      <img className="quarters-background" src="/assets/world/quarters-dorm-v1.webp" alt="暮色中的冒险者宿舍" />
       <div className="quarters-topbar">
         <div>
           <p className="eyebrow">{hero?.name}的房间 · 日常交谈</p>

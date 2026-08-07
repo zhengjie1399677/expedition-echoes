@@ -34,9 +34,9 @@ const EXPEDITION_ASSETS = [
   // 非战斗页面预热（宿舍、酒馆、宿舍立绘）
   '/assets/portraits-dorm/yan-dorm-v2.png',
   '/assets/portraits-dorm/cheng-dorm-v2.png',
-  '/assets/world/quarters-hall-v1.png',
-  '/assets/world/quarters-dorm-v1.png',
-  '/assets/world/tavern-hall-v2.png',
+  '/assets/world/quarters-hall-v1.webp',
+  '/assets/world/quarters-dorm-v1.webp',
+  '/assets/world/tavern-hall-v2.webp',
 ];
 
 interface NetworkInformation { saveData?: boolean; effectiveType?: string }

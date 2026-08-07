@@ -35,7 +35,7 @@ export function Tavern({ state, dispatch }: TavernProps) {
 
   return (
     <section className="page tavern-page tavern-scene">
-      <img className="tavern-background" src="/assets/world/tavern-hall-v2.png" alt="有老板和冒险者客人的黄昏酒馆" />
+      <img className="tavern-background" src="/assets/world/tavern-hall-v2.webp" alt="有老板和冒险者客人的黄昏酒馆" />
       <button className="scene-hotspot tavernkeeper-hotspot" aria-label="与酒馆老板交谈，打开招募与整备" onClick={() => setRosterOpen(true)}>
         <span>酒馆老板</span>
       </button>
