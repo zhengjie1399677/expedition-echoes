@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { gameReducer, createInitialGame } from './gameEngine';
-import { regions, threatMax } from '../content/gameContent';
+import { regions } from '../content/gameContent';
 import type { GameState } from './model';
 
 // 固定随机避免意图/暴击干扰

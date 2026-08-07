@@ -3,7 +3,7 @@ import type { Enemy, GameAction, GameState, Hero } from './model';
 import { addLog, editHero } from './shared';
 import { addMaterials, describeMaterial, rollDrops, settleExpedition } from './economy';
 import { BALANCE } from './config';
-import { intentDescription, isGuarding, resolveEnemyAction, rollIntent } from './intents';
+import { isGuarding, resolveEnemyAction, rollIntent } from './intents';
 
 // 技能使用记录的键：每名英雄的每个技能每场遭遇限用一次。
 export const skillUseKey = (heroId: string, skillId: string): string => `${heroId}:${skillId}`;

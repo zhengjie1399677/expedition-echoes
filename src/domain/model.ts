@@ -1,8 +1,8 @@
-export type Page = 'town' | 'tavern' | 'quarters' | 'management' | 'expedition' | 'settings';
+type Page = 'town' | 'tavern' | 'quarters' | 'management' | 'expedition' | 'settings';
 export type HeroClass = 'vanguard' | 'ranger' | 'mage' | 'medic';
 export type EquipmentSlot = 'weapon' | 'armor' | 'accessory';
-export type HeroEquipment = Partial<Record<EquipmentSlot, string>>;
-export type ManagementTab = 'party' | 'inventory' | 'equipment' | 'craft';
+type HeroEquipment = Partial<Record<EquipmentSlot, string>>;
+type ManagementTab = 'party' | 'inventory' | 'equipment' | 'craft';
 
 // 稀有度（材料与装备共用）：0 普通 / 1 优良 / 2 稀有 / 3 史诗 / 4 传说
 export type Rarity = 0 | 1 | 2 | 3 | 4;
@@ -16,7 +16,7 @@ export interface Region {
   missions: string[];          // 属于该区域的任务 ID（任务板按区域分组）
 }
 // 战斗意图：敌人行动前的威胁预告（读题→解题）
-export type EnemyIntentType = 'attack' | 'charge' | 'guard' | 'pressure';
+type EnemyIntentType = 'attack' | 'charge' | 'guard' | 'pressure';
 export interface EnemyIntent {
   type: EnemyIntentType;
   targetHint?: 'front' | 'back' | 'weakest'; // 缺省 front
@@ -25,7 +25,7 @@ export interface EnemyIntent {
 }
 export interface MaterialType { id: string; name: string }
 export interface DropEntry { typeId: string; rarity: Rarity; chance: number }
-export interface MaterialReward { typeId: string; rarity: Rarity; count: number }
+interface MaterialReward { typeId: string; rarity: Rarity; count: number }
 // 材料库存 key 形如 `${typeId}:${rarity}`，值为数量
 export type MaterialInventory = Record<string, number>;
 // 装备打造配方：消耗材料与金币，产出已有装备入背包
@@ -60,7 +60,7 @@ export interface ItemDefinition {
   slot?: EquipmentSlot; attack?: number; defense?: number; allowedClasses?: HeroClass[];
   rarity?: Rarity;
 }
-export interface ExpeditionEventChoice {
+interface ExpeditionEventChoice {
   id: string;
   label: string;
   description: string;
@@ -73,7 +73,7 @@ export interface ExpeditionEventChoice {
   requirement?: string;    // 前置条件描述（如"需要镇定剂"）
   consumes?: Partial<Supplies>; // 选择该选项需消耗的行囊补给（如"绕路休整"消耗 1 份食物）
 }
-export interface ExpeditionEvent {
+interface ExpeditionEvent {
   id: string;
   title: string;          // 事件标题（补 title 用于 UI 层级）
   prompt: string;
@@ -110,7 +110,7 @@ export interface Expedition {
   enemyIntents: Record<string, EnemyIntent>; // enemyId -> 当前预告的意图
   enemyCharge: Record<string, number>;       // enemyId -> 蓄力层数（charge 意图积累）
 }
-export interface GameSettings { pressureEnabled: boolean; llmEnabled: boolean }
+interface GameSettings { pressureEnabled: boolean; llmEnabled: boolean }
 export interface SettlementState {
   outcome: 'victory' | 'retreat' | 'defeated';
   consumedSupplies: { food: number; bandage: number; sedative: number; fireBomb: number; shieldElixir: number };
@@ -118,7 +118,7 @@ export interface SettlementState {
   lootMaterials: MaterialInventory;
   gainedExperience: number;
 }
-export interface DayReport {
+interface DayReport {
   completedDay: number;
   outcome?: SettlementState['outcome'];
   missionTitle?: string;
@@ -130,7 +130,7 @@ export interface DayReport {
   pending?: boolean;
 }
 // 事件链状态（M3）：链 ID -> 当前节点。节点推进由明确状态条件触发，LLM 只建议不决定。
-export interface EventChainState {
+interface EventChainState {
   currentNode: string;        // 当前节点（见 gameContent 的 eventChains 定义）
   completed: boolean;         // 链是否已结束
 }

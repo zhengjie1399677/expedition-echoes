@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, Suspense, lazy } from 'react';
-import type { GameState, GameAction, Hero, Enemy } from '../../domain/model';
+import type { GameState, GameAction, Hero } from '../../domain/model';
 import { nodesForMission, regionNameForMission, dayLabel, skillDefinitions, itemDefinitions, itemById } from '../../content/gameContent';
-import { canAttack, equipmentBonuses, attackDamage } from '../../domain/gameEngine';
+import { canAttack } from '../../domain/gameEngine';
 import { skillUseKey } from '../../domain/combat';
-import { narrativeService, playerPlaceholder } from '../../infrastructure/llm';
+import { narrativeService } from '../../infrastructure/llm';
 import { targetForIntent } from '../../domain/intents';
 import { MiniMap } from '../components/MiniMap';
 import { BattleCanvasBoundary } from '../components/BattleCanvasBoundary';
@@ -280,9 +280,7 @@ export function Expedition({ state, dispatch }: ExpeditionProps) {
           <div className="exp-hud-col hud-party">
             <div className="exp-hud-label">◆ 队伍</div>
             <div className="party-cards-container">
-              {party.map((hero, index) => {
-                const bonuses = equipmentBonuses(hero);
-                const expectedDamage = attackDamage(hero, state.settings.pressureEnabled, state.hunger, index, party);
+              {party.map((hero) => {
                 const active = activeHero?.id === hero.id;
                 return (
                   <button

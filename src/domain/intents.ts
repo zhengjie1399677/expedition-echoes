@@ -165,7 +165,7 @@ function equipmentDefense(hero: Hero): number {
 }
 
 // 玩家攻击处于 guard 意图的敌人时伤害是否减半。
-export function isGuarding(enemy: Enemy, currentIntent: EnemyIntent | undefined): boolean {
+export function isGuarding(_enemy: Enemy, currentIntent: EnemyIntent | undefined): boolean {
   return Boolean(currentIntent && currentIntent.type === 'guard');
 }
 

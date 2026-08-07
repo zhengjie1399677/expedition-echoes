@@ -1,7 +1,6 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { dayLabel } from '../content/gameContent';
 import { createInitialGame, gameReducer } from '../domain/gameEngine';
-import type { GameAction, GameState } from '../domain/model';
 import { warmExpeditionResources } from '../infrastructure/expeditionPreloader';
 import { loadGame, saveGameDebounced, flushSaveGame } from '../infrastructure/storage';
 

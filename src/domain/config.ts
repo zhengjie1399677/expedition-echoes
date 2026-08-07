@@ -48,5 +48,3 @@ export const BALANCE = {
   // 默认奖励
   missionDefaultReward: 45, // 任务无 reward 字段时的默认金币奖励
 } as const;
-
-export type BalanceConfig = typeof BALANCE;

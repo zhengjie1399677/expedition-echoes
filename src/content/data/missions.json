@@ -5,7 +5,7 @@
     "summary": "调查遗迹道路上的异常脚步，并确认封印门厅是否安全。",
     "difficulty": 1,
     "reward": 45,
-    "enemyWaves": { "0": ["scout", "warden"], "2": ["warden", "scout"], "4": ["gatekeeper", "warden", "scout"] },
+    "enemyWaves": { "0": ["scout", "warden"], "2": ["warden", "scout"] },
     "materialRewards": [{ "typeId": "ruin-shard", "rarity": 0, "count": 2 }]
   },
   {
@@ -14,7 +14,7 @@
     "summary": "一支失控的守卫队正在截断商路，需要正面突破。",
     "difficulty": 2,
     "reward": 62,
-    "enemyWaves": { "0": ["warden", "scout"], "2": ["scout", "warden"], "4": ["gatekeeper", "warden"] },
+    "enemyWaves": { "0": ["warden", "scout"], "2": ["scout", "warden"] },
     "materialRewards": [{ "typeId": "rust-iron", "rarity": 1, "count": 1 }, { "typeId": "ruin-shard", "rarity": 1, "count": 1 }]
   },
   {
@@ -23,7 +23,7 @@
     "summary": "封印深处传来连续回声，公会要求带回完整调查记录。",
     "difficulty": 3,
     "reward": 84,
-    "enemyWaves": { "0": ["scout", "warden"], "2": ["gatekeeper", "scout", "warden"], "4": ["gatekeeper", "warden", "scout"] },
+    "enemyWaves": { "0": ["scout", "warden"], "2": ["gatekeeper", "scout", "warden"] },
     "materialRewards": [{ "typeId": "ruin-shard", "rarity": 2, "count": 1 }, { "typeId": "rust-iron", "rarity": 1, "count": 2 }]
   },
   {

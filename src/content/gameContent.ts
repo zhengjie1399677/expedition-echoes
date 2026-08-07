@@ -112,12 +112,14 @@ export const itemDefinitions: ItemDefinition[] = rawItems as ItemDefinition[];
 
 // 装备查询的 O(1) 索引：避免 combat/economy 等处反复 itemDefinitions.find。
 export const itemById: ReadonlyMap<string, ItemDefinition> = new Map(itemDefinitions.map((item) => [item.id, item]));
-// 中央广场集市的固定售价。只有这里列出的装备、饰品与礼物可以直接购买。
+// 中央广场集市的固定售价。只有这里列出的装备、饰品、礼物与消耗品可以直接购买。
+// 消耗品定价参考：火焰瓶 15g（8 点无视防御伤害）高于绷带 8g（恢复 9 生命，治疗低于输出定价），
+// 镇定剂 20g（-25 压力，最强续航）为最贵消耗品，与铁壁药丸 18g（本场减伤 +3）拉开梯度。
 export const marketPrices: Record<string, number> = {
   'vanguard-spear': 36, 'ranger-bow': 36, 'star-staff': 40,
   'field-mail': 42, 'warded-coat': 38, 'echo-charm': 32,
   wildflower: 5, ale: 8, 'old-book': 15, charm: 40,
-  'fire-bomb': 15, 'shield-elixir': 18,
+  bandage: 8, sedative: 20, 'fire-bomb': 15, 'shield-elixir': 18,
 };
 export const initialInventory: Record<string, number> = {
   bandage: 5, sedative: 2, 'fire-bomb': 2, 'shield-elixir': 2,
@@ -150,7 +152,7 @@ export const threatNames: Record<number, string> = { 0: '平静', 1: '异动', 2
 
 // 事件链定义（M3 目标框架，见 GAMEPLAY_AND_LLM_DESIGN §12 状态机）
 // 链的推进由明确状态条件触发（区域威胁、任务结果），LLM 只建议不决定。
-export interface EventChainNode {
+interface EventChainNode {
   id: string;
   label: string;            // 节点名（供 UI/日志）
   condition?: { regionId?: string; minThreat?: number }; // 推进前置（可选）
@@ -183,13 +185,6 @@ export const nextChainNode = (chain: EventChainDefinition, currentNodeId: string
 };
 
 // 每日新闻本地模板：按昨日结果 + 区域威胁生成（LLM 增强前的基础版本，离线完整可玩）。
-export interface DailyNewsTemplate {
-  outcome: 'victory' | 'retreat' | 'defeated';
-  threat0: string;
-  threat1: string;
-  threat2: string;
-  threat3: string;
-}
 const dailyNewsTemplates: Record<'victory' | 'retreat' | 'defeated', Record<string, string>> = {
   victory: {
     '0': '晨雾散开，告示板换上了新的委托。昨晚的胜利让城门比平时更热闹。',

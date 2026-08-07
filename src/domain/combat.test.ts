@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { gameReducer, createInitialGame } from './gameEngine';
-import type { GameState } from './model';
 
 const ready = () => gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'border-echoes' });
 

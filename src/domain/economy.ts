@@ -26,7 +26,7 @@ function parseRarityKey(key: string): { typeId: string; rarity: Rarity; count: n
 
 
 // 把 expedition.gainedMaterials 的 key 形式转成结构化列表，便于 addMaterials 复用。
-export function materialsFromInventory(inventory: MaterialInventory): { typeId: string; rarity: Rarity; count: number }[] {
+function materialsFromInventory(inventory: MaterialInventory): { typeId: string; rarity: Rarity; count: number }[] {
   const out: { typeId: string; rarity: Rarity; count: number }[] = [];
   for (const [key, count] of Object.entries(inventory)) {
     const parsed = parseRarityKey(key);

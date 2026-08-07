@@ -46,4 +46,4 @@
 
 ## 当前原型
 
-`public/assets/rigs/lan-vanguard-v1/parts-sheet-v1.png` 是先锋人偶的首张部件表。它目前只验证资产分离与自动裁边流程，不替换战斗中的正式角色。
+`pipeline-assets/rigs/lan-vanguard-v1/parts-sheet-v1.png` 是先锋人偶的首张部件表。它目前只验证资产分离与自动裁边流程，不替换战斗中的正式角色。该目录属于资产管线产物，存放在 public/ 之外，不进入游戏运行时构建。

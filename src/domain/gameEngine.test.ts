@@ -87,6 +87,18 @@ describe('队伍、背包与装备', () => {
     expect(bought.inventory['echo-charm']).toBe(2);
     expect(gameReducer({ ...initial, gold: 0 }, { type: 'BUY_ITEM', itemId: 'echo-charm' }).inventory['echo-charm']).toBe(1);
   });
+  it('补给商消耗品可按价目购买（bandage 8g、sedative 20g），金币不足时购买被拦截', () => {
+    const initial = createInitialGame();
+    const bandaged = gameReducer(initial, { type: 'BUY_ITEM', itemId: 'bandage' });
+    expect(bandaged.gold).toBe(92);
+    expect(bandaged.inventory['bandage']).toBe(6);
+    const sedated = gameReducer(bandaged, { type: 'BUY_ITEM', itemId: 'sedative' });
+    expect(sedated.gold).toBe(72);
+    expect(sedated.inventory['sedative']).toBe(3);
+    const broke = gameReducer({ ...initial, gold: 5 }, { type: 'BUY_ITEM', itemId: 'sedative' });
+    expect(broke.gold).toBe(5);
+    expect(broke.inventory['sedative']).toBe(2);
+  });
   it('可以调整出征站位顺序', () => { const state = createInitialGame(); const moved = gameReducer(state, { type: 'MOVE_PARTY', index: 0, direction: 1 }); expect(moved.selectedHeroIds).toEqual(['wu', 'lan', 'xingluo']); });
   it('装备会占用背包数量并提供属性', () => { const state = createInitialGame(); const equipped = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'lan', itemId: 'vanguard-spear' }); const lan = equipped.roster.find((hero) => hero.id === 'lan')!; expect(lan.equipment.weapon).toBe('vanguard-spear'); expect(equipmentBonuses(lan).attack).toBe(2); expect(availableItemCount(equipped, 'vanguard-spear')).toBe(0); });
   it('职业不匹配时不能装备专属武器', () => { const state = createInitialGame(); const result = gameReducer(state, { type: 'EQUIP_ITEM', heroId: 'wu', itemId: 'vanguard-spear' }); expect(result.roster.find((hero) => hero.id === 'wu')?.equipment.weapon).toBeUndefined(); });
@@ -438,7 +450,6 @@ describe('行囊整备、职业被动与全败结算新规则', () => {
     const wu = started.roster.find(h => h.id === 'wu')!;
     // 雾（ranger）在 index 1 应该能够攻击 scout，且伤害 +2
     expect(canAttack(wu, scout, 1)).toBe(true);
-    const baseDamage = attackDamage(wu, false, 0, 0, []); // 6
     const backrowDamage = attackDamage(wu, false, 0, 1, []); // 6 + 2 = 8
     expect(backrowDamage).toBe(8);
   });

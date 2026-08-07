@@ -33,7 +33,7 @@ function format(level: LogLevel, namespace: string, message: string): string {
   return `${ts} [${level.toUpperCase()}] [${namespace}] ${message}`;
 }
 
-export interface Logger {
+interface Logger {
   debug(message: string, extra?: unknown): void;
   info(message: string, extra?: unknown): void;
   warn(message: string, extra?: unknown): void;
@@ -60,7 +60,3 @@ export function createLogger(namespace: string): Logger {
     },
   };
 }
-
-export const logger = createLogger('app');
-
-export type { LogLevel };

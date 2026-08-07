@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { GameState, GameAction } from '../../domain/model';
 import { heroClassNames } from '../../content/gameContent';
 import { equipmentBonuses } from '../../domain/gameEngine';
+import { BALANCE } from '../../domain/config';
 
 export interface ExpeditionPrepOverlayProps {
   state: GameState;
@@ -65,7 +66,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
   const isTeamValid = state.selectedHeroIds.length >= 2;
 
   const handleStart = () => {
-    if (!isTeamValid || totalSlots > 10) return;
+    if (!isTeamValid || totalSlots > BALANCE.suppliesCap) return;
     try {
       localStorage.setItem('last_expedition_supplies', JSON.stringify({
         food: carryFood,
@@ -95,7 +96,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
       <div className="confirm-dialog prep-dialog" onClick={(e) => e.stopPropagation()}>
         <header className="prep-header">
           <h3>远征出征整备</h3>
-          <p>请挑选本次远征所携带的口粮与药剂。行囊最大容量为 10 格。</p>
+          <p>请挑选本次远征所携带的口粮与药剂。行囊最大容量为 {BALANCE.suppliesCap} 格。</p>
         </header>
 
         <div className="prep-layout">
@@ -124,9 +125,9 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
           </section>
 
           <section className="prep-section prep-supplies-list">
-            <h4>行囊配置 (已用: {totalSlots}/10 格)</h4>
-            <div className="prep-capacity" aria-label={`行囊已使用 ${totalSlots} 格，共 10 格`}>
-              {Array.from({ length: 10 }, (_, index) => <i key={index} className={index < totalSlots ? 'is-filled' : ''} />)}
+            <h4>行囊配置 (已用: {totalSlots}/{BALANCE.suppliesCap} 格)</h4>
+            <div className="prep-capacity" aria-label={`行囊已使用 ${totalSlots} 格，共 ${BALANCE.suppliesCap} 格`}>
+              {Array.from({ length: BALANCE.suppliesCap }, (_, index) => <i key={index} className={index < totalSlots ? 'is-filled' : ''} />)}
             </div>
             <div className="supply-control-row">
               <div className="supply-label-col">
@@ -136,7 +137,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
               <div className="supply-btn-group">
                 <button aria-label="减少口粮" disabled={carryFood <= 0} onClick={() => setCarryFood(f => f - 1)}>-</button>
                 <span className="carry-val">{carryFood}</span>
-                <button aria-label="增加口粮" disabled={carryFood >= state.food || totalSlots >= 10} onClick={() => setCarryFood(f => f + 1)}>+</button>
+                <button aria-label="增加口粮" disabled={carryFood >= state.food || totalSlots >= BALANCE.suppliesCap} onClick={() => setCarryFood(f => f + 1)}>+</button>
               </div>
             </div>
 
@@ -148,7 +149,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
               <div className="supply-btn-group">
                 <button aria-label="减少绷带" disabled={carryBandage <= 0} onClick={() => setCarryBandage(b => b - 1)}>-</button>
                 <span className="carry-val">{carryBandage}</span>
-                <button aria-label="增加绷带" disabled={carryBandage >= (state.inventory.bandage ?? 0) || totalSlots >= 10} onClick={() => setCarryBandage(b => b + 1)}>+</button>
+                <button aria-label="增加绷带" disabled={carryBandage >= (state.inventory.bandage ?? 0) || totalSlots >= BALANCE.suppliesCap} onClick={() => setCarryBandage(b => b + 1)}>+</button>
               </div>
             </div>
 
@@ -160,7 +161,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
               <div className="supply-btn-group">
                 <button aria-label="减少镇定剂" disabled={carrySedative <= 0} onClick={() => setCarrySedative(s => s - 1)}>-</button>
                 <span className="carry-val">{carrySedative}</span>
-                <button aria-label="增加镇定剂" disabled={carrySedative >= (state.inventory.sedative ?? 0) || totalSlots >= 10} onClick={() => setCarrySedative(s => s + 1)}>+</button>
+                <button aria-label="增加镇定剂" disabled={carrySedative >= (state.inventory.sedative ?? 0) || totalSlots >= BALANCE.suppliesCap} onClick={() => setCarrySedative(s => s + 1)}>+</button>
               </div>
             </div>
 
@@ -172,7 +173,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
               <div className="supply-btn-group">
                 <button aria-label="减少火焰瓶" disabled={carryFireBomb <= 0} onClick={() => setCarryFireBomb(s => s - 1)}>-</button>
                 <span className="carry-val">{carryFireBomb}</span>
-                <button aria-label="增加火焰瓶" disabled={carryFireBomb >= (state.inventory['fire-bomb'] ?? 0) || totalSlots >= 10} onClick={() => setCarryFireBomb(s => s + 1)}>+</button>
+                <button aria-label="增加火焰瓶" disabled={carryFireBomb >= (state.inventory['fire-bomb'] ?? 0) || totalSlots >= BALANCE.suppliesCap} onClick={() => setCarryFireBomb(s => s + 1)}>+</button>
               </div>
             </div>
 
@@ -184,7 +185,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
               <div className="supply-btn-group">
                 <button aria-label="减少铁壁药丸" disabled={carryShieldElixir <= 0} onClick={() => setCarryShieldElixir(s => s - 1)}>-</button>
                 <span className="carry-val">{carryShieldElixir}</span>
-                <button aria-label="增加铁壁药丸" disabled={carryShieldElixir >= (state.inventory['shield-elixir'] ?? 0) || totalSlots >= 10} onClick={() => setCarryShieldElixir(s => s + 1)}>+</button>
+                <button aria-label="增加铁壁药丸" disabled={carryShieldElixir >= (state.inventory['shield-elixir'] ?? 0) || totalSlots >= BALANCE.suppliesCap} onClick={() => setCarryShieldElixir(s => s + 1)}>+</button>
               </div>
             </div>
           </section>
@@ -192,7 +193,7 @@ export function ExpeditionPrepOverlay({ state, dispatch, onClose }: ExpeditionPr
 
         <div className="confirm-actions prep-actions">
           <button onClick={onClose}>返回城镇</button>
-          <button className="confirm-yes" disabled={!isTeamValid || totalSlots > 10} onClick={handleStart}>确认出发</button>
+          <button className="confirm-yes" disabled={!isTeamValid || totalSlots > BALANCE.suppliesCap} onClick={handleStart}>确认出发</button>
         </div>
       </div>
     </div>

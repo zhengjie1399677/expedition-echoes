@@ -80,6 +80,14 @@ export function Settlement({ state, dispatch }: SettlementProps) {
                 <span>镇定剂</span>
                 <strong>-{settlement.consumedSupplies.sedative}</strong>
               </div>
+              <div className="settlement-supply-stat">
+                <span>火焰瓶</span>
+                <strong>-{settlement.consumedSupplies.fireBomb}</strong>
+              </div>
+              <div className="settlement-supply-stat">
+                <span>铁壁药丸</span>
+                <strong>-{settlement.consumedSupplies.shieldElixir}</strong>
+              </div>
             </div>
             <p className="supplies-return-tip">行囊内剩余的补给品已自动放回城镇背包。</p>
           </section>

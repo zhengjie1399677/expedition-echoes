@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GameState, GameAction } from '../../domain/model';
-import { missions, missionOpinions, materialName, rarityNames, rarityColors, regions, regionNameForMission, threatNames } from '../../content/gameContent';
+import { missions, missionOpinions, materialName, rarityNames, rarityColors, regions, regionNameForMission, threatNames, nodesForMission } from '../../content/gameContent';
 import { HeroCard } from '../components/HeroCard';
 
 export interface TavernProps {
@@ -132,7 +132,7 @@ export function Tavern({ state, dispatch }: TavernProps) {
             </div>
             <div>
               <dt>预计行程</dt>
-              <dd>{Object.keys(previewMission.enemyWaves).length} 场遭遇</dd>
+              <dd>{nodesForMission(previewMission.id).filter((node) => node.kind === 'combat').length} 场遭遇</dd>
             </div>
           </dl>
 
