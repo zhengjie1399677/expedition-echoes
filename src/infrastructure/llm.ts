@@ -1,5 +1,5 @@
 import type { GameState, Hero } from '../domain/model';
-import { affinityStage } from '../content/gameContent';
+import { affinityStage, describeChoiceKey, missions } from '../content/gameContent';
 import { InfrastructureLlmProviderError } from '../domain/errors';
 import { callDirectLlmApi } from './api';
 
@@ -30,12 +30,23 @@ export const PLAYER_TEXT_MIN = 1;
 const fallback = ['今晚先休息吧。明天的路不会因为焦虑就缩短。', '装备已经检查过两遍，剩下的事交给明天。', '至少在这里，每个人都知道彼此的名字。'];
 const providerNames = { auto: '自动选择', 'mobile-tavern': 'Mobile-Tavern', sillytavern: 'SillyTavern', direct: '独立API(如Ollama)', offline: '离线对白' } as const;
 const cleanReply = (text: string): string => text.trim().replace(/^["“]+|["”]+$/g, '').trim();
+// 今日远征事实（M4 打磨 2）：把 lastExpedition（确定性事件写入）转成结构化的"已发生事实"段落。
+// LLM 只读不写：这是既定事实，禁止模型改写或虚构结果。
+const outcomeNames = { victory: '胜利归来', retreat: '主动撤退', defeated: '队伍力竭' } as const;
+const lastExpeditionFacts = (state: GameState): string => {
+  const last = state.lastExpedition;
+  if (!last) return '今日尚无已完成的远征。';
+  const mission = last.missionId ? missions.find((m) => m.id === last.missionId) : undefined;
+  const missionName = mission?.title ?? last.missionId ?? '未知任务';
+  const choicesText = last.choices.length > 0 ? last.choices.map(describeChoiceKey).join('；') : '未在途中做出特别选择';
+  return `今日远征事实：「${missionName}」，结果：${outcomeNames[last.outcome]}；带回金币 ${last.goldGained ?? 0}，材料 ${last.materialsGained ?? 0} 件；途中关键选择：${choicesText}。`;
+};
 const sceneContext = (state: GameState, hero: Hero): string => {
   const party = state.expedition?.formation ?? state.selectedHeroIds;
   const pressure = state.roster.find((item) => item.id === hero.id)?.pressure ?? 0;
   const recent = state.log.slice(0, 3).join(' / ') || '队伍正在城镇休整。';
   const eventState = state.expedition ? `远征进行中，第 ${state.expedition.nodeIndex + 1} 个节点。` : '远征已结束，队伍在城镇。';
-  return `场景上下文（这是既定事实，不得改写）：${eventState} ${hero.name}当前压力 ${pressure}/100；当前队伍：${party.join('、')}；最近经过：${recent}`;
+  return `场景上下文（这是既定事实，不得改写）：${eventState} ${hero.name}当前压力 ${pressure}/100；当前队伍：${party.join('、')}；最近经过：${recent}；${lastExpeditionFacts(state)}`;
 };
 // 把异常归类成有限的错误类型，便于 UI 给出有针对性的提示。
 const classifyError = (error: unknown): NarrativeErrorKind => {

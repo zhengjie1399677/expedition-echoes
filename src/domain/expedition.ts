@@ -112,6 +112,7 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
           seenEvents: [],
           enemyIntents: {},
           enemyCharge: {},
+          choiceHistory: [],
         },
       };
       return enterNode(prepared, 0);
@@ -163,7 +164,9 @@ export function expeditionReducer(state: GameState, action: GameAction): GameSta
       const partyIds = new Set(state.expedition.formation);
       // 一次性事件：同一远征只出现一次
       if (event.once && state.expedition.seenEvents.includes(event.id)) return addLog(state, '这个事件已经处理过了。');
-      const markSeen = (next: GameState) => ({ ...next, expedition: { ...next.expedition!, seenEvents: [...next.expedition!.seenEvents, event.id] } });
+      // 记录选择事实（M4 打磨 1）：`${eventId}:${choiceId}` 汇入 choiceHistory，
+      // 结算时写入 GameState.lastExpedition.choices，供次日新闻引用。
+      const markSeen = (next: GameState) => ({ ...next, expedition: { ...next.expedition!, seenEvents: [...next.expedition!.seenEvents, event.id], choiceHistory: [...next.expedition!.choiceHistory, `${event.id}:${choice.id}`] } });
       // 行囊补给消耗（如"绕路休整"消耗 1 份食物、"压制回声"消耗 1 份镇定剂）：
       // 先校验库存，不足则拒绝该选择；足够则在应用效果时统一扣减行囊补给。
       const consumes = choice.consumes ?? {};

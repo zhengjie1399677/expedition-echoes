@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { gameReducer, createInitialGame } from './gameEngine';
-import { eventChains, newsForThreat } from '../content/gameContent';
+import { eventChains, isMissionUnlocked, newsForThreat } from '../content/gameContent';
 import type { GameState } from './model';
 
 beforeEach(() => {
@@ -95,5 +95,63 @@ describe('每日新闻模板（A4）', () => {
     const nextDay = gameReducer(completed, { type: 'REST_TO_NEXT_DAY' });
     // border-ruins 威胁 2 + victory → "平息"模板
     expect(nextDay.dayReport?.townNews).toContain('平息');
+  });
+});
+
+describe('事件链节点行为（M4 打磨 4）', () => {
+  it('推进到 unlock-mission 节点后，新委托「回声余波」解锁并可接取', () => {
+    const initial = createInitialGame();
+    // 未推进前：门控任务未解锁，接取被领域层拒绝
+    expect(isMissionUnlocked(initial, 'echo-aftermath')).toBe(false);
+    const blocked = gameReducer(initial, { type: 'ACCEPT_MISSION', missionId: 'echo-aftermath' });
+    expect(blocked.selectedMissionId).toBe(initial.selectedMissionId);
+    expect(blocked.log[0]).toContain('还没有被公会让出');
+
+    // 推进 rumor → quest-open（unlock-mission 节点）
+    const advanced = gameReducer(initial, { type: 'ADVANCE_EVENT_CHAIN', chainId: 'border-echoes-chain' });
+    expect(advanced.eventChains['border-echoes-chain'].currentNode).toBe('quest-open');
+    expect(isMissionUnlocked(advanced, 'echo-aftermath')).toBe(true);
+    // 推进日志提示新委托出现
+    expect(advanced.log[0]).toContain('新的委托「回声余波」出现在任务板上');
+
+    const accepted = gameReducer(advanced, { type: 'ACCEPT_MISSION', missionId: 'echo-aftermath' });
+    expect(accepted.selectedMissionId).toBe('echo-aftermath');
+    expect(accepted.hasAcceptedMission).toBe(true);
+    expect(accepted.log[0]).toContain('已接受任务：回声余波');
+  });
+
+  it('任务胜利推进链到 unlock-mission 节点同样解锁新委托', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
+    const atLast: GameState = { ...started, expedition: { ...started.expedition!, nodeIndex: 6, enemies: [] } };
+    const completed = gameReducer(atLast, { type: 'ADVANCE' });
+    // 胜利 → 链 rumor → quest-open → 解锁 echo-aftermath
+    expect(isMissionUnlocked(completed, 'echo-aftermath')).toBe(true);
+  });
+
+  it('推进到 news-bonus 节点后，次日新闻附带链文案', () => {
+    let state = createInitialGame();
+    state = gameReducer(state, { type: 'ADVANCE_EVENT_CHAIN', chainId: 'border-echoes-chain' }); // rumor → quest-open
+    state = gameReducer(state, { type: 'ADVANCE_EVENT_CHAIN', chainId: 'border-echoes-chain' }); // quest-open → quest-complete
+    state = gameReducer(state, { type: 'ADVANCE_EVENT_CHAIN', chainId: 'border-echoes-chain' }); // quest-complete → followup-open
+    expect(state.eventChains['border-echoes-chain'].currentNode).toBe('followup-open');
+
+    const nextDay = gameReducer(state, { type: 'REST_TO_NEXT_DAY' });
+    // 无远征时基础新闻 + news-bonus 文案
+    expect(nextDay.dayReport?.townNews).toContain('边境遗迹的回声变得清晰起来');
+  });
+
+  it('未到 news-bonus 节点前，次日新闻不附带链文案', () => {
+    let state = createInitialGame();
+    state = gameReducer(state, { type: 'ADVANCE_EVENT_CHAIN', chainId: 'border-echoes-chain' }); // 只到 quest-open
+    const nextDay = gameReducer(state, { type: 'REST_TO_NEXT_DAY' });
+    expect(nextDay.dayReport?.townNews).not.toContain('边境遗迹的回声变得清晰起来');
+  });
+
+  it('未门控的既有委托始终可接取（不受门控逻辑影响）', () => {
+    const initial = createInitialGame();
+    expect(isMissionUnlocked(initial, 'border-echoes')).toBe(true);
+    const accepted = gameReducer(initial, { type: 'ACCEPT_MISSION', missionId: 'border-echoes' });
+    expect(accepted.selectedMissionId).toBe('border-echoes');
+    expect(accepted.log[0]).toContain('已接受任务');
   });
 });

@@ -1225,6 +1225,56 @@
   margin: 6px 0 0 0;
   line-height: 1;
 }
+/* --- Settlement 队员反应区（M4 打磨 3） --- */
+.settlement-reactions {
+  background: rgba(163, 124, 63, 0.06);
+  border: 1px solid rgba(163, 124, 63, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+.outcome-defeated .settlement-reactions {
+  background: rgba(185, 58, 56, 0.06);
+  border-color: rgba(185, 58, 56, 0.12);
+}
+.settlement-reactions .settlement-atmosphere {
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 13px;
+  color: #5c3e1c;
+  margin: 0 0 10px 0;
+  line-height: 1.6;
+}
+.outcome-defeated .settlement-reactions .settlement-atmosphere {
+  color: #d6a2a0;
+}
+.settlement-reaction-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 168px;
+  overflow-y: auto;
+}
+.settlement-reaction-item {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #5c3e1c;
+  line-height: 1.5;
+}
+.outcome-defeated .settlement-reaction-item {
+  color: #d8c4c4;
+}
+.settlement-reaction-item strong {
+  flex-shrink: 0;
+  min-width: 44px;
+  color: #a37c3f;
+}
+.outcome-defeated .settlement-reaction-item strong {
+  color: #b93a38;
+}
 .settlement-content {
   display: flex;
   flex-direction: column;

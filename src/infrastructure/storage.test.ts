@@ -3,7 +3,8 @@ import type { GameState } from '../domain/model';
 import { createInitialGame } from '../domain/gameEngine';
 import { clearGame, loadGame, saveGame, saveGameDebounced, flushSaveGame } from './storage';
 
-const KEY = 'expedition-echoes.save.v13';
+const KEY = 'expedition-echoes.save.v14';
+const V13_KEY = 'expedition-echoes.save.v13';
 const V12_KEY = 'expedition-echoes.save.v12';
 const V3_KEY = 'expedition-echoes.save.v3';
 
@@ -42,7 +43,7 @@ describe('存档加载与迁移', () => {
     saveGame(state);
     const loaded = loadGame();
     expect(loaded).not.toBeNull();
-    expect(loaded?.version).toBe(13);
+    expect(loaded?.version).toBe(14);
     expect(loaded?.gold).toBe(state.gold);
     expect(loaded?.roster.length).toBe(state.roster.length);
     expect(loaded?.selectedHeroIds).toEqual(state.selectedHeroIds);
@@ -91,7 +92,7 @@ describe('存档加载与迁移', () => {
 
     const loaded = loadGame();
     expect(loaded).not.toBeNull();
-    expect(loaded?.version).toBe(13);
+    expect(loaded?.version).toBe(14);
     expect(loaded?.day).toBe(1); // 缺失字段使用默认
     expect(loaded?.food).toBe(5);
     expect(loaded?.hunger).toBe(0);
@@ -119,12 +120,65 @@ describe('存档加载与迁移', () => {
 
     const loaded = loadGame();
     expect(loaded).not.toBeNull();
-    expect(loaded?.version).toBe(13);
+    expect(loaded?.version).toBe(14);
     expect(loaded?.roster[0].pressure).toBe(42);
     expect((loaded?.roster[0] as unknown as Record<string, unknown>).morale).toBeUndefined();
     expect(loaded?.settings.pressureEnabled).toBe(false);
     // 迁移后旧版 key 被清理
     expect(storage.getItem(V12_KEY)).toBeNull();
+  });
+
+  it('v13 旧档迁移到 v14：缺少 lastExpedition 时视为无记录，不崩溃', () => {
+    const legacy = {
+      ...createInitialGame(),
+      version: 13,
+    };
+    // 移除 v14 新增的可选字段，模拟真实 v13 存档结构
+    const { lastExpedition: _removed, ...rest } = legacy;
+    void _removed;
+    storage.setItem(V13_KEY, JSON.stringify(rest));
+
+    const loaded = loadGame();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.version).toBe(14);
+    // lastExpedition 是可选字段：旧档无记录 → undefined
+    expect(loaded?.lastExpedition).toBeUndefined();
+    // 其余字段正常迁移
+    expect(loaded?.gold).toBe(100);
+    // 迁移后旧版 key 被清理
+    expect(storage.getItem(V13_KEY)).toBeNull();
+  });
+
+  it('v14 存档中的 lastExpedition 能完整保存并加载', () => {
+    const state: GameState = {
+      ...createInitialGame(),
+      lastExpedition: {
+        outcome: 'victory',
+        missionId: 'border-echoes',
+        choices: ['supply-room:scavenge'],
+        goldGained: 50,
+        materialsGained: 2,
+        nodeReached: 6,
+      },
+    };
+    saveGame(state);
+    const loaded = loadGame();
+    expect(loaded?.version).toBe(14);
+    expect(loaded?.lastExpedition).toEqual({
+      outcome: 'victory',
+      missionId: 'border-echoes',
+      choices: ['supply-room:scavenge'],
+      goldGained: 50,
+      materialsGained: 2,
+      nodeReached: 6,
+    });
+  });
+
+  it('lastExpedition 字段非法时回退为 undefined', () => {
+    const state = { ...createInitialGame(), lastExpedition: { outcome: 'bogus', choices: 123 } as unknown as GameState['lastExpedition'] };
+    saveGame(state);
+    const loaded = loadGame();
+    expect(loaded?.lastExpedition).toBeUndefined();
   });
 
   it('材料库存 key 异常时被过滤', () => {
@@ -174,11 +228,13 @@ describe('存档加载与迁移', () => {
   it('clearGame 清除所有版本 key', () => {
     const state = createInitialGame();
     saveGame(state);
+    storage.setItem(V13_KEY, '{"version":13}');
     storage.setItem(V12_KEY, '{"version":12}');
     storage.setItem(V3_KEY, '{"version":3}');
     expect(storage._dump().size).toBeGreaterThan(0);
     clearGame();
     expect(storage.getItem(KEY)).toBeNull();
+    expect(storage.getItem(V13_KEY)).toBeNull();
     expect(storage.getItem(V12_KEY)).toBeNull();
     expect(storage.getItem(V3_KEY)).toBeNull();
   });

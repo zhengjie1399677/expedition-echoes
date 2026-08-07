@@ -34,5 +34,14 @@
     "reward": 76,
     "enemyWaves": { "0": ["ash-wolf", "ash-wolf"], "2": ["spore-beast", "rock-lizard", "thorn-stag"] },
     "materialRewards": [{ "typeId": "ruin-shard", "rarity": 1, "count": 2 }]
+  },
+  {
+    "id": "echo-aftermath",
+    "title": "回声余波",
+    "summary": "封印门厅的回声仍在扩散，公会需要一支队伍深入回廊，确认余波中没有新的威胁。",
+    "difficulty": 1,
+    "reward": 55,
+    "enemyWaves": { "0": ["scout", "scout"], "2": ["warden", "warden"] },
+    "materialRewards": [{ "typeId": "ruin-shard", "rarity": 1, "count": 1 }]
   }
 ]

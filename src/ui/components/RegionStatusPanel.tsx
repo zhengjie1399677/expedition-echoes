@@ -1,5 +1,5 @@
 import type { GameAction, GameState } from '../../domain/model';
-import { eventChains, nextChainNode, regions, threatMax, threatNames } from '../../content/gameContent';
+import { eventChains, missions, nextChainNode, regions, threatMax, threatNames } from '../../content/gameContent';
 
 export interface RegionStatusPanelProps {
   state: GameState;
@@ -117,6 +117,18 @@ export function RegionStatusPanel({ state, dispatch, onClose }: RegionStatusPane
                     <span>当前节点</span>
                     <strong>{currentLabel}</strong>
                   </div>
+                  {/* 节点已生效的行为（M4 打磨 4）：小字提示世界变化（解锁委托/新闻提及） */}
+                  {!chainState.completed && (() => {
+                    const effect = chain.nodes[currentIndex]?.effect;
+                    if (!effect) return null;
+                    return (
+                      <p className="intel-chain-effect">
+                        {effect.kind === 'unlock-mission'
+                          ? `已生效：解锁委托「${missions.find((m) => m.id === effect.missionId)?.title ?? effect.missionId}」`
+                          : '已生效：新闻将提及这条传闻'}
+                      </p>
+                    );
+                  })()}
                   {blockedHint && <p className="intel-chain-blocked">{blockedHint}</p>}
                   <button
                     className="intel-action"

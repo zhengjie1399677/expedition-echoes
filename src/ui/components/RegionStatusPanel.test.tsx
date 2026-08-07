@@ -135,6 +135,28 @@ describe('RegionStatusPanel 组件（M3 区域威胁 / 事件链 UI 闭环）', 
     expect(dispatch).toHaveBeenCalledWith({ type: 'ADVANCE_EVENT_CHAIN', chainId: 'border-echoes-chain' });
   });
 
+  it('事件链节点已生效的 effect 显示小字提示（解锁委托，M4 打磨 4）', () => {
+    const dispatch = vi.fn();
+    const base = createInitialGame();
+    const state = {
+      ...base,
+      eventChains: {
+        ...base.eventChains,
+        'border-echoes-chain': { currentNode: 'quest-open', completed: false },
+      },
+    };
+
+    render(<RegionStatusPanel state={state} dispatch={dispatch} />);
+
+    expect(screen.getByText(/已生效：解锁委托「回声余波」/)).toBeDefined();
+  });
+
+  it('事件链节点无 effect 时（初始 rumor）不显示生效提示', () => {
+    const dispatch = vi.fn();
+    render(<RegionStatusPanel state={createInitialGame()} dispatch={dispatch} />);
+    expect(screen.queryByText(/已生效/)).toBeNull();
+  });
+
   it('提供 onClose 时渲染关闭按钮并回调', () => {
     const dispatch = vi.fn();
     const onClose = vi.fn();

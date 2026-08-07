@@ -1,5 +1,5 @@
 import type { GameState, GameAction, Rarity } from '../../domain/model';
-import { rarityColors, rarityNames, materialName } from '../../content/gameContent';
+import { rarityColors, rarityNames, materialName, settlementReactionLine } from '../../content/gameContent';
 
 export interface SettlementProps {
   state: GameState;
@@ -31,6 +31,22 @@ export function Settlement({ state, dispatch }: SettlementProps) {
           <small>远征战役总结</small>
           <h2 style={{ color: outcomeColors[settlement.outcome] }}>{outcomeTitles[settlement.outcome]}</h2>
         </header>
+
+        {/* 队员反应区（M4 打磨 3）：结算第一眼是"人"不是数字。
+            氛围引子优先引用 lastExpedition 的选择事实（撤退位置/具体选择），
+            逐角色台词来自 heroes.json reactions，未命中回退 idle/默认句。 */}
+        <section className="settlement-section settlement-reactions">
+          <h3>队员反应</h3>
+          <p className="settlement-atmosphere">{settlementReactionLine(state.lastExpedition, settlement.outcome)}</p>
+          <ul className="settlement-reaction-list">
+            {state.roster.filter((hero) => hero.recruited).map((hero) => (
+              <li key={hero.id} className="settlement-reaction-item">
+                <strong>{hero.name}</strong>
+                <span>「{hero.reactions[settlement.outcome] ?? hero.reactions.idle ?? '今晚好好休息，明天再出发。'}」</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <div className="settlement-content">
           <section className="settlement-section">

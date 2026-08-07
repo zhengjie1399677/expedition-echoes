@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GameState, GameAction } from '../../domain/model';
-import { missions, missionOpinions, materialName, rarityNames, rarityColors, regions, regionNameForMission, threatNames, nodesForMission } from '../../content/gameContent';
+import { missions, missionOpinions, materialName, rarityNames, rarityColors, regions, regionNameForMission, threatNames, nodesForMission, isMissionUnlocked, isChainGatedMission } from '../../content/gameContent';
 import { HeroCard } from '../components/HeroCard';
 
 export interface TavernProps {
@@ -54,7 +54,11 @@ export function Tavern({ state, dispatch }: TavernProps) {
           </header>
           <div className="quest-dialog-list">
             {regions.map((region) => {
-              const regionMissions = region.missions.map((id) => missions.find((m) => m.id === id)).filter((m): m is NonNullable<typeof m> => Boolean(m));
+              // 事件链门控（M4 打磨 4）：未解锁的委托不出现在任务板（如推进链前的「回声余波」）。
+              const regionMissions = region.missions
+                .map((id) => missions.find((m) => m.id === id))
+                .filter((m): m is NonNullable<typeof m> => Boolean(m))
+                .filter((mission) => isMissionUnlocked(state, mission.id));
               if (regionMissions.length === 0) return null;
               const threat = state.regions[region.id] ?? region.threat;
               return (
@@ -68,6 +72,7 @@ export function Tavern({ state, dispatch }: TavernProps) {
                     <button key={mission.id} className="quest-dialog-card" onClick={() => setPreviewMissionId(mission.id)}>
                       <div>
                         <strong>{mission.title}</strong>
+                        {isChainGatedMission(mission.id) && <em className="quest-chain-badge">事件链解锁</em>}
                         <span>{'◆'.repeat(mission.difficulty)}{'◇'.repeat(3 - mission.difficulty)}</span>
                       </div>
                       <p>{mission.summary}</p>

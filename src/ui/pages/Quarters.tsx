@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GameState, GameAction } from '../../domain/model';
-import { heroClassNames, giftDefinitions, dayLabel, affinityStage } from '../../content/gameContent';
+import { heroClassNames, giftDefinitions, dayLabel, affinityStage, dormGreeting } from '../../content/gameContent';
 import { narrativeService, playerPlaceholder } from '../../infrastructure/llm';
 import type { NarrativeMessage } from '../../infrastructure/llm';
 
@@ -26,6 +26,8 @@ const quartersGreetings: Record<string, string> = {
   cheng: '请进吧，需要热茶或者包扎伤口吗？我刚整理好药箱。',
 };
 
+// 旧版泛用台词：按 log[0] 关键词匹配结果（远征完成/提前撤回/体力竭）。
+// 打磨 2 之后只在"无 lastExpedition"（旧档/尚未远征）时作为回退使用。
 const postExpeditionGreeting = (heroId: string, log: string) => {
   if (log.includes('远征完成')) return { lan: '回来就好。先把伤口和补给清点完，别急着庆祝。', wu: '这次路没白走。队长，下次我们要不要试试另一条岔路？', xingluo: '封印的回声还在耳边……但我们确实带回了新的线索。', cheng: '大家都平安回来了，这就是最好的消息。伤口片刻就能治好。' }[heroId];
   if (log.includes('提前撤回')) return { lan: '及时撤回是正确判断。活着回来，才有下一次远征。', wu: '我就知道队长不会把撤退当成丢脸的事。下次换个走法。', xingluo: '虽然没能看完，但那些痕迹不会消失。我们准备好再去。', cheng: '队长做出了明智的选择。队员们的健康和安全永远是第一位的。' }[heroId];
@@ -64,7 +66,14 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
   const enterRoom = (id: string) => {
     setHeroId(id);
     setRoomHeroId(id);
-    setMessages([{ role: 'assistant', content: postExpeditionGreeting(id, state.log[0] ?? '') ?? quartersGreetings[id] ?? '今晚的宿舍很安静。' }]);
+    // 打磨 2：优先用 lastExpedition 事实驱动台词（outcome + choices 命中），
+    // 无事实记录（旧档/尚未远征）时回退旧版关键词泛用逻辑。
+    const greeting =
+      dormGreeting(id, state.lastExpedition)
+      ?? postExpeditionGreeting(id, state.log[0] ?? '')
+      ?? quartersGreetings[id]
+      ?? '今晚的宿舍很安静。';
+    setMessages([{ role: 'assistant', content: greeting }]);
     setPlayerText('');
     setHistoryOpen(false);
   };

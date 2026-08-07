@@ -1,13 +1,14 @@
 import type { GameState, Hero, Rarity, HeroClass, Enemy, DropEntry, EnemyIntent, ThreatLevel } from '../domain/model';
 import { initialHeroes, initialInventory, regions, eventChains } from '../content/gameContent';
 
-const KEY = 'expedition-echoes.save.v13';
+const KEY = 'expedition-echoes.save.v14';
+const V13_KEY = 'expedition-echoes.save.v13';
 const V12_KEY = 'expedition-echoes.save.v12';
 const LEGACY_KEYS = ['expedition-echoes.save.v3', 'expedition-echoes.save.v4'];
-// 迁移截止策略：仅保留最近一代旧档（v12）的读取与迁移；v5–v11 迁移链已下线。
-// 设定迁移截止时间后可将 SUPPORTED_VERSION_MIN 直接提到 13 并删除 V12_KEY。
+// 迁移截止策略：仅保留最近旧档（v12/v13）的读取与迁移；v5–v11 迁移链已下线。
+// 设定迁移截止时间后可将 SUPPORTED_VERSION_MIN 直接提到 14 并删除旧 key。
 const SUPPORTED_VERSION_MIN = 12;
-const SUPPORTED_VERSION_MAX = 13;
+const SUPPORTED_VERSION_MAX = 14;
 
 type StoredHero = Omit<Hero, 'level' | 'experience' | 'equipment' | 'affinity' | 'preferredGiftTags'> & Partial<Pick<Hero, 'level' | 'experience' | 'equipment' | 'affinity' | 'preferredGiftTags'>>;
 type StoredGame = Omit<GameState, 'version' | 'roster' | 'inventory' | 'materials' | 'hasAcceptedMission' | 'day' | 'missionAcceptedToday' | 'food' | 'hunger' | 'giftsGivenToday' | 'regions' | 'eventChains' | 'settlement' | 'dayReport'> & {
@@ -90,6 +91,21 @@ const cleanEventChains = (raw: unknown): GameState['eventChains'] => {
     };
   }
   return defaults;
+};
+// 最近一次远征事实（v14 新增可选字段）：outcome 非法或整体缺失时视为无记录（undefined）。
+// 旧档（v13 及以下）没有该字段 → undefined，即默认"无历史事实"，无需复杂迁移。
+const cleanLastExpedition = (raw: unknown): GameState['lastExpedition'] => {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const l = raw as Record<string, unknown>;
+  if (l.outcome !== 'victory' && l.outcome !== 'retreat' && l.outcome !== 'defeated') return undefined;
+  return {
+    outcome: l.outcome,
+    missionId: typeof l.missionId === 'string' ? l.missionId : undefined,
+    choices: Array.isArray(l.choices) ? l.choices.filter((item): item is string => typeof item === 'string') : [],
+    goldGained: num(l.goldGained, 0),
+    materialsGained: num(l.materialsGained, 0),
+    nodeReached: num(l.nodeReached, 0),
+  };
 };
 
 function cleanDrop(raw: unknown): DropEntry | null {
@@ -175,8 +191,9 @@ export function loadGame(): GameState | null {
 
   let raw: string | null = null;
   try {
-    raw = localStorage.getItem(KEY)
-      ?? localStorage.getItem(V12_KEY);
+  raw = localStorage.getItem(KEY)
+    ?? localStorage.getItem(V13_KEY)
+    ?? localStorage.getItem(V12_KEY);
   } catch (error) {
     console.warn('[storage] 读取 localStorage 失败，回退到新档。', error);
     return null;
@@ -232,7 +249,7 @@ export function loadGame(): GameState | null {
     });
 
     const state: GameState = {
-      version: 13,
+      version: 14,
       page: parsed.page ?? 'town',
       gold: num(parsed.gold, 100),
       roster: loadedRoster,
@@ -266,6 +283,7 @@ export function loadGame(): GameState | null {
                 eventResolved: exp.eventResolved ?? false,
                 skillUses: cleanBooleanRecord(exp.skillUses),
                 seenEvents: Array.isArray(exp.seenEvents) ? exp.seenEvents.filter((item): item is string => typeof item === 'string') : [],
+                choiceHistory: Array.isArray(exp.choiceHistory) ? exp.choiceHistory.filter((item): item is string => typeof item === 'string') : [],
                 enemyIntents: (exp.enemyIntents && typeof exp.enemyIntents === 'object') ? exp.enemyIntents : {},
                 enemyCharge: cleanRecord(exp.enemyCharge),
               }
@@ -289,9 +307,13 @@ export function loadGame(): GameState | null {
       eventChains: cleanEventChains(parsed.eventChains),
       settlement: (parsed.settlement && typeof parsed.settlement === 'object') ? parsed.settlement : null,
       dayReport: (parsed.dayReport && typeof parsed.dayReport === 'object') ? parsed.dayReport : null,
+      lastExpedition: cleanLastExpedition(parsed.lastExpedition),
     };
 
     // 升级后清理旧版 key，避免下次再走迁移分支。
+    if (parsed.version < 14) {
+      try { localStorage.removeItem(V13_KEY); } catch { /* ignore */ }
+    }
     if (parsed.version < 13) {
       try { localStorage.removeItem(V12_KEY); } catch { /* ignore */ }
     }
@@ -344,7 +366,7 @@ export function clearGame(): void {
     latestStateToSave = null;
   }
   try {
-    [KEY, V12_KEY, ...LEGACY_KEYS].forEach((key) => localStorage.removeItem(key));
+    [KEY, V13_KEY, V12_KEY, ...LEGACY_KEYS].forEach((key) => localStorage.removeItem(key));
   } catch (error) {
     console.warn('[storage] 清理 localStorage 失败。', error);
   }

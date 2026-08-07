@@ -900,6 +900,20 @@ body{display:grid;place-items:center;background:#f2ead4}.app-shell{width:min(100
 .quest-dialog-card.selected {
   background: linear-gradient(90deg, transparent, rgba(255, 242, 188, .72), transparent);
 }
+/* 事件链解锁委托徽章（M4 打磨 4） */
+.quest-chain-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 9px;
+  line-height: 1.4;
+  color: #8a5a2b;
+  border: 1px solid rgba(138, 90, 43, 0.5);
+  border-radius: 999px;
+  padding: 0 6px;
+  vertical-align: middle;
+  background: rgba(255, 244, 208, 0.5);
+}
 .tavern-roster-drawer .hero-card {
   border: 1px solid rgba(126, 77, 34, .28);
   border-radius: 1px;
@@ -1675,6 +1689,13 @@ body{display:grid;place-items:center;background:#f2ead4}.app-shell{width:min(100
   font-size: 10px;
   line-height: 1.5;
   color: #a34a22;
+}
+/* 事件链节点已生效行为（M4 打磨 4） */
+.intel-chain-effect {
+  margin: 0 0 8px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #3f7d4e;
 }
 .intel-chain.completed {
   opacity: 0.85;

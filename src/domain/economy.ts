@@ -83,6 +83,18 @@ export function settleExpedition(
     expedition: null,
     hasAcceptedMission: false,
     regions: regionsNext,
+    // 选择事实摘要（M4 打磨 1）：写入最近一次远征的可引用事实，次日新闻消费后清空（见 daily.ts）。
+    // 撤退本身也是一次"选择"，追加 `retreat-at-node-${nodeIndex + 1}`（1 起算的节点序号）。
+    lastExpedition: {
+      outcome,
+      missionId: state.expedition.missionId,
+      choices: outcome === 'retreat'
+        ? [...(state.expedition.choiceHistory ?? []), `retreat-at-node-${state.expedition.nodeIndex + 1}`]
+        : [...(state.expedition.choiceHistory ?? [])],
+      goldGained: lootGold,
+      materialsGained: Object.values(lootMaterials).reduce((sum, count) => sum + count, 0),
+      nodeReached: state.expedition.nodeIndex,
+    },
   };
   // 任务胜利 → 推进所属区域事件链（M3）
   const settled = onMissionSettled(next, state.expedition.missionId, outcome);

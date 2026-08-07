@@ -1,4 +1,4 @@
-import type { CraftingRecipe, Enemy, ExpeditionNode, Hero, HeroClass, ItemDefinition, MaterialType, Mission, Rarity, Region, SkillDefinition } from '../domain/model';
+import type { CraftingRecipe, Enemy, ExpeditionNode, GameState, Hero, HeroClass, ItemDefinition, LastExpedition, MaterialType, Mission, Rarity, Region, SettlementState, SkillDefinition } from '../domain/model';
 
 // 导入 JSON 平衡数据
 import rawHeroes from './data/heroes.json';
@@ -140,7 +140,7 @@ export const regionNameForMission = (missionId: string): string => {
 // 区域与威胁等级（M3 目标框架地基，见 EVENT_AND_REGION_DESIGN）
 // 区域状态（threat）存于 GameState.regions，此处是静态定义。
 export const regions: Region[] = [
-  { id: 'border-ruins', name: '边境遗迹', threat: 2, description: '遗迹道路的异响正在影响商路，封印门厅传来连续回声。', missions: ['border-echoes', 'sealed-gate'] },
+  { id: 'border-ruins', name: '边境遗迹', threat: 2, description: '遗迹道路的异响正在影响商路，封印门厅传来连续回声。', missions: ['border-echoes', 'sealed-gate', 'echo-aftermath'] },
   { id: 'ash-forest', name: '灰烬林地', threat: 1, description: '林地异变从古树圣所向外扩散，狼群与孢兽的活动越来越频繁。', missions: ['forest-disturbance'] },
   { id: 'north-canal', name: '北侧水渠', threat: 0, description: '水渠怪声只是传闻，尚无正式委托。', missions: [] },
   { id: 'sealed-gate', name: '封印门厅', threat: 2, description: '失控守卫正在截断商路，封印深处回应着什么。', missions: ['rusted-patrol'] },
@@ -152,10 +152,18 @@ export const threatNames: Record<number, string> = { 0: '平静', 1: '异动', 2
 
 // 事件链定义（M3 目标框架，见 GAMEPLAY_AND_LLM_DESIGN §12 状态机）
 // 链的推进由明确状态条件触发（区域威胁、任务结果），LLM 只建议不决定。
+// 节点行为（effect，M4 打磨 4）：推进到该节点时应用的世界变化。
+// 当前落地两类——unlock-mission（解锁新委托，Tavern 任务板条件显示）与
+// news-bonus（次日新闻附带链文案）；schema 可继续扩展（threat-bonus / drop-bonus 等）。
+export type ChainNodeEffect =
+  | { kind: 'unlock-mission'; missionId: string }
+  | { kind: 'news-bonus'; text: string };
+
 interface EventChainNode {
   id: string;
   label: string;            // 节点名（供 UI/日志）
   condition?: { regionId?: string; minThreat?: number }; // 推进前置（可选）
+  effect?: ChainNodeEffect; // 推进到该节点时应用的行为（可选）
 }
 export interface EventChainDefinition {
   id: string;
@@ -170,9 +178,11 @@ export const eventChains: EventChainDefinition[] = [
     regionId: 'border-ruins',
     nodes: [
       { id: 'rumor', label: '传闻出现' },
-      { id: 'quest-open', label: '前置任务开放' },
+      // 推进到 quest-open → 解锁新委托「回声余波」（任务板条件显示）
+      { id: 'quest-open', label: '前置任务开放', effect: { kind: 'unlock-mission', missionId: 'echo-aftermath' } },
       { id: 'quest-complete', label: '前置任务完成', condition: { regionId: 'border-ruins', minThreat: 1 } },
-      { id: 'followup-open', label: '后续事件开放' },
+      // 推进到 followup-open → 次日新闻附带链文案（news-bonus）
+      { id: 'followup-open', label: '后续事件开放', effect: { kind: 'news-bonus', text: '边境遗迹的回声变得清晰起来，镇上开始流传封印门厅深处的传闻。' } },
       { id: 'ending', label: '结局', condition: { regionId: 'border-ruins', minThreat: 3 } },
     ],
   },
@@ -183,6 +193,39 @@ export const nextChainNode = (chain: EventChainDefinition, currentNodeId: string
   if (index < 0) return chain.nodes[0]?.id ?? null;
   return chain.nodes[index + 1]?.id ?? null;
 };
+
+// ── 事件链节点行为查询（M4 打磨 4）──────────────────────────────────────────────
+// 某任务是否被事件链"门控"（存在 unlock-mission effect 指向它）。
+export function isChainGatedMission(missionId: string): boolean {
+  return eventChains.some((chain) => chain.nodes.some((node) => node.effect?.kind === 'unlock-mission' && node.effect.missionId === missionId));
+}
+// 某任务当前是否已解锁：未被门控 → 恒可见；被门控 → 对应链已推进到（或越过）解锁节点。
+export function isMissionUnlocked(state: GameState, missionId: string): boolean {
+  for (const chain of eventChains) {
+    const chainState = state.eventChains[chain.id];
+    if (!chainState) continue;
+    for (const [index, node] of chain.nodes.entries()) {
+      if (node.effect?.kind !== 'unlock-mission' || node.effect.missionId !== missionId) continue;
+      const currentIndex = chain.nodes.findIndex((n) => n.id === chainState.currentNode);
+      if (chainState.completed || currentIndex >= index) return true;
+    }
+  }
+  return !isChainGatedMission(missionId);
+}
+// 已触发的新闻 bonus 文案（推进到带 news-bonus effect 的节点后生效；链完成后保留全部）。
+export function activeChainNewsBonus(state: GameState): string[] {
+  const lines: string[] = [];
+  for (const chain of eventChains) {
+    const chainState = state.eventChains[chain.id];
+    if (!chainState) continue;
+    const currentIndex = chain.nodes.findIndex((n) => n.id === chainState.currentNode);
+    for (const [index, node] of chain.nodes.entries()) {
+      if (node.effect?.kind !== 'news-bonus') continue;
+      if (chainState.completed || index <= currentIndex) lines.push(node.effect.text);
+    }
+  }
+  return lines;
+}
 
 // 每日新闻本地模板：按昨日结果 + 区域威胁生成（LLM 增强前的基础版本，离线完整可玩）。
 const dailyNewsTemplates: Record<'victory' | 'retreat' | 'defeated', Record<string, string>> = {
@@ -231,6 +274,12 @@ export const missionOpinions: Record<string, Record<string, string>> = {
     wu: '这条旧猎径我认得，但树根和足迹都变了。营地是我们最稳妥的退路。',
     xingluo: '异变像是从古树圣所向外扩散。守卫的核心进入暗红状态时会更加危险。',
   },
+  // 事件链解锁委托（M4 打磨 4）：border-echoes 链推进到 quest-open 后出现在任务板
+  'echo-aftermath': {
+    lan: '余波不会自己平息。先确认回廊没有新的守卫苏醒，再谈深入。',
+    wu: '回廊的脚步声比昨天多了。我带够箭矢，你们带够绷带。',
+    xingluo: '回声的频率变了……像是有什么东西在回应封印。我想记录下它。',
+  },
 };
 export const expeditionNodes: ExpeditionNode[] = [
   { kind: 'combat', title: '坍塌入口', description: '碎石之间传来急促脚步。', enemyIds: ['scout', 'warden'] },
@@ -276,6 +325,214 @@ export const forestExpeditionNodes: ExpeditionNode[] = [
   { kind: 'combat', title: '古树圣所', description: '古树守卫从根系王座前苏醒。', background: '/assets/world/forest-v1/grove-sanctuary-v1.png', enemyIds: ['grove-guardian'] },
 ] as const;
 export const nodesForMission = (missionId: string): readonly ExpeditionNode[] => missionId === 'forest-disturbance' ? forestExpeditionNodes : expeditionNodes;
+
+// ── 选择事实 → 可读文本（M4 打磨 2，供 LLM 场景包与宿舍离线 greeting 使用）────────────
+// eventId:choiceId → 选择 label（如 'supply-room:scavenge' → '翻找药箱'）。
+// supply-room / old-campfire 在两条远征线复用事件 id 但 label 不同，取先定义的（遗迹线）。
+const choiceLabelByKey: Record<string, string> = {};
+for (const node of [...expeditionNodes, ...forestExpeditionNodes]) {
+  if (node.kind !== 'event' || !node.event) continue;
+  for (const choice of node.event.choices) {
+    const key = `${node.event.id}:${choice.id}`;
+    if (!(key in choiceLabelByKey)) choiceLabelByKey[key] = choice.label;
+  }
+}
+// 把 lastExpedition.choices 里的键转成一句话可读文本；未知键/撤退标记兜底。
+export function describeChoiceKey(key: string): string {
+  if (key.startsWith('retreat-at-node-')) {
+    const nodeNum = key.split('-').pop();
+    return nodeNum ? `于第 ${nodeNum} 处节点撤退` : '中途撤退';
+  }
+  return choiceLabelByKey[key] ?? key;
+}
+
+// 宿舍离线 greeting（M4 打磨 2）：按 heroId + outcome + choices 命中的事实台词。
+// 结构：heroId → outcome → { default, `${eventId}:${choiceId}`... , retreat（撤退节点专用） }。
+// 未收录的英雄/未命中 → undefined，由调用方回退现有泛用逻辑。
+const dormGreetings: Record<string, Record<'victory' | 'retreat' | 'defeated', Record<string, string>>> = {
+  lan: {
+    victory: {
+      default: '回来就好。先把伤口和补给清点完，别急着庆祝。',
+      'supply-room:scavenge': '你翻找箱柜的时候，我在门口望风。带回来的材料不错，但下次别那么冒险。',
+      'supply-room:recover': '你选择先让大家休整，是对的。队伍比那几件遗物值钱。',
+      'old-campfire:track': '循着脚印追出去那一趟，我捏了把汗。好在你带回了值得的东西。',
+    },
+    retreat: {
+      default: '及时撤回是正确判断。活着回来，才有下一次远征。',
+      retreat: '在「那里」撤退不是丢脸的事。活着回来，才有下一次远征。',
+      'supply-room:scavenge': '翻到一半就撤，箱子的事我替你记着。下次换个更稳的走法。',
+    },
+    defeated: {
+      default: '别勉强说话，先休息。责任不该只落在一个人身上。',
+      'collapsed-passage:risk_fight': '清路那一下太冒险了。下次这种活，让我先上。',
+    },
+  },
+  wu: {
+    victory: {
+      default: '这次路没白走。队长，下次我们要不要试试另一条岔路？',
+      'supply-room:scavenge': '翻箱倒柜那几下，我在旁边数着你的心跳呢。收获不错，下次换我来。',
+      'supply-room:recover': '先养伤再赶路，这招我熟。补给室里最值钱的不是箱子。',
+      'old-campfire:track': '追着脚印走，是我教你的第一课。看来你学得不错。',
+    },
+    retreat: {
+      default: '我就知道队长不会把撤退当成丢脸的事。下次换个走法。',
+      retreat: '撤得漂亮。路线我都记下了，下次绕开那一段。',
+    },
+    defeated: {
+      default: '我把门关好了。今晚不谈遗迹，只谈怎么把大家养回来。',
+    },
+  },
+  xingluo: {
+    victory: {
+      default: '封印的回声还在耳边……但我们确实带回了新的线索。',
+      'supply-room:scavenge': '补给室那些箱子的封条，是旧式符文……你翻开的瞬间我心跳都停了。',
+      'supply-room:recover': '休整的间隙，我在想那些箱子后面藏着什么。不过先养好伤更重要。',
+      'old-campfire:track': '营火边的脚印通向的正是我猜的方向。你验证了我的星盘推演。',
+    },
+    retreat: {
+      default: '虽然没能看完，但那些痕迹不会消失。我们准备好再去。',
+      retreat: '撤退让我没能读完那组符文，但痕迹不会消失。我们准备好再去。',
+    },
+    defeated: {
+      default: '是我太急了……不过，能回来就还有重新计算的机会。',
+      'echo-trap:track': '穿过回声陷阱是我的提议……下次我会先算出代价。',
+    },
+  },
+  cheng: {
+    victory: {
+      default: '大家都平安回来了，这就是最好的消息。伤口片刻就能治好。',
+      'herb-grove:aid_hero': '你采回的那丛药草，我熬成了三份药汤。最虚弱的人已经好多了。',
+    },
+    retreat: {
+      default: '队长做出了明智的选择。队员们的健康和安全永远是第一位的。',
+      retreat: '提前回来不是坏事，我正好把大家的伤都处理一遍。',
+    },
+    defeated: {
+      default: '伤得这么重……别担心，有我在，快躺下休息，我会用药草帮大家疗伤。',
+    },
+  },
+  yan: {
+    victory: {
+      default: '任务结了，金币收好。明天继续。',
+    },
+    retreat: {
+      default: '风口不对，撤是对的。我的长刀随时待命。',
+    },
+    defeated: {
+      default: '倒下又如何，站起来就是了。下一单什么时候接？',
+    },
+  },
+};
+
+// 宿舍离线 greeting：优先命中选择事实（撤退节点 → retreat 键，其次 eventId:choiceId），
+// 未命中回退 outcome 默认；无 lastExpedition 或英雄未收录时返回 undefined（调用方走旧逻辑）。
+export function dormGreeting(heroId: string, last: LastExpedition | undefined): string | undefined {
+  if (!last) return undefined;
+  const heroTable = dormGreetings[heroId];
+  if (!heroTable) return undefined;
+  const outcomeTable = heroTable[last.outcome];
+  if (!outcomeTable) return undefined;
+  if (last.outcome === 'retreat' && last.choices.some((key) => key.startsWith('retreat-at-node'))) {
+    const retreatLine = outcomeTable['retreat'];
+    if (retreatLine) return retreatLine;
+  }
+  for (const key of last.choices) {
+    const line = outcomeTable[key];
+    if (line) return line;
+  }
+  return outcomeTable.default ?? undefined;
+}
+
+// ── 选择事实 → 次日新闻引用句（M4 打磨 1，本地模板，离线可用）──────────────────────────────
+// 键形如 `${eventId}:${choiceId}`，与 GameState.lastExpedition.choices 保持一致。
+// 文案刻意不写死地点名：supply-room / old-campfire 的事件 id 在两条远征线中复用，
+// 泛化描述可在「废弃补给室」与「临时营地」等场景下通吃。
+const choiceNewsMentions: Record<string, string> = {
+  'supply-room:recover': '远征队在路上停下休整，恢复了状态。',
+  'supply-room:scavenge': '有人冒险翻开了尘封的箱柜，带回了一些材料。',
+  'old-campfire:recover': '队伍在营火旁围坐休整了一夜。',
+  'old-campfire:track': '据说有人循着痕迹追向深处，带回了意外的收获。',
+  'collapsed-passage:risk_fight': '坍塌通道的碎石被清开了，惊动的生物让消息传遍了镇子。',
+  'collapsed-passage:recover': '坍塌通道前，队伍选择绕行，路过的旅人记住了他们的谨慎。',
+  'traveling-merchant:bargain': '游商帐篷的生意做了个来回，有人用材料换回了金币。',
+  'herb-grove:aid_hero': '药草丛里的光被人采走了，最虚弱的同伴因此得救。',
+  'herb-grove:scavenge': '药草被整丛拔走，惊动的孢兽在林中留下了痕迹。',
+  'echo-trap:recover': '回声陷阱前，队伍用镇定剂压住了符文石地的声响。',
+  'echo-trap:track': '有人冒险穿过了回声陷阱，带回了额外的金币。',
+};
+// 兜底：按选择效果泛化生成。当前内容中 choiceId 与 effect 同名（recover/scavenge/track/...），
+// 未来新增事件即使未录入精确文案，也能退回到可读的泛化句。
+const effectNewsMentions: Record<string, string> = {
+  recover: '远征队在途中停下休整，恢复了状态。',
+  scavenge: '有人冒险翻找了遗迹的遗物，带回了一些材料。',
+  track: '队伍循着痕迹探查，找到了被遗落的价值。',
+  aid_hero: '队伍小心照料了最虚弱的同伴。',
+  bargain: '队伍与游商做了一笔交易。',
+  risk_fight: '队伍惊动了藏匿的生物，经历了一场额外的战斗。',
+};
+
+// 把最近一次远征的选择事实转成一句可拼接的新闻引用；无可引用事实时返回 null。
+// 优先级：撤退（最重大）> 精确 eventId:choiceId > effect 泛化。
+export function choiceNewsMention(last: LastExpedition): string | null {
+  if (!last) return null;
+  if (last.outcome === 'retreat') {
+    const nodeTitle = last.missionId ? nodesForMission(last.missionId)[last.nodeReached ?? 0]?.title : undefined;
+    return nodeTitle
+      ? `队伍在「${nodeTitle}」提前撤回，路线图被重新标注了一遍。`
+      : '队伍在远征途中提前撤回，路线图被重新标注了一遍。';
+  }
+  for (const key of last.choices) {
+    const exact = choiceNewsMentions[key];
+    if (exact) return exact;
+  }
+  for (const key of last.choices) {
+    const choiceId = key.split(':')[1];
+    const fallback = choiceId ? effectNewsMentions[choiceId] : undefined;
+    if (fallback) return fallback;
+  }
+  return null;
+}
+
+// ── 结算页「队员反应」氛围引子（M4 打磨 3，本地模板，离线可用）────────────────────────
+// 逐角色台词仍直接使用 heroes.json 的 reactions（victory/retreat/defeated），
+// 这里只提供结算页顶部的"队伍氛围"引子：优先引用本次远征的选择事实，未命中回退 default。
+const settlementReactions: Record<SettlementState['outcome'], Record<string, string>> = {
+  victory: {
+    default: '远征告一段落，收获被一件件清点入库。',
+    'supply-room:scavenge': '有人翻开了尘封的箱柜，战利品里多了些说不清来路的材料。',
+    'old-campfire:track': '循着旧日痕迹的发现，成了归途上最热的话题。',
+    'collapsed-passage:risk_fight': '清开碎石的那一战，让队伍身上多了几道新的伤疤。',
+    'herb-grove:aid_hero': '药草的微光救回了最虚弱的同伴，队伍的士气高了几分。',
+    'echo-trap:track': '冒险穿过回声陷阱的收获，比预想中更沉。',
+  },
+  retreat: {
+    default: '队伍提前撤回了城镇，路线图被重新标注了一遍。',
+    'supply-room:scavenge': '带着翻找来的材料撤退，大家心里都有些不是滋味。',
+    'old-campfire:track': '循迹的收获没能支撑队伍走得更远，撤回来时天色已晚。',
+  },
+  defeated: {
+    default: '队伍力竭而归，宿舍的灯一夜未熄。',
+    'collapsed-passage:risk_fight': '清路惊动的生物超出了预期，队伍在撤退路上力竭。',
+    'echo-trap:track': '冒险穿过回声陷阱的代价，比预想中更沉重。',
+    'herb-grove:scavenge': '整丛拔走的药草没能挽回局面，孢兽的痕迹还留在林间。',
+  },
+};
+
+// 结算页氛围引子：按 outcome + lastExpedition 生成。
+// 优先级：撤退引用撤退位置（如「回声长廊」）> 精确命中选择事实 > outcome 默认。
+export function settlementReactionLine(last: LastExpedition | undefined, outcome: SettlementState['outcome']): string {
+  const table = settlementReactions[outcome];
+  const choices = last?.choices ?? [];
+  if (outcome === 'retreat' && last?.missionId) {
+    const nodeTitle = nodesForMission(last.missionId)[last.nodeReached ?? 0]?.title;
+    if (nodeTitle) return `队伍在「${nodeTitle}」选择撤退，路线图被重新标注了一遍。`;
+  }
+  for (const key of choices) {
+    const line = table[key];
+    if (line) return line;
+  }
+  return table.default;
+}
 // 装备打造配方。产物均沿用 itemDefinitions 中的装备，材料+金币消耗后装备入背包。
 // 配方表后续可继续追加，逻辑不写死数量。
 export const craftingRecipes: CraftingRecipe[] = rawRecipes as CraftingRecipe[];

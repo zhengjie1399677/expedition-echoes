@@ -109,6 +109,9 @@ export interface Expedition {
   seenEvents: string[]; // 本次远征已遇到的一次性事件（once: true 不重复出现）
   enemyIntents: Record<string, EnemyIntent>; // enemyId -> 当前预告的意图
   enemyCharge: Record<string, number>;       // enemyId -> 蓄力层数（charge 意图积累）
+  // 本次远征已作出的关键选择（键形如 `${eventId}:${choiceId}`，如 'supply-room:scavenge'）。
+  // 结算时汇入 GameState.lastExpedition.choices，供次日新闻/晨语引用（"选择有后果"闭环）。
+  choiceHistory: string[];
 }
 interface GameSettings { pressureEnabled: boolean; llmEnabled: boolean }
 export interface SettlementState {
@@ -129,13 +132,26 @@ interface DayReport {
   // pending=true 时 UI 不展示；休息后生成完整晨报时置为 false。
   pending?: boolean;
 }
+// 最近一次远征的可引用事实摘要（M4 打磨 1：选择有后果闭环的持久字段）。
+// 结算时写入；次日新闻/晨语消费后清空（见 daily.ts REST_TO_NEXT_DAY）。
+export interface LastExpedition {
+  outcome: 'victory' | 'retreat' | 'defeated';
+  missionId?: string;
+  // 本次远征作出的关键选择，键形如 `${eventId}:${choiceId}`；
+  // 撤退时额外追加 `retreat-at-node-${nodeIndex + 1}`（1 起算的节点序号）。
+  choices: string[];
+  // 摘要（可选，供新闻文案引用；以结算时实际可获取的信息为准）
+  goldGained?: number;       // 带回的金币（含任务奖励与沿途收益）
+  materialsGained?: number;  // 带回的材料总件数
+  nodeReached?: number;      // 结束时所在的节点下标（0 起算；撤退/失败时表示撤出/力竭位置）
+}
 // 事件链状态（M3）：链 ID -> 当前节点。节点推进由明确状态条件触发，LLM 只建议不决定。
 interface EventChainState {
   currentNode: string;        // 当前节点（见 gameContent 的 eventChains 定义）
   completed: boolean;         // 链是否已结束
 }
 export interface GameState {
-  version: 13; page: Page | 'settlement'; gold: number; roster: Hero[]; inventory: Record<string, number>;
+  version: 14; page: Page | 'settlement'; gold: number; roster: Hero[]; inventory: Record<string, number>;
   selectedHeroIds: string[]; selectedMissionId: string; managementTab: ManagementTab;
   expedition: Expedition | null; settings: GameSettings; log: string[];
   materials: MaterialInventory; hasAcceptedMission: boolean;
@@ -146,6 +162,7 @@ export interface GameState {
   eventChains: Record<string, EventChainState>; // 事件链 ID -> 状态
   settlement: SettlementState | null;
   dayReport: DayReport | null;
+  lastExpedition?: LastExpedition; // 最近一次远征的可引用事实（结算写入，次日新闻消费后清空）
 }
 export type GameAction =
   | { type: 'NAVIGATE'; page: Page } | { type: 'RECRUIT'; heroId: string }

@@ -288,6 +288,63 @@ describe('远征事件扩展（A2 新事件）', () => {
   });
 });
 
+describe('远征选择事实与次日新闻（M4 打磨 1：选择有后果）', () => {
+  // 事件节点的 eventResolved 初始为 false；手动跳节点时需显式设置。
+  const atEvent = (started: GameState, nodeIndex: number, extra: Partial<NonNullable<GameState['expedition']>> = {}) => ({
+    ...started,
+    expedition: { ...started.expedition!, nodeIndex, eventResolved: false, enemies: [], ...extra },
+  });
+
+  it('RESOLVE_EVENT 记录选择，结算写入 lastExpedition，次日新闻引用后清空', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    // 节点 1 是废弃补给室，选择翻找药箱（scavenge）
+    const scavenged = gameReducer(atEvent(started, 1), { type: 'RESOLVE_EVENT', eventId: 'supply-room', choiceId: 'scavenge' });
+    expect(scavenged.expedition?.choiceHistory).toContain('supply-room:scavenge');
+
+    const atLast: GameState = { ...scavenged, expedition: { ...scavenged.expedition!, nodeIndex: 6, enemies: [], eventResolved: true } };
+    const completed = gameReducer(atLast, { type: 'ADVANCE' });
+    expect(completed.lastExpedition?.outcome).toBe('victory');
+    expect(completed.lastExpedition?.missionId).toBe('border-echoes');
+    expect(completed.lastExpedition?.choices).toContain('supply-room:scavenge');
+    expect(completed.lastExpedition?.nodeReached).toBe(6);
+
+    const nextDay = gameReducer(completed, { type: 'REST_TO_NEXT_DAY' });
+    // 新闻 = 基础模板（威胁 2 胜利 → 平息）+ 选择引用句（箱柜）
+    expect(nextDay.dayReport?.townNews).toContain('平息');
+    expect(nextDay.dayReport?.townNews).toContain('箱柜');
+    // 消费后清空，避免隔日重复引用
+    expect(nextDay.lastExpedition).toBeUndefined();
+  });
+
+  it('撤退写入 retreat-at-node 标记，次日新闻引用撤退位置', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION', supplies: { food: 4, bandage: 0, sedative: 0 } });
+    // 节点 2 是回声长廊（0 起算），撤退标记为 1 起算的节点序号 3
+    const atNode2 = { ...started, expedition: { ...started.expedition!, nodeIndex: 2, enemies: [], eventResolved: true } };
+    const retreated = gameReducer(atNode2, { type: 'RETREAT' });
+    expect(retreated.settlement?.outcome).toBe('retreat');
+    expect(retreated.lastExpedition?.outcome).toBe('retreat');
+    expect(retreated.lastExpedition?.choices).toContain('retreat-at-node-3');
+    expect(retreated.lastExpedition?.nodeReached).toBe(2);
+
+    const nextDay = gameReducer(retreated, { type: 'REST_TO_NEXT_DAY' });
+    expect(nextDay.dayReport?.townNews).toContain('提前撤回');
+    expect(nextDay.dayReport?.townNews).toContain('回声长廊');
+    expect(nextDay.lastExpedition).toBeUndefined();
+  });
+
+  it('无事件选择的胜利远征：lastExpedition 存在但 choices 为空，新闻不追加引用句', () => {
+    const started = gameReducer(ready(), { type: 'START_EXPEDITION' });
+    const atLast: GameState = { ...started, expedition: { ...started.expedition!, nodeIndex: 6, enemies: [] } };
+    const completed = gameReducer(atLast, { type: 'ADVANCE' });
+    expect(completed.lastExpedition?.outcome).toBe('victory');
+    expect(completed.lastExpedition?.choices).toEqual([]);
+    const nextDay = gameReducer(completed, { type: 'REST_TO_NEXT_DAY' });
+    // 威胁 2 胜利基础模板，无选择引用
+    expect(nextDay.dayReport?.townNews).toContain('平息');
+    expect(nextDay.lastExpedition).toBeUndefined();
+  });
+});
+
 describe('每日任务限制', () => {
   it('每天只能接取一次任务，重复接取会被拒绝', () => {
     const first = gameReducer(createInitialGame(), { type: 'ACCEPT_MISSION', missionId: 'border-echoes' });
