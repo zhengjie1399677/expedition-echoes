@@ -137,7 +137,7 @@ export const regionNameForMission = (missionId: string): string => {
   return region?.name ?? '未知遗迹';
 };
 
-// 区域与威胁等级（M3 目标框架地基，见 EVENT_AND_REGION_DESIGN）
+// 区域与威胁等级（M3 目标框架地基，见 docs/GDD.md §17）
 // 区域状态（threat）存于 GameState.regions，此处是静态定义。
 export const regions: Region[] = [
   { id: 'border-ruins', name: '边境遗迹', threat: 2, description: '遗迹道路的异响正在影响商路，封印门厅传来连续回声。', missions: ['border-echoes', 'sealed-gate', 'echo-aftermath'] },
@@ -150,7 +150,7 @@ export const threatMax = 3;
 // 威胁等级命名
 export const threatNames: Record<number, string> = { 0: '平静', 1: '异动', 2: '危险', 3: '失控' };
 
-// 事件链定义（M3 目标框架，见 GAMEPLAY_AND_LLM_DESIGN §12 状态机）
+// 事件链定义（M3 目标框架，见 docs/GDD.md §19.12 状态机）
 // 链的推进由明确状态条件触发（区域威胁、任务结果），LLM 只建议不决定。
 // 节点行为（effect，M4 打磨 4）：推进到该节点时应用的世界变化。
 // 当前落地两类——unlock-mission（解锁新委托，Tavern 任务板条件显示）与

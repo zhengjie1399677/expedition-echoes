@@ -164,7 +164,7 @@
 
 | 缺口 | 现状 | 建议 |
 | --- | --- | --- |
-| 敌人意图池 | 未进入 enemies.json | 按 COMBAT_INTENT_SYSTEM §8 配置（attack/charge/guard/pressure） |
+| 敌人意图池 | 未进入 enemies.json | 按 GDD §16.8 配置（attack/charge/guard/pressure） |
 | 蓄力封顶 | 无常量 | 建议 `BALANCE.chargeMaxLayers = 2` |
 | 战斗数值压力感 | 高 HP 敌人伤害偏低 | 意图系统落地后观察 scout/gatekeeper 蓄力威胁是否足够 |
 | 每日经济压力 | 初始 100 金 | 首日购买+打造后余额是否让第二天有"缺钱感"需实测 |

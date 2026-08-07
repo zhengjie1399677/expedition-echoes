@@ -4,7 +4,7 @@ import { BALANCE } from './config';
 import { addLog, editHero } from './shared';
 
 // 战斗意图系统：敌人行动前的威胁预告（读题→解题）。
-// 详见 docs/COMBAT_INTENT_SYSTEM.md（设计定稿）。
+// 详见 docs/GDD.md §16（设计定稿）。
 // 本模块只包含确定性规则，UI 只读展示，不计算。
 
 export type Rng = () => number;

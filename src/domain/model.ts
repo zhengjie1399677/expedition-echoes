@@ -20,7 +20,7 @@ type EnemyIntentType = 'attack' | 'charge' | 'guard' | 'pressure';
 export interface EnemyIntent {
   type: EnemyIntentType;
   targetHint?: 'front' | 'back' | 'weakest'; // 缺省 front
-  damage?: number;    // 覆盖默认伤害（charge 的下一回合倍率见 COMBAT_INTENT_SYSTEM §5）
+  damage?: number;    // 覆盖默认伤害（charge 的下一回合倍率见 docs/GDD.md §16.5）
   pressure?: number;  // pressure 意图施加的额外压力
 }
 export interface MaterialType { id: string; name: string }
