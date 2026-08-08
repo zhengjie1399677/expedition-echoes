@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameState, GameAction } from '../../domain/model';
 import { heroClassNames, giftDefinitions, dayLabel, affinityStage, dormGreeting } from '../../content/gameContent';
 import { narrativeService, playerPlaceholder } from '../../infrastructure/llm';
-import type { NarrativeMessage } from '../../infrastructure/llm';
+import type { NarrativeMessage, NarrativeChoice } from '../../infrastructure/llm';
 
 export interface QuartersProps {
   state: GameState;
@@ -44,6 +44,10 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
   const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  // 跑团交互系统引入的状态
+  const [activeChoices, setActiveChoices] = useState<NarrativeChoice[]>([]);
+  const [currentStatus, setCurrentStatus] = useState<{ expression: string; innerOS: string } | null>(null);
+
   const hero = recruited.find((item) => item.id === heroId) ?? recruited[0];
   const connection = narrativeService.status();
   const freeChatAvailable = state.settings.llmEnabled && connection.available;
@@ -57,8 +61,15 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
     setLoading(true);
     const result = await narrativeService.chatWithStatus(hero, state, history, text);
     setMessages((current) => [...current, { role: 'assistant' as const, content: result.text }].slice(-16));
-    if (!result.ok && result.errorKind) {
-      console.warn('[narrative] 对白生成失败', result.errorKind);
+    if (result.ok) {
+      setActiveChoices(result.choices ?? []);
+      setCurrentStatus(result.narrativeStatus ?? null);
+    } else {
+      setActiveChoices([]);
+      setCurrentStatus(null);
+      if (result.errorKind) {
+        console.warn('[narrative] 对白生成失败', result.errorKind);
+      }
     }
     setLoading(false);
   };
@@ -76,6 +87,8 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
     setMessages([{ role: 'assistant', content: greeting }]);
     setPlayerText('');
     setHistoryOpen(false);
+    setActiveChoices([]);
+    setCurrentStatus(null);
   };
 
   if (!roomHeroId) {
@@ -97,6 +110,8 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
       </section>
     );
   }
+
+  const showChoices = !historyOpen && activeChoices.length > 0 && !loading;
 
   return (
     <section className="page quarters-page">
@@ -135,13 +150,21 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
       )}
 
       <div
-        className={`quarters-chat gal-dialogue ${historyOpen ? 'history-open' : ''} ${loading ? 'loading' : ''}`}
+        className={`quarters-chat gal-dialogue ${historyOpen ? 'history-open' : ''} ${loading ? 'loading' : ''} ${showChoices ? 'has-choices' : ''}`}
         aria-label={historyOpen ? '对话回顾' : '宿舍聊天窗口'}
       >
         <div className="gal-nameplate">
           <strong>{hero?.name ?? '无人'}</strong>
           <span>{hero ? `${heroClassNames[hero.heroClass]} · 与队长交谈` : ''}</span>
         </div>
+
+        {/* 动态神态与内心OS（养成反馈栏） */}
+        {currentStatus && (
+          <div className="gal-status-bar" title={`内心：${currentStatus.innerOS}`}>
+            <span>神态: {currentStatus.expression || '静静待着'} | 内心: {currentStatus.innerOS || '无'}</span>
+          </div>
+        )}
+
         <button
           className="gal-history"
           onClick={(event) => {
@@ -158,6 +181,23 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
             </div>
           ))}
         </div>
+
+        {/* 队长对话/选择分支选项 */}
+        {showChoices && (
+          <div className="gal-choices">
+            {activeChoices.map((choice, index) => (
+              <button
+                key={index}
+                className="gal-choice-btn"
+                onClick={() => talk(choice.text)}
+              >
+                <span className="choice-label">[{choice.label}]</span>
+                {choice.text}
+              </button>
+            ))}
+          </div>
+        )}
+
         {!historyOpen && (
           <form
             className={`gal-input ${freeChatAvailable ? '' : 'offline'}`}
@@ -176,7 +216,7 @@ export function Quarters({ state, dispatch, onRestClick }: QuartersProps) {
                 loading
                   ? `${hero?.name ?? '对方'}正在回应…`
                   : freeChatAvailable
-                  ? `和${hero?.name ?? '对方'}说点什么…`
+                  ? `和${hero?.name ?? '对方'}说点什么，或点击上面的选项…`
                   : '连接 LLM 后可自由交谈'
               }
               aria-label="以队长身份输入对话内容"

@@ -68,6 +68,21 @@ export function Settings({ state, dispatch }: SettingsProps) {
         </div>
       </div>
 
+      <div className="setting-card">
+        <div>
+          <strong>下载 Mobile-Tavern（Android）</strong>
+          <p>手机端 AI 聊天宿主，安装后在游戏内选择「Mobile-Tavern」即可启用真实角色聊天；自动模式会优先使用它。</p>
+          <small>测试包（debug）· 版本 1.7.10 · 约 201 MB</small>
+        </div>
+        <a
+          className="download-btn"
+          href="https://neural-node.xyz/downloads/mobile-tavern-1.7.10.apk"
+          download="mobile-tavern-1.7.10.apk"
+        >
+          下载 APK
+        </a>
+      </div>
+
       {provider === 'direct' && (
         <div className="setting-card api-config-card">
           <div className="api-config-form">
